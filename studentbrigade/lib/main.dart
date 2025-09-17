@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
-import 'pages/home.dart';
-import 'package:google_fonts/google_fonts.dart';
-
+import 'app_theme.dart';
+import 'pages/nav_shell.dart';
 
 void main() => runApp(const MyApp());
-
-const _mint = Color(0xFF61C0B6);
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -13,9 +10,12 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(useMaterial3: true, colorSchemeSeed: _mint),
-      home: const HomePage(),
+      theme: buildLightTheme(),   // tu tema global
+      home: const NavShell(),
     );
   }
 }
+
+
+
 
