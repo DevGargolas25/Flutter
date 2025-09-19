@@ -16,10 +16,10 @@ class _NavShellState extends State<NavShell> {
   // Reemplaza _DummyPage por tus páginas reales si ya las tienes
   final _pages = const [
     HomePage(),
-    Chatbotscreen(),
-    _DummyPage(title: 'Map'),  // Placeholder for MapPage
-    VideoScreen(),
-    ProfilePage()
+    ChatbotsScreen(),
+    _DummyPage(title: 'Map'), // Placeholder for MapPage
+    VideosScreen(),
+    ProfilePage(),
   ];
 
   @override
@@ -140,9 +140,7 @@ class _NavShellState extends State<NavShell> {
     showDialog(
       context: context,
       builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         child: Container(
           width: MediaQuery.of(context).size.width * 0.9,
           height: MediaQuery.of(context).size.height * 0.6,
@@ -173,11 +171,7 @@ class _NavShellState extends State<NavShell> {
                     const CircleAvatar(
                       radius: 30,
                       backgroundColor: Colors.white24,
-                      child: Icon(
-                        Icons.person,
-                        size: 40,
-                        color: Colors.white,
-                      ),
+                      child: Icon(Icons.person, size: 40, color: Colors.white),
                     ),
                     const SizedBox(height: 16),
                     // Título
@@ -193,15 +187,12 @@ class _NavShellState extends State<NavShell> {
                     // Subtítulo
                     const Text(
                       'Manage your account and preferences',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white70,
-                      ),
+                      style: TextStyle(fontSize: 16, color: Colors.white70),
                     ),
                   ],
                 ),
               ),
-              
+
               // Contenido del modal
               Expanded(
                 child: Padding(
@@ -261,9 +252,9 @@ class _NavShellState extends State<NavShell> {
                           ),
                         ),
                       ),
-                      
+
                       const SizedBox(height: 20),
-                      
+
                       // Texto informativo
                       Container(
                         width: double.infinity,
@@ -281,7 +272,7 @@ class _NavShellState extends State<NavShell> {
                           textAlign: TextAlign.center,
                         ),
                       ),
-                      
+
                       const Spacer(),
                     ],
                   ),
