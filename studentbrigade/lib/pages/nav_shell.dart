@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'home.dart';
+import 'chat_page.dart';
+import 'videos_screen.dart';
 
 class NavShell extends StatefulWidget {
   const NavShell({super.key});
@@ -13,9 +15,9 @@ class _NavShellState extends State<NavShell> {
   // Reemplaza _DummyPage por tus páginas reales si ya las tienes
   final _pages = const [
     HomePage(),
-    _DummyPage(title: 'Chat'),
+    ChatbotsScreen(),
     _DummyPage(title: 'Map'),
-    _DummyPage(title: 'Videos'),
+    VideosScreen(),
   ];
 
   @override
@@ -91,7 +93,10 @@ class _NavShellState extends State<NavShell> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Emergency Assistance', style: tt.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+            Text(
+              'Emergency Assistance',
+              style: tt.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: 10),
             ListTile(
               leading: const Icon(Icons.campaign_rounded),
@@ -182,4 +187,3 @@ class _DummyPage extends StatelessWidget {
     );
   }
 }
-
