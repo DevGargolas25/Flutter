@@ -58,7 +58,7 @@ class ChatbotsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 4),
 
-            // Solo un item: Brigade Assistant
+            // Assistants
             Expanded(
               child: ListView(
                 children: [
@@ -72,6 +72,43 @@ class ChatbotsScreen extends StatelessWidget {
                     icon: Icons.smart_toy_outlined,
                     onTap: () =>
                         Navigator.pushNamed(context, ChatScreen.routeName),
+                  ),
+                  const Divider(height: 1, indent: 70, endIndent: 16),
+                  // ---- Brigade Team ----
+                  _ChatbotTile(
+                    title: 'Brigade Team',
+                    subtitle:
+                        'Meeting tonight at 7 PM in room 203. Please confirm y...',
+                    time: '9:45 AM',
+                    unread: 0,
+                    avatarColor: const Color(0xFF58A57B),
+                    icon: Icons.groups_rounded,
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Abrir chat Brigade Team'),
+                        ),
+                      );
+                    },
+                  ),
+
+                  const Divider(height: 1, indent: 70, endIndent: 16),
+                  // ---- Brigade Alerts ----
+                  _ChatbotTile(
+                    title: 'Brigade Alerts',
+                    subtitle:
+                        'Weather alert: Strong winds expected this afternoon. St...',
+                    time: 'Yesterday',
+                    unread: 1,
+                    avatarColor: const Color(0xFFE29375),
+                    icon: Icons.chat_bubble_outline_rounded,
+                    onTap: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Abrir chat Brigade Alerts'),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),

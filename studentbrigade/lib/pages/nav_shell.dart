@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'home.dart';
 import 'chat_page.dart';
+import 'videos_screen.dart';
 
 class NavShell extends StatefulWidget {
   const NavShell({super.key});
@@ -16,7 +17,7 @@ class _NavShellState extends State<NavShell> {
     HomePage(),
     ChatbotsScreen(),
     _DummyPage(title: 'Map'),
-    _DummyPage(title: 'Videos'),
+    VideosScreen(),
   ];
 
   @override
