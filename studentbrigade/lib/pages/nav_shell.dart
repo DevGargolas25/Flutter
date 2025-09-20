@@ -3,6 +3,7 @@ import 'home.dart';
 import 'profile_page.dart';
 import 'chat_page.dart';
 import 'videos_screen.dart';
+import 'map_page.dart';
 import 'emergency/sos_dialog.dart';
 
 class NavShell extends StatefulWidget {
@@ -18,7 +19,7 @@ class _NavShellState extends State<NavShell> {
   final _pages = const [
     HomePage(),
     ChatbotsScreen(),
-    _DummyPage(title: 'Map'),
+    MapPage(),
     VideosScreen(),
     ProfilePage(),
   ];
