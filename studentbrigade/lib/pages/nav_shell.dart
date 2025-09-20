@@ -5,7 +5,6 @@ import 'chat_page.dart';
 import 'videos_screen.dart';
 import 'emergency/sos_dialog.dart';
 
-
 class NavShell extends StatefulWidget {
   const NavShell({super.key});
   @override
@@ -25,7 +24,7 @@ class _NavShellState extends State<NavShell> {
     HomePage(),
     ChatbotsScreen(),
     _DummyPage(title: 'Map'),
-    VideosScreen(), 
+    VideosScreen(),
     ProfilePage(),
   ];
 
@@ -122,53 +121,17 @@ class _NavShellState extends State<NavShell> {
     _showProfileModal();
   }
 
-  void _showSos(BuildContext context) {
-    final tt = Theme.of(context).textTheme;
-    showModalBottomSheet(
-      context: context,
-      showDragHandle: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Emergency Assistance', style: tt.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 10),
-            ListTile(
-              leading: const Icon(Icons.campaign_rounded),
-              title: const Text('Send Emergency Alert'),
-              subtitle: const Text('Alert campus security and brigade members'),
-              onTap: () {}, // TODO
-            ),
-            ListTile(
-              leading: const Icon(Icons.support_agent_rounded),
-              title: const Text('Contact Brigade'),
-              subtitle: const Text('Connect with nearest brigade member'),
-              onTap: () {}, // TODO
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-  }
-
   void _showProfileModal() {
     showDialog(
       context: context,
       builder: (context) => Dialog(
-
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: SizedBox(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
         child: Container(
           width: MediaQuery.of(context).size.width * 0.9,
           height: MediaQuery.of(context).size.height * 0.6,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+          ),
           child: Column(
             children: [
               // Header con fondo turquesa
@@ -194,11 +157,7 @@ class _NavShellState extends State<NavShell> {
                     const CircleAvatar(
                       radius: 30,
                       backgroundColor: Colors.white24,
-                      child: Icon(
-                        Icons.person,
-                        size: 30,
-                        color: Colors.white,
-                      ),
+                      child: Icon(Icons.person, size: 30, color: Colors.white),
                     ),
                     const SizedBox(height: 16),
                     const Text(
@@ -212,15 +171,12 @@ class _NavShellState extends State<NavShell> {
                     const SizedBox(height: 8),
                     const Text(
                       'Manage your account and preferences',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white70,
-                      ),
+                      style: TextStyle(fontSize: 16, color: Colors.white70),
                     ),
                   ],
                 ),
               ),
-              
+
               // Contenido del modal
               Expanded(
                 child: Padding(
@@ -245,37 +201,21 @@ class _NavShellState extends State<NavShell> {
                             children: [
                               const Icon(Icons.person_outline, size: 30, color: Colors.grey),
                               const SizedBox(width: 16),
-                              const Icon(
-                                Icons.person_outline,
-                                size: 30,
-                                color: Colors.grey,
-                              ),
-                              const SizedBox(width: 9),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Profile Settings',
-                                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                                    ),
-                                    const SizedBox(height: 4),
+                                  children: const [
                                     Text(
-                                      'Update personal info and emergency contacts',
-                                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-
+                                      'Profile Settings',
                                       style: TextStyle(
-                                        fontSize: 16,
+                                        fontSize: 18,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
+                                    SizedBox(height: 4),
                                     Text(
-                                      'Update personal info',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.grey[600],
-                                      ),
+                                      'Update personal info and emergency contacts',
+                                      style: TextStyle(fontSize: 14, color: Colors.grey),
                                     ),
                                   ],
                                 ),
@@ -285,9 +225,9 @@ class _NavShellState extends State<NavShell> {
                           ),
                         ),
                       ),
-                      
+
                       const SizedBox(height: 20),
-                      
+
                       // Texto informativo
                       Container(
                         width: double.infinity,
@@ -302,7 +242,7 @@ class _NavShellState extends State<NavShell> {
                           textAlign: TextAlign.center,
                         ),
                       ),
-                      
+
                       const Spacer(),
                     ],
                   ),
