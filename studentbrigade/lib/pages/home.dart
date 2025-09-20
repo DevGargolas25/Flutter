@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'profile_page.dart';
 import './widgets/rotating_image_box.dart'; // o reemplaza por Image.asset('assets/medical.png', fit: BoxFit.cover)
 
 typedef VideoSelect = void Function(int videoId);
@@ -739,37 +740,39 @@ Future<void> showProfileMenuDialog(BuildContext context, VoidCallback? onOpenPro
             ),
             Padding(
               padding: const EdgeInsets.all(16),
-              child: InkWell(
-                onTap: () {
-                  Navigator.pop(ctx);
-                  onOpenProfile?.call();
-                },
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  width: double.infinity,
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF7FBFC),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                        color: const Color(0xFF99D2D2).withOpacity(.3)),
-                  ),
-                  child: Row(
-                    children: const [
-                      CircleAvatar(
-                        radius: 16,
-                        backgroundColor: Color(0xFF99D2D2),
-                        child:
-                        Icon(Icons.person_outline, color: Colors.white),
-                      ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Text('Profile Settings',
-                            style: TextStyle(fontWeight: FontWeight.w600)),
-                      ),
-                      Icon(Icons.chevron_right),
-                    ],
+                child: InkWell(
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    // ✅ CAMBIAR ESTO - Navegar directamente a ProfilePage
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ProfilePage()),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF7FBFC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: const Color(0xFF99D2D2).withOpacity(.3)),
+                    ),
+                    child: Row(
+                      children: const [
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundColor: Color(0xFF99D2D2),
+                          child: Icon(Icons.person_outline, color: Colors.white),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Text('Profile Settings',
+                              style: TextStyle(fontWeight: FontWeight.w600)),
+                        ),
+                        Icon(Icons.chevron_right),
+                      ],
                   ),
                 ),
               ),

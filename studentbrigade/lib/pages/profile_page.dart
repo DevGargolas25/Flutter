@@ -43,6 +43,10 @@ class _ProfilePageState extends State<ProfilePage> {
     final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
+      appBar: AppBar(
+        title: const Text('Profile'),
+        backgroundColor: cs.primary,
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
