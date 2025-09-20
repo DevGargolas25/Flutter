@@ -3,6 +3,7 @@ import 'home.dart';
 import 'profile_page.dart';
 import 'chat_page.dart';
 import 'videos_screen.dart';
+import 'emergency/sos_dialog.dart';
 
 class NavShell extends StatefulWidget {
   const NavShell({super.key});
@@ -13,11 +14,16 @@ class NavShell extends StatefulWidget {
 class _NavShellState extends State<NavShell> {
   int _index = 0;
 
-  // Reemplaza _DummyPage por tus páginas reales si ya las tienes
+  // Tamaños para el hueco del FAB en el BottomAppBar
+  static const double _fabSize = 56;
+  static const double _notchMargin = 8;
+  static const double _gapWidth = _fabSize + (_notchMargin * 2); // 72
+
+  // Páginas reales/placeholders
   final _pages = const [
     HomePage(),
     ChatbotsScreen(),
-    _DummyPage(title: 'Map'), // Placeholder for MapPage
+    _DummyPage(title: 'Map'),
     VideosScreen(),
     ProfilePage(),
   ];
@@ -25,66 +31,82 @@ class _NavShellState extends State<NavShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // FAB centrado con notch
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => SosDialog.show(context),
+        child: const Icon(Icons.warning_amber_rounded),
+      ),
+
       appBar: AppBar(
-        title: Text("Profile"),
+        title: const Text("Profile"),
         backgroundColor: Theme.of(context).colorScheme.surface,
         elevation: 0,
         actions: [
           IconButton(
-            onPressed: () => _navigateToProfile(),
+            onPressed: _navigateToProfile,
             icon: const Icon(Icons.account_circle),
             tooltip: 'Profile',
           ),
         ],
       ),
-      body: _pages[_index],
 
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showSos(context),
-        child: const Icon(Icons.warning_amber_rounded),
-      ),
+      body: _pages[_index],
 
       bottomNavigationBar: BottomAppBar(
         elevation: 0,
         shape: const CircularNotchedRectangle(),
+        notchMargin: _notchMargin,
         color: Colors.white,
         child: SafeArea(
           top: false,
-          child: Container(
+          child: SizedBox(
             height: 70,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                _NavItem(
-                  icon: Icons.home,
-                  label: 'Home',
-                  selected: _index == 0,
-                  onTap: () => setState(() => _index = 0),
-                ),
-                _NavItem(
-                  icon: Icons.chat_bubble,
-                  label: 'Chat',
-                  selected: _index == 1,
-                  onTap: () => setState(() => _index = 1),
+                // Lado izquierdo (Home, Chat)
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _NavItem(
+                        icon: Icons.home,
+                        label: 'Home',
+                        selected: _index == 0,
+                        onTap: () => setState(() => _index = 0),
+                      ),
+                      _NavItem(
+                        icon: Icons.chat_bubble,
+                        label: 'Chat',
+                        selected: _index == 1,
+                        onTap: () => setState(() => _index = 1),
+                      ),
+                    ],
+                  ),
                 ),
 
-                // ✅ Espacio para el FAB - más ancho para mejor separación
-                const SizedBox(width: 60),
+                // Hueco central para el FAB
+                const SizedBox(width: _gapWidth),
 
-                _NavItem(
-                  icon: Icons.map,
-                  label: 'Map',
-                  selected: _index == 2,
-                  onTap: () => setState(() => _index = 2),
-                ),
-                _NavItem(
-                  icon: Icons.play_circle_filled,
-                  label: 'Videos',
-                  selected: _index == 3,
-                  onTap: () => setState(() => _index = 3),
+                // Lado derecho (Map, Videos)
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _NavItem(
+                        icon: Icons.map,
+                        label: 'Map',
+                        selected: _index == 2,
+                        onTap: () => setState(() => _index = 2),
+                      ),
+                      _NavItem(
+                        icon: Icons.play_circle_filled,
+                        label: 'Videos',
+                        selected: _index == 3,
+                        onTap: () => setState(() => _index = 3),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -94,46 +116,9 @@ class _NavShellState extends State<NavShell> {
     );
   }
 
-  // Method to navigate to profile page
+  // Abre el modal de perfil y navega a la pestaña ProfilePage si el usuario toca la tarjeta
   void _navigateToProfile() {
     _showProfileModal();
-  }
-
-  void _showSos(BuildContext context) {
-    final tt = Theme.of(context).textTheme;
-    showModalBottomSheet(
-      context: context,
-      showDragHandle: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Emergency Assistance',
-              style: tt.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 10),
-            ListTile(
-              leading: const Icon(Icons.campaign_rounded),
-              title: const Text('Send Emergency Alert'),
-              subtitle: const Text('Alert campus security and brigade members'),
-              onTap: () {}, // TODO
-            ),
-            ListTile(
-              leading: const Icon(Icons.support_agent_rounded),
-              title: const Text('Contact Brigade'),
-              subtitle: const Text('Connect with nearest brigade member'),
-              onTap: () {}, // TODO
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
   }
 
   void _showProfileModal() {
@@ -141,7 +126,7 @@ class _NavShellState extends State<NavShell> {
       context: context,
       builder: (context) => Dialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Container(
+        child: SizedBox(
           width: MediaQuery.of(context).size.width * 0.9,
           height: MediaQuery.of(context).size.height * 0.6,
           child: Column(
@@ -150,16 +135,15 @@ class _NavShellState extends State<NavShell> {
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF7DD3C0), // Color turquesa de tu imagen
-                  borderRadius: const BorderRadius.only(
+                decoration: const BoxDecoration(
+                  color: Color(0xFF7DD3C0),
+                  borderRadius: BorderRadius.only(
                     topLeft: Radius.circular(20),
                     topRight: Radius.circular(20),
                   ),
                 ),
                 child: Column(
                   children: [
-                    // Botón cerrar
                     Align(
                       alignment: Alignment.topRight,
                       child: IconButton(
@@ -167,14 +151,12 @@ class _NavShellState extends State<NavShell> {
                         onPressed: () => Navigator.pop(context),
                       ),
                     ),
-                    // Ícono de perfil
                     const CircleAvatar(
                       radius: 30,
                       backgroundColor: Colors.white24,
                       child: Icon(Icons.person, size: 40, color: Colors.white),
                     ),
                     const SizedBox(height: 16),
-                    // Título
                     const Text(
                       'Profile & Settings',
                       style: TextStyle(
@@ -184,7 +166,6 @@ class _NavShellState extends State<NavShell> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    // Subtítulo
                     const Text(
                       'Manage your account and preferences',
                       style: TextStyle(fontSize: 16, color: Colors.white70),
@@ -199,7 +180,6 @@ class _NavShellState extends State<NavShell> {
                   padding: const EdgeInsets.all(24),
                   child: Column(
                     children: [
-                      // Profile Settings Card
                       GestureDetector(
                         onTap: () {
                           Navigator.pop(context); // Cerrar modal
@@ -216,11 +196,7 @@ class _NavShellState extends State<NavShell> {
                           ),
                           child: Row(
                             children: [
-                              const Icon(
-                                Icons.person_outline,
-                                size: 30,
-                                color: Colors.grey,
-                              ),
+                              const Icon(Icons.person_outline, size: 30, color: Colors.grey),
                               const SizedBox(width: 16),
                               Expanded(
                                 child: Column(
@@ -228,26 +204,17 @@ class _NavShellState extends State<NavShell> {
                                   children: [
                                     const Text(
                                       'Profile Settings',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                                     ),
                                     const SizedBox(height: 4),
                                     Text(
                                       'Update personal info and emergency contacts',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.grey[600],
-                                      ),
+                                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                                     ),
                                   ],
                                 ),
                               ),
-                              const Icon(
-                                Icons.chevron_right,
-                                color: Colors.grey,
-                              ),
+                              const Icon(Icons.chevron_right, color: Colors.grey),
                             ],
                           ),
                         ),
@@ -255,20 +222,16 @@ class _NavShellState extends State<NavShell> {
 
                       const SizedBox(height: 20),
 
-                      // Texto informativo
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE8F5F3), // Verde claro
+                          color: const Color(0xFFE8F5F3),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
                           'Keep your profile updated for better emergency response.',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[700],
-                          ),
+                          style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -303,33 +266,26 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
 
-    // ✅ Colores más sutiles como en la imagen
+    // Colores sutiles como en tus capturas
     final baseColor = Colors.grey.shade500;
-    final selIcon = cs.primary;
-    final selText = cs.primary;
+    final selColor = cs.primary;
 
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
-      child: Container(
+      child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 24, // ✅ Iconos más grandes como en la imagen
-              color: selected ? selIcon : baseColor,
-            ),
+            Icon(icon, size: 24, color: selected ? selColor : baseColor),
             const SizedBox(height: 4),
             Text(
               label,
               style: TextStyle(
-                fontSize: 11, // ✅ Texto más pequeño
-                color: selected ? selText : baseColor,
+                fontSize: 11,
+                color: selected ? selColor : baseColor,
                 fontWeight: FontWeight.w500,
                 height: 1.0,
               ),
