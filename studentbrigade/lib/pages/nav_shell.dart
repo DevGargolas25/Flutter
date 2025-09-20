@@ -14,11 +14,6 @@ class NavShell extends StatefulWidget {
 class _NavShellState extends State<NavShell> {
   int _index = 0;
 
-  // Tamaños para el hueco del FAB en el BottomAppBar
-  static const double _fabSize = 56;
-  static const double _notchMargin = 8;
-  static const double _gapWidth = _fabSize + (_notchMargin * 2); // 72
-
   // Páginas reales/placeholders
   final _pages = const [
     HomePage(),
@@ -31,13 +26,6 @@ class _NavShellState extends State<NavShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // FAB centrado con notch
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => SosDialog.show(context),
-        child: const Icon(Icons.warning_amber_rounded),
-      ),
-
       appBar: AppBar(
         title: const Text("Profile"),
         backgroundColor: Theme.of(context).colorScheme.surface,
@@ -53,64 +41,55 @@ class _NavShellState extends State<NavShell> {
 
       body: _pages[_index],
 
-      bottomNavigationBar: BottomAppBar(
-        elevation: 0,
-        shape: const CircularNotchedRectangle(),
-        notchMargin: _notchMargin,
-        color: Colors.white,
-        child: SafeArea(
-          top: false,
-          child: SizedBox(
-            height: 70,
-            child: Row(
-              children: [
-                // Lado izquierdo (Home, Chat)
-                Expanded(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _NavItem(
-                        icon: Icons.home,
-                        label: 'Home',
-                        selected: _index == 0,
-                        onTap: () => setState(() => _index = 0),
-                      ),
-                      _NavItem(
-                        icon: Icons.chat_bubble,
-                        label: 'Chat',
-                        selected: _index == 1,
-                        onTap: () => setState(() => _index = 1),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Hueco central para el FAB
-                const SizedBox(width: _gapWidth),
-
-                // Lado derecho (Map, Videos)
-                Expanded(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _NavItem(
-                        icon: Icons.map,
-                        label: 'Map',
-                        selected: _index == 2,
-                        onTap: () => setState(() => _index = 2),
-                      ),
-                      _NavItem(
-                        icon: Icons.play_circle_filled,
-                        label: 'Videos',
-                        selected: _index == 3,
-                        onTap: () => setState(() => _index = 3),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+      // Bottom Navigation Bar with integrated SOS button
+      bottomNavigationBar: Container(
+        height: 60, // Further reduced height
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.1),
+              spreadRadius: 0,
+              blurRadius: 10,
+              offset: const Offset(0, -2),
             ),
-          ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _NavItem(
+              icon: Icons.home_outlined,
+              selectedIcon: Icons.home,
+              label: 'Home',
+              selected: _index == 0,
+              onTap: () => setState(() => _index = 0),
+            ),
+            _NavItem(
+              icon: Icons.chat_bubble_outline,
+              selectedIcon: Icons.chat_bubble,
+              label: 'Chat',
+              selected: _index == 1,
+              onTap: () => setState(() => _index = 1),
+            ),
+            // SOS Button in center
+            _SOSButton(onTap: () => SosDialog.show(context)),
+            _NavItem(
+              icon: Icons.map_outlined,
+              selectedIcon: Icons.map,
+              label: 'Map',
+              selected: _index == 2,
+              onTap: () => setState(() => _index = 2),
+            ),
+            _NavItem(
+              icon: Icons.play_circle_outline,
+              selectedIcon: Icons.play_circle_filled,
+              label: 'Videos',
+              selected: _index == 3,
+              onTap: () => setState(() => _index = 3),
+            ),
+          ],
         ),
       ),
     );
@@ -256,15 +235,57 @@ class _NavShellState extends State<NavShell> {
   }
 }
 
+/* ======================= SOS Button ======================= */
+class _SOSButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _SOSButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 36, // Much smaller
+            height: 36,
+            decoration: const BoxDecoration(
+              color: Color(0xFFE53E3E),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.warning_amber_rounded,
+              color: Colors.white,
+              size: 18, // Smaller icon
+            ),
+          ),
+          const Text(
+            'SOS',
+            style: TextStyle(
+              fontSize: 7, // Very small text
+              color: Color(0xFFE53E3E),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /* ======================= Item del Bottom Nav ======================= */
 class _NavItem extends StatelessWidget {
   final IconData icon;
+  final IconData? selectedIcon;
   final String label;
   final bool selected;
   final VoidCallback onTap;
 
   const _NavItem({
     required this.icon,
+    this.selectedIcon,
     required this.label,
     required this.selected,
     required this.onTap,
@@ -282,16 +303,20 @@ class _NavItem extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4), // Reduced padding
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 24, color: selected ? selColor : baseColor),
-            const SizedBox(height: 4),
+            Icon(
+              selected ? (selectedIcon ?? icon) : icon,
+              size: 22, // Smaller icons
+              color: selected ? selColor : baseColor,
+            ),
+            const SizedBox(height: 2), // Reduced spacing
             Text(
               label,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 9, // Smaller text
                 color: selected ? selColor : baseColor,
                 fontWeight: FontWeight.w500,
                 height: 1.0,
@@ -318,4 +343,3 @@ class _DummyPage extends StatelessWidget {
     );
   }
 }
-
