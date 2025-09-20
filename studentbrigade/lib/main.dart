@@ -13,7 +13,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: buildLightTheme().copyWith(
-        // ✅ Agregar Google Fonts a tu tema existente
+
         textTheme: GoogleFonts.robotoTextTheme(
           buildLightTheme().textTheme,
         ),
