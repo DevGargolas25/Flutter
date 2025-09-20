@@ -1,5 +1,5 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import '../../app_colors.dart';
 
 class EmergencyChatScreen extends StatefulWidget {
   const EmergencyChatScreen({super.key});
@@ -8,84 +8,188 @@ class EmergencyChatScreen extends StatefulWidget {
   State<EmergencyChatScreen> createState() => _EmergencyChatScreenState();
 }
 
+/* ======================= PALETA (match TSX) ======================= */
+const _red = Color(0xFFE63946);
+const _teal = Color(0xFF75C1C7);
+const _green = Color(0xFF60B896);
+const _aqua = Color(0xFF99D2D2);
+const _peach = Color(0xFFF1AC89);
+const _bg = Color(0xFFF7FBFC);
+const _ink = Color(0xFF4A2951);
+
+enum _TabKey { brigadist, medical, assistant, map }
+
+class _Msg {
+  final String text;
+  final bool fromMe; // true => usuario; false => brigadista/bot
+  final String time;
+  _Msg({required this.text, required this.fromMe, this.time = 'Now'});
+}
+
 class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
-  final _controller = TextEditingController();
-  final List<_Msg> _messages = [
+  _TabKey _activeTab = _TabKey.brigadist;
+
+  // Brigadist chat
+  final _brigadistInput = TextEditingController();
+  final List<_Msg> _brigadistMsgs = [
     _Msg(text: "Emergency received! I'm Sarah from the Brigade Team. Are you injured?", fromMe: false),
     _Msg(text: "I'm currently 2 minutes away from your location. Stay calm.", fromMe: false),
   ];
 
-  int _tabIndex = 0; // 0 Brigadist, 1 Medical, 2 Assistant, 3 Location
+  // Chatbot (assistant) chat
+  final _botInput = TextEditingController();
+  final List<_Msg> _botMsgs = [
+    _Msg(
+      text: 'Emergency protocol activated. I can help you with immediate safety instructions while help is on the way.',
+      fromMe: false,
+    ),
+    _Msg(
+      text: 'Based on your location, the nearest safe assembly point is the Main Campus front parking lot.',
+      fromMe: false,
+    ),
+  ];
+
+  // Medical info (mock)
+  final _medicalInfo = const {
+    'bloodType': 'O+',
+    'allergies': [
+      'Peanuts, Shellfish',
+      'Pollen, Dust mites',
+      'Penicillin',
+    ],
+    'medications': [
+      'Inhaler (Albuterol) - As needed for asthma',
+      'EpiPen - For severe allergic reactions',
+      'Vitamin D3 - 1000 IU daily',
+    ],
+    'notes':
+    'Carry EpiPen for severe reactions. Keep inhaler accessible at all times.',
+  };
+
+  @override
+  void dispose() {
+    _brigadistInput.dispose();
+    _botInput.dispose();
+    super.dispose();
+  }
+
+  /* ======================= CHATBOT REGLAS ======================= */
+  String _aiResponse(String userMessage) {
+    final m = userMessage.toLowerCase();
+    if (m.contains('first aid') || m.contains('injured') || m.contains('hurt')) {
+      return 'For immediate first aid: Check breathing and pulse. Apply pressure to bleeding wounds. Keep the person calm and still. Do not move them if you suspect spinal injury.';
+    }
+    if (m.contains('fire') || m.contains('smoke')) {
+      return 'Fire emergency protocol: Stay low to avoid smoke. Feel doors before opening. Use stairs, never elevators. If trapped, signal for help from a window.';
+    }
+    if (m.contains('evacuation') || m.contains('exit')) {
+      return 'Follow your nearest marked evacuation route. Proceed to the designated assembly point shown on the map. Wait for further instructions from brigadists.';
+    }
+    if (m.contains('panic') || m.contains('scared') || m.contains('afraid')) {
+      return 'Take slow, deep breaths. Focus on your breathing pattern. Help is on the way. You are not alone - the brigade team is trained to handle this situation.';
+    }
+    if (m.contains('earthquake') || m.contains('shake')) {
+      return 'During earthquake: Drop, Cover, Hold. After shaking stops, evacuate carefully watching for hazards. Stay away from damaged buildings and power lines.';
+    }
+    return "I'm here to help with emergency procedures. Ask me about first aid, evacuation routes, fire safety, or any other emergency situation you need assistance with.";
+  }
+
+  void _sendBrigadist() {
+    final text = _brigadistInput.text.trim();
+    if (text.isEmpty) return;
+    setState(() {
+      _brigadistMsgs.add(_Msg(text: text, fromMe: true));
+      _brigadistInput.clear();
+    });
+  }
+
+  void _sendBot() {
+    final text = _botInput.text.trim();
+    if (text.isEmpty) return;
+
+    setState(() {
+      _botMsgs.add(_Msg(text: text, fromMe: true));
+      _botInput.clear();
+    });
+
+    // Respuesta "AI" simulada a los 800ms
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (!mounted) return;
+      setState(() {
+        _botMsgs.add(_Msg(text: _aiResponse(text), fromMe: false));
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: _bg,
       appBar: AppBar(
+        backgroundColor: _red,
+        elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
+          tooltip: 'Back',
         ),
-        backgroundColor: pastelRed,
-        elevation: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Emergency Active',
-                style: tt.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w700)),
+                style: tt.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
             Text('Help is on the way',
-                style: tt.bodySmall?.copyWith(color: Colors.white70, fontSize: 12)),
+                style: tt.bodySmall?.copyWith(color: Colors.white.withOpacity(.9))),
           ],
         ),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 16),
+            padding: const EdgeInsets.only(right: 12),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.circle, size: 8, color: Colors.lightGreenAccent.shade100),
-                const SizedBox(width: 4),
-                Text('Connected', style: tt.bodySmall?.copyWith(color: Colors.white, fontSize: 12)),
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(color: _green, shape: BoxShape.circle),
+                ),
+                const SizedBox(width: 6),
+                Text('Connected',
+                    style: tt.bodySmall?.copyWith(color: Colors.white, fontSize: 12)),
               ],
             ),
           ),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(50),
+          preferredSize: const Size.fromHeight(44),
           child: Container(
-            color: pastelRed,
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            color: Colors.white,
             child: Row(
               children: [
-                _CompactTab(
-                  icon: Icons.radio_button_checked,
+                _TabBtn(
                   label: 'Brigadist',
-                  isSelected: _tabIndex == 0,
-                  onTap: () => setState(() => _tabIndex = 0),
+                  icon: Icons.chat_bubble_outline,
+                  active: _activeTab == _TabKey.brigadist,
+                  onTap: () => setState(() => _activeTab = _TabKey.brigadist),
                 ),
-                const SizedBox(width: 12),
-                _CompactTab(
-                  icon: Icons.favorite_outline,
+                _TabBtn(
                   label: 'Medical',
-                  isSelected: _tabIndex == 1,
-                  onTap: () => setState(() => _tabIndex = 1),
+                  icon: Icons.favorite_border,
+                  active: _activeTab == _TabKey.medical,
+                  onTap: () => setState(() => _activeTab = _TabKey.medical),
                 ),
-                const SizedBox(width: 12),
-                _CompactTab(
-                  icon: Icons.support_agent_outlined,
+                _TabBtn(
                   label: 'Assistant',
-                  isSelected: _tabIndex == 2,
-                  onTap: () => setState(() => _tabIndex = 2),
+                  icon: Icons.support_agent_outlined,
+                  active: _activeTab == _TabKey.assistant,
+                  onTap: () => setState(() => _activeTab = _TabKey.assistant),
                 ),
-                const SizedBox(width: 12),
-                _CompactTab(
-                  icon: Icons.location_on_outlined,
+                _TabBtn(
                   label: 'Location',
-                  isSelected: _tabIndex == 3,
-                  onTap: () => setState(() => _tabIndex = 3),
+                  icon: Icons.location_on_outlined,
+                  active: _activeTab == _TabKey.map,
+                  onTap: () => setState(() => _activeTab = _TabKey.map),
                 ),
               ],
             ),
@@ -93,245 +197,607 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
         ),
       ),
 
-      body: Column(
+      body: Container(
+        color: _bg,
+        child: IndexedStack(
+          index: _activeTab.index,
+          children: [
+            _buildBrigadist(tt),
+            _buildMedical(tt),
+            _buildAssistant(tt),
+            _buildMap(tt),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /* ======================= BRIGADIST CHAT ======================= */
+  Widget _buildBrigadist(TextTheme tt) {
+    return Column(
+      children: [
+        // Header verde suave como en TSX
+        Container(
+          color: _green.withOpacity(.2),
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              const CircleAvatar(
+                radius: 20,
+                backgroundColor: _green,
+                child: Icon(Icons.person, color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Sarah Martinez',
+                        style: tt.titleSmall?.copyWith(
+                          color: _ink,
+                          fontWeight: FontWeight.w600,
+                        )),
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: _green,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text('Available - 2 min away',
+                            style: tt.bodySmall?.copyWith(color: _green)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: () {
+                  // TODO: llamada telefónica
+                },
+                icon: const Icon(Icons.call, color: _green),
+                tooltip: 'Call',
+              ),
+            ],
+          ),
+        ),
+
+        // Mensajes
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            itemCount: _brigadistMsgs.length,
+            itemBuilder: (ctx, i) {
+              final m = _brigadistMsgs[i];
+              final isMe = m.fromMe;
+              return _Bubble(
+                text: m.text,
+                time: m.time,
+                fromMe: isMe,
+                bg: isMe ? _green : _aqua,
+                fg: isMe ? Colors.white : _ink,
+                avatarColor: isMe ? Colors.grey.shade300 : _green.withOpacity(.2),
+                avatarIconColor: isMe ? Colors.grey.shade700 : _green,
+              );
+            },
+          ),
+        ),
+
+        // Input
+        _InputBar(
+          controller: _brigadistInput,
+          hint: 'Type your response...',
+          onSend: _sendBrigadist,
+          buttonColor: _green,
+        ),
+      ],
+    );
+  }
+
+  /* ======================= MEDICAL INFO ======================= */
+  Widget _buildMedical(TextTheme tt) {
+    return Padding(
+      padding: const EdgeInsets.all(12.0),
+      child: Column(
         children: [
-          // Compact brigadist card
+          Expanded(
+            child: ListView(
+              children: [
+                _InfoCard(
+                  title: 'Blood Type',
+                  icon: Icons.favorite,
+                  iconColor: Colors.white,
+                  chipBg: _peach.withOpacity(.2),
+                  borderColor: _aqua.withOpacity(.3),
+                  titleColor: _ink,
+                  child: Text(
+                    _medicalInfo['bloodType'] as String,
+                    style: tt.headlineSmall?.copyWith(
+                      color: const Color(0xFFE63946),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _InfoCard(
+                  title: 'Critical Allergies',
+                  icon: Icons.error_outline,
+                  chipBg: _peach.withOpacity(.2),
+                  borderColor: _aqua.withOpacity(.3),
+                  titleColor: _ink,
+                  child: Column(
+                    children: ( _medicalInfo['allergies'] as List )
+                        .map((a) => Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: _peach.withOpacity(.2),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border(left: BorderSide(color: _peach, width: 3)),
+                      ),
+                      child: Text(a, style: tt.bodyMedium?.copyWith(color: _ink)),
+                    ))
+                        .toList(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _InfoCard(
+                  title: 'Emergency Medications',
+                  icon: Icons.medication_outlined,
+                  chipBg: _teal.withOpacity(.2),
+                  borderColor: _aqua.withOpacity(.3),
+                  titleColor: _ink,
+                  child: Column(
+                    children: ( _medicalInfo['medications'] as List )
+                        .map((m) => Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: _teal.withOpacity(.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(m, style: tt.bodyMedium?.copyWith(color: _ink)),
+                    ))
+                        .toList(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _InfoCard(
+                  title: 'Emergency Notes',
+                  icon: Icons.report_gmailerrorred_outlined,
+                  chipBg: _red.withOpacity(.15),
+                  borderColor: _aqua.withOpacity(.3),
+                  titleColor: _ink,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: _red.withOpacity(.12),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border(left: BorderSide(color: _red, width: 3)),
+                    ),
+                    child: Text(
+                      _medicalInfo['notes'] as String,
+                      style: tt.bodyMedium?.copyWith(color: _ink, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /* ======================= ASSISTANT (CHATBOT) ======================= */
+  Widget _buildAssistant(TextTheme tt) {
+    return Column(
+      children: [
+        Container(
+          color: _teal.withOpacity(.2),
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              const CircleAvatar(
+                radius: 20,
+                backgroundColor: _teal,
+                child: Icon(Icons.support_agent, color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Brigade Assistant AI',
+                      style: tt.titleSmall?.copyWith(color: _ink, fontWeight: FontWeight.w600)),
+                  Text('Emergency support specialist',
+                      style: tt.bodySmall?.copyWith(color: _teal)),
+                ],
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            itemCount: _botMsgs.length,
+            itemBuilder: (ctx, i) {
+              final m = _botMsgs[i];
+              final isMe = m.fromMe;
+              return _Bubble(
+                text: m.text,
+                time: m.time,
+                fromMe: isMe,
+                bg: isMe ? _green : _aqua,
+                fg: isMe ? Colors.white : _ink,
+                avatarColor: isMe ? _green.withOpacity(.15) : _teal.withOpacity(.2),
+                avatarIconColor: isMe ? _ink : _teal,
+                iconData: isMe ? Icons.person : Icons.smart_toy_outlined,
+              );
+            },
+          ),
+        ),
+        _InputBar(
+          controller: _botInput,
+          hint: 'Ask about emergency procedures...',
+          onSend: _sendBot,
+          buttonColor: _teal,
+        ),
+      ],
+    );
+  }
+
+  /* ======================= MAP / LOCATION ======================= */
+  Widget _buildMap(TextTheme tt) {
+    return Padding(
+      padding: const EdgeInsets.all(12.0),
+      child: Column(
+        children: [
+          // Header ETA
           Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFFE8F5E8),
+              color: _green.withOpacity(.2),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: _green.withOpacity(.3)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Brigadist Location',
+                    style: tt.titleMedium?.copyWith(color: _ink, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Container(
+                      width: 8, height: 8,
+                      decoration: const BoxDecoration(color: _green, shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text('Sarah Martinez - 2 minutes away',
+                          style: tt.bodyMedium?.copyWith(color: _ink, fontWeight: FontWeight.w600)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text('Moving towards your location',
+                    style: tt.bodySmall?.copyWith(color: _green)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Mapa (placeholder)
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                width: double.infinity,
+                color: _aqua.withOpacity(.2),
+                alignment: Alignment.center,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.map, size: 48, color: _aqua),
+                    const SizedBox(height: 8),
+                    Text('Map goes here',
+                        style: tt.bodyMedium?.copyWith(color: _ink)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          // ETA info card
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: _peach.withOpacity(.2),
+              border: Border.all(color: _peach.withOpacity(.3)),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: Colors.green,
-                  child: const Icon(Icons.person, color: Colors.white, size: 20),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Sarah Martinez',
-                          style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w600, fontSize: 14)),
-                      const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          Icon(Icons.circle, size: 8, color: Colors.green),
-                          const SizedBox(width: 4),
-                          Text('Available - 2 min away',
-                              style: tt.bodySmall?.copyWith(color: Colors.green.shade700, fontSize: 12)),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  onPressed: () {
-                    // TODO: iniciar llamada telefónica
-                  },
-                  icon: const Icon(Icons.call, color: Colors.green, size: 20),
-                  visualDensity: VisualDensity.compact,
-                ),
-              ],
-            ),
-          ),
-
-          // Messages list
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: _messages.length,
-              itemBuilder: (ctx, i) => _CompactBubble(msg: _messages[i]),
-            ),
-          ),
-
-          // Input area
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: Color(0xFFE5E7EB))),
-            ),
-            child: SafeArea(
-              top: false,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _send(),
-                      decoration: InputDecoration(
-                        hintText: 'Type your response...',
-                        hintStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
-                        filled: true,
-                        fillColor: const Color(0xFFF9FAFB),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(25),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(25),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(25),
-                          borderSide: const BorderSide(color: Colors.teal, width: 1),
-                        ),
-                      ),
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Container(
-                    decoration: const BoxDecoration(
-                      color: Colors.teal,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      onPressed: _send,
-                      icon: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _send() {
-    final text = _controller.text.trim();
-    if (text.isEmpty) return;
-    setState(() {
-      _messages.add(_Msg(text: text, fromMe: true));
-      _controller.clear();
-    });
-  }
-}
-
-class _Msg {
-  final String text;
-  final bool fromMe;
-  _Msg({required this.text, required this.fromMe});
-}
-
-class _CompactBubble extends StatelessWidget {
-  final _Msg msg;
-  const _CompactBubble({required this.msg});
-
-  @override
-  Widget build(BuildContext context) {
-    final isMe = msg.fromMe;
-    final tt = Theme.of(context).textTheme;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (!isMe) ...[
-            CircleAvatar(
-              radius: 12,
-              backgroundColor: Colors.teal,
-              child: const Icon(Icons.person, color: Colors.white, size: 14),
-            ),
-            const SizedBox(width: 8),
-          ],
-          Expanded(
-            child: Column(
-              crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  constraints: BoxConstraints(
-                    maxWidth: MediaQuery.of(context).size.width * 0.75,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isMe ? Colors.teal : const Color(0xFFB2DFDB),
-                    borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(16),
-                      topRight: const Radius.circular(16),
-                      bottomLeft: Radius.circular(isMe ? 16 : 4),
-                      bottomRight: Radius.circular(isMe ? 4 : 16),
-                    ),
-                  ),
-                  child: Text(
-                    msg.text,
+                const Icon(Icons.access_time, size: 18, color: _ink),
+                const SizedBox(width: 8),
+                Text('Estimated arrival: 2 minutes',
                     style: tt.bodyMedium?.copyWith(
-                      color: isMe ? Colors.white : Colors.black87,
-                      fontSize: 14,
-                      height: 1.3,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Now',
-                  style: tt.bodySmall?.copyWith(
-                    color: Colors.grey.shade500,
-                    fontSize: 11,
-                  ),
-                ),
+                      color: _ink,
+                      fontWeight: FontWeight.w600,
+                    )),
               ],
             ),
           ),
-          if (isMe) ...[
-            const SizedBox(width: 8),
-            CircleAvatar(
-              radius: 12,
-              backgroundColor: Colors.grey.shade300,
-              child: Icon(Icons.person, color: Colors.grey.shade600, size: 14),
-            ),
-          ],
         ],
       ),
     );
   }
 }
 
-class _CompactTab extends StatelessWidget {
-  final IconData icon;
+/* ======================= WIDGETS UI REUTILIZABLES ======================= */
+
+class _TabBtn extends StatelessWidget {
   final String label;
-  final bool isSelected;
+  final IconData icon;
+  final bool active;
   final VoidCallback onTap;
 
-  const _CompactTab({
-    required this.icon,
+  const _TabBtn({
     required this.label,
-    required this.isSelected,
+    required this.icon,
+    required this.active,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
+    final base = active
+        ? BoxDecoration(
+      color: _teal.withOpacity(.1),
+      border: Border(
+        bottom: BorderSide(color: _teal, width: 2),
+      ),
+    )
+        : const BoxDecoration();
+
+    final labelStyle = TextStyle(
+      color: active ? _teal : _ink.withOpacity(.6),
+      fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+      fontSize: 13,
+    );
+
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          decoration: base,
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: labelStyle.color),
+              const SizedBox(width: 6),
+              Text(label, style: labelStyle),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Bubble extends StatelessWidget {
+  final String text;
+  final String time;
+  final bool fromMe;
+  final Color bg;
+  final Color fg;
+  final Color avatarColor;
+  final Color avatarIconColor;
+  final IconData iconData;
+
+  const _Bubble({
+    super.key,
+    required this.text,
+    required this.time,
+    required this.fromMe,
+    required this.bg,
+    required this.fg,
+    required this.avatarColor,
+    required this.avatarIconColor,
+    this.iconData = Icons.person,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bubble = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * .75),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.only(
+          topLeft: const Radius.circular(12),
+          topRight: const Radius.circular(12),
+          bottomLeft: Radius.circular(fromMe ? 12 : 4),
+          bottomRight: Radius.circular(fromMe ? 4 : 12),
+        ),
+      ),
+      child: Text(text, style: TextStyle(color: fg, height: 1.35, fontSize: 14)),
+    );
+
+    final stamp = Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Text(
+        time,
+        style: TextStyle(color: Colors.black54, fontSize: 11),
+      ),
+    );
+
+    final avatar = CircleAvatar(
+      radius: 14,
+      backgroundColor: avatarColor,
+      child: Icon(iconData, size: 16, color: avatarIconColor),
+    );
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 16,
-            color: isSelected ? Colors.white : Colors.white70,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? Colors.white : Colors.white70,
-              fontSize: 12,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: fromMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        children: fromMe
+            ? [
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [bubble, stamp])),
+          const SizedBox(width: 8),
+          avatar,
+        ]
+            : [
+          avatar,
+          const SizedBox(width: 8),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [bubble, stamp])),
+        ],
+      ),
+    );
+  }
+}
+
+class _InputBar extends StatelessWidget {
+  final TextEditingController controller;
+  final String hint;
+  final VoidCallback onSend;
+  final Color buttonColor;
+
+  const _InputBar({
+    required this.controller,
+    required this.hint,
+    required this.onSend,
+    required this.buttonColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: Colors.grey.shade300)),
+        ),
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => onSend(),
+                decoration: InputDecoration(
+                  hintText: hint,
+                  hintStyle: TextStyle(color: _ink.withOpacity(.5), fontSize: 14),
+                  filled: true,
+                  fillColor: _bg,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: _aqua.withOpacity(.3)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: _aqua.withOpacity(.3)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: _teal, width: 1),
+                  ),
+                ),
+                style: const TextStyle(fontSize: 14),
+              ),
             ),
+            const SizedBox(width: 8),
+            Material(
+              color: buttonColor,
+              borderRadius: BorderRadius.circular(10),
+              child: InkWell(
+                onTap: onSend,
+                borderRadius: BorderRadius.circular(10),
+                child: const Padding(
+                  padding: EdgeInsets.all(10.0),
+                  child: Icon(Icons.send_rounded, size: 20, color: Colors.white),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/* ======================= Cards genéricas ======================= */
+class _InfoCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final Widget child;
+  final Color chipBg;
+  final Color borderColor;
+  final Color titleColor;
+  final Color iconColor;
+
+  const _InfoCard({
+    required this.title,
+    required this.icon,
+    required this.child,
+    required this.chipBg,
+    required this.borderColor,
+    required this.titleColor,
+    this.iconColor = _teal,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: borderColor),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(.03),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
           ),
+        ],
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 16,
+                backgroundColor: chipBg,
+                child: Icon(icon, size: 18, color: iconColor),
+              ),
+              const SizedBox(width: 8),
+              Text(title,
+                  style: TextStyle(
+                    color: titleColor,
+                    fontWeight: FontWeight.w600,
+                  )),
+            ],
+          ),
+          const SizedBox(height: 10),
+          child,
         ],
       ),
     );
