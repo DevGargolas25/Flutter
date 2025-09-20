@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'home.dart';
+import 'profile_page.dart';
+import 'chat_page.dart';
+import 'videos_screen.dart';
 
 class NavShell extends StatefulWidget {
   const NavShell({super.key});
@@ -13,14 +16,27 @@ class _NavShellState extends State<NavShell> {
   // Reemplaza _DummyPage por tus páginas reales si ya las tienes
   final _pages = const [
     HomePage(),
-    _DummyPage(title: 'Chat'),
-    _DummyPage(title: 'Map'),
-    _DummyPage(title: 'Videos'),
+    ChatbotsScreen(),
+    _DummyPage(title: 'Map'), // Placeholder for MapPage
+    VideosScreen(),
+    ProfilePage(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: Text("Profile"),
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        elevation: 0,
+        actions: [
+          IconButton(
+            onPressed: () => _navigateToProfile(),
+            icon: const Icon(Icons.account_circle),
+            tooltip: 'Profile',
+          ),
+        ],
+      ),
       body: _pages[_index],
 
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
@@ -36,20 +52,20 @@ class _NavShellState extends State<NavShell> {
         child: SafeArea(
           top: false,
           child: Container(
-            height: 78,
+            height: 70,
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 _NavItem(
-                  icon: Icons.home_outlined,
+                  icon: Icons.home,
                   label: 'Home',
                   selected: _index == 0,
                   onTap: () => setState(() => _index = 0),
                 ),
                 _NavItem(
-                  icon: Icons.chat_bubble_outline,
+                  icon: Icons.chat_bubble,
                   label: 'Chat',
                   selected: _index == 1,
                   onTap: () => setState(() => _index = 1),
@@ -59,13 +75,13 @@ class _NavShellState extends State<NavShell> {
                 const SizedBox(width: 60),
 
                 _NavItem(
-                  icon: Icons.map_outlined,
+                  icon: Icons.map,
                   label: 'Map',
                   selected: _index == 2,
                   onTap: () => setState(() => _index = 2),
                 ),
                 _NavItem(
-                  icon: Icons.play_circle_outline,
+                  icon: Icons.play_circle_filled,
                   label: 'Videos',
                   selected: _index == 3,
                   onTap: () => setState(() => _index = 3),
@@ -76,6 +92,11 @@ class _NavShellState extends State<NavShell> {
         ),
       ),
     );
+  }
+
+  // Method to navigate to profile page
+  void _navigateToProfile() {
+    _showProfileModal();
   }
 
   void _showSos(BuildContext context) {
@@ -91,7 +112,10 @@ class _NavShellState extends State<NavShell> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Emergency Assistance', style: tt.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+            Text(
+              'Emergency Assistance',
+              style: tt.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: 10),
             ListTile(
               leading: const Icon(Icons.campaign_rounded),
@@ -107,6 +131,155 @@ class _NavShellState extends State<NavShell> {
             ),
             const SizedBox(height: 8),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showProfileModal() {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.9,
+          height: MediaQuery.of(context).size.height * 0.6,
+          child: Column(
+            children: [
+              // Header con fondo turquesa
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF7DD3C0), // Color turquesa de tu imagen
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    // Botón cerrar
+                    Align(
+                      alignment: Alignment.topRight,
+                      child: IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ),
+                    // Ícono de perfil
+                    const CircleAvatar(
+                      radius: 30,
+                      backgroundColor: Colors.white24,
+                      child: Icon(Icons.person, size: 40, color: Colors.white),
+                    ),
+                    const SizedBox(height: 16),
+                    // Título
+                    const Text(
+                      'Profile & Settings',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    // Subtítulo
+                    const Text(
+                      'Manage your account and preferences',
+                      style: TextStyle(fontSize: 16, color: Colors.white70),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Contenido del modal
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      // Profile Settings Card
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.pop(context); // Cerrar modal
+                          setState(() {
+                            _index = 4; // Ir a ProfilePage
+                          });
+                        },
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.person_outline,
+                                size: 30,
+                                color: Colors.grey,
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Profile Settings',
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Update personal info and emergency contacts',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const Icon(
+                                Icons.chevron_right,
+                                color: Colors.grey,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Texto informativo
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8F5F3), // Verde claro
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'Keep your profile updated for better emergency response.',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[700],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+
+                      const Spacer(),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -182,4 +355,3 @@ class _DummyPage extends StatelessWidget {
     );
   }
 }
-

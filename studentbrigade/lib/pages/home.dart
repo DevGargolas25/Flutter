@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import './widgets/rotating_image_box.dart';
 
-
 class HomePage extends StatelessWidget {
   final String userName;
   const HomePage({super.key, this.userName = 'John'});
@@ -24,15 +23,13 @@ class HomePage extends StatelessWidget {
               style: tt.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            _JoinBrigadeCard(),
+            const _JoinBrigadeCard(),
             const SizedBox(height: 16),
-            _LearnOnYourOwnSection(),
+            const _LearnOnYourOwnSection(),
           ],
         ),
       ),
-
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-
     );
   }
 }
@@ -69,16 +66,14 @@ class _AnnouncementBannerState extends State<AnnouncementBanner> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              widget.text, // ahora se accede con widget.text
+              widget.text,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: tt.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
           IconButton(
-            onPressed: () {
-              // Aquí podría abrir notificaciones
-            },
+            onPressed: () {},
             icon: Icon(Icons.notifications_none_rounded, color: cs.onSurface),
             visualDensity: VisualDensity.compact,
             iconSize: 20,
@@ -87,7 +82,6 @@ class _AnnouncementBannerState extends State<AnnouncementBanner> {
           ),
           IconButton(
             onPressed: () {
-              // Cierra el banner
               setState(() {
                 _visible = false;
               });
@@ -104,8 +98,7 @@ class _AnnouncementBannerState extends State<AnnouncementBanner> {
   }
 }
 
-
-/* ---------------------- Tarjeta “Join the Brigade” ---------------------- */
+/* ---------------------- Tarjeta "Join the Brigade" ---------------------- */
 class _JoinBrigadeCard extends StatelessWidget {
   const _JoinBrigadeCard();
 
@@ -147,7 +140,7 @@ class _JoinBrigadeCard extends StatelessWidget {
   }
 }
 
-/* ------------------- Sección “Learn on Your Own” ------------------- */
+/* ------------------- Sección "Learn on Your Own" ------------------- */
 class _LearnOnYourOwnSection extends StatelessWidget {
   const _LearnOnYourOwnSection();
 
@@ -155,32 +148,56 @@ class _LearnOnYourOwnSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final tt = Theme.of(context).textTheme;
     final cs = Theme.of(context).colorScheme;
+    final screenWidth = MediaQuery.of(context).size.width;
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 8, 16),
+        padding: EdgeInsets.fromLTRB(
+          screenWidth * 0.04,
+          screenWidth * 0.04, 
+          screenWidth * 0.02,
+          screenWidth * 0.04
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(children: [
               Icon(Icons.menu_book_rounded, color: cs.onSurface),
-              const SizedBox(width: 8),
-              Text('Learn on Your Own', style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              SizedBox(width: screenWidth * 0.02),
+              Flexible(
+                child: Text(
+                  'Learn on Your Own', 
+                  style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ]),
-            const SizedBox(height: 6),
-            Text('Watch training videos and safety guides at your own pace.', style: tt.bodyMedium),
-            const SizedBox(height: 12),
+            SizedBox(height: screenWidth * 0.015),
+            Text(
+              'Watch training videos and safety guides at your own pace.', 
+              style: tt.bodyMedium,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            SizedBox(height: screenWidth * 0.03),
             SizedBox(
-              height: 210,
+              height: screenWidth * 0.5,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
+                padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.01),
                 itemCount: _videos.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 12),
+                separatorBuilder: (_, __) => SizedBox(width: screenWidth * 0.03),
                 itemBuilder: (_, i) => _VideoCard(video: _videos[i]),
               ),
             ),
-            const SizedBox(height: 8),
-            TextButton(onPressed: () {}, child: const Text('View All Videos')),
+            SizedBox(height: screenWidth * 0.02),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton(
+                onPressed: () {}, 
+                child: const Text('View All Videos'),
+              ),
+            ),
           ],
         ),
       ),
@@ -188,7 +205,210 @@ class _LearnOnYourOwnSection extends StatelessWidget {
   }
 }
 
-/* ------------------------- Video card + data ------------------------- */
+/* ✅ UNA SOLA DEFINICIÓN DE _VideoCard ------------------------- */
+class _VideoCard extends StatelessWidget {
+  final _VideoInfo video;
+  const _VideoCard({required this.video});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final screenWidth = MediaQuery.of(context).size.width;
+    
+    final cardWidth = screenWidth < 600 
+        ? screenWidth * 0.6
+        : screenWidth * 0.45;
+
+    return Container(
+      width: cardWidth,
+      padding: EdgeInsets.all(screenWidth * 0.03),
+      decoration: BoxDecoration(
+        color: cs.surface,
+        borderRadius: BorderRadius.circular(screenWidth * 0.045),
+        border: Border.all(color: cs.secondaryContainer.withOpacity(.6)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Thumbnail adaptable
+          Container(
+            height: cardWidth * 0.4,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(screenWidth * 0.04),
+              gradient: LinearGradient(
+                colors: [cs.primary.withOpacity(.85), cs.secondary.withOpacity(.85)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+            child: Center(
+              child: Icon(
+                Icons.play_circle_fill, 
+                size: cardWidth * 0.2,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          SizedBox(height: screenWidth * 0.02),
+          
+          // Chips adaptables
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return Wrap(
+                spacing: screenWidth * 0.02,
+                runSpacing: screenWidth * 0.015,
+                children: [
+                  _AdaptiveChip(
+                    label: video.tag,
+                    maxWidth: constraints.maxWidth * 0.5,
+                  ),
+                  if (video.featured)
+                    _AdaptiveChip(
+                      label: 'Featured',
+                      icon: Icons.star,
+                      maxWidth: constraints.maxWidth * 0.45,
+                      isSpecial: true,
+                    ),
+                ],
+              );
+            },
+          ),
+          
+          SizedBox(height: screenWidth * 0.01),
+          
+          // Título adaptable
+          Flexible(
+            child: Text(
+              video.title, 
+              maxLines: 2, 
+              overflow: TextOverflow.ellipsis, 
+              style: tt.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+            ),
+          ),
+          
+          SizedBox(height: screenWidth * 0.015),
+          
+          // Pills adaptables
+          Flexible(
+            child: Row(
+              children: [
+                Expanded(
+                  child: _pill(context, icon: Icons.schedule, text: video.duration),
+                ),
+                SizedBox(width: screenWidth * 0.02),
+                Expanded(
+                  child: _pill(context, icon: Icons.visibility_outlined, text: video.views),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _pill(BuildContext context, {required IconData icon, required String text}) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final screenWidth = MediaQuery.of(context).size.width;
+    
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: screenWidth * 0.02,
+        vertical: screenWidth * 0.015,
+      ),
+      decoration: BoxDecoration(
+        color: cs.surfaceVariant.withOpacity(.4),
+        borderRadius: BorderRadius.circular(screenWidth * 0.025),
+        border: Border.all(color: cs.outlineVariant),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: screenWidth * 0.035, color: cs.onSurface),
+          SizedBox(width: screenWidth * 0.01),
+          Flexible(
+            child: Text(
+              text, 
+              style: tt.labelSmall,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/* ✅ UNA SOLA DEFINICIÓN DE _AdaptiveChip ------------------------- */
+class _AdaptiveChip extends StatelessWidget {
+  final String label;
+  final IconData? icon;
+  final double maxWidth;
+  final bool isSpecial;
+
+  const _AdaptiveChip({
+    required this.label,
+    required this.maxWidth,
+    this.icon,
+    this.isSpecial = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    if (isSpecial) {
+      return Container(
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        padding: EdgeInsets.symmetric(
+          horizontal: screenWidth * 0.02,
+          vertical: screenWidth * 0.01,
+        ),
+        decoration: BoxDecoration(
+          color: cs.tertiaryContainer.withOpacity(.35),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: cs.secondaryContainer),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: screenWidth * 0.03, color: cs.primary),
+              SizedBox(width: screenWidth * 0.005),
+            ],
+            Flexible(
+              child: Text(
+                label,
+                style: tt.labelSmall?.copyWith(fontWeight: FontWeight.w600),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: Chip(
+        label: Text(
+          label,
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
+        ),
+        visualDensity: VisualDensity.compact,
+      ),
+    );
+  }
+}
+
+/* ✅ DATOS AL FINAL DEL ARCHIVO ------------------------- */
 class _VideoInfo {
   final String title;
   final String tag;
@@ -225,100 +445,3 @@ const _videos = <_VideoInfo>[
     views: '1.2k views',
   ),
 ];
-
-class _VideoCard extends StatelessWidget {
-  final _VideoInfo video;
-  const _VideoCard({required this.video});
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
-    final width = MediaQuery.of(context).size.width * 0.68;
-
-    return Container(
-      width: width.clamp(260, 320),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: cs.secondaryContainer.withOpacity(.6)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Thumbnail “placeholder” con gradiente de tu primario
-          Container(
-            height: 110,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
-              gradient: LinearGradient(
-                colors: [cs.primary.withOpacity(.85), cs.secondary.withOpacity(.85)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            ),
-            child: const Center(child: Icon(Icons.play_circle_fill, size: 52, color: Colors.white)),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Chip(
-                label: Text(video.tag),
-                // hereda ChipTheme de tu tema
-              ),
-              if (video.featured)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: cs.tertiaryContainer.withOpacity(.35),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: cs.secondaryContainer),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.star, size: 14, color: cs.primary),
-                      const SizedBox(width: 4),
-                      Text('Now Featured', style: tt.labelSmall?.copyWith(fontWeight: FontWeight.w600)),
-                    ],
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(video.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              _pill(context, icon: Icons.schedule, text: video.duration),
-              const SizedBox(width: 8),
-              _pill(context, icon: Icons.visibility_outlined, text: video.views),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _pill(BuildContext context, {required IconData icon, required String text}) {
-    final cs = Theme.of(context).colorScheme;
-    final tt = Theme.of(context).textTheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(
-        color: cs.surfaceVariant.withOpacity(.4),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: cs.outlineVariant),
-      ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 14, color: cs.onSurface),
-        const SizedBox(width: 4),
-        Text(text, style: tt.labelSmall),
-      ]),
-    );
-  }
-}
