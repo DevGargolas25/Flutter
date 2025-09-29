@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '/pages/video.dart';
+import '../video.dart';
 
 class VideoCard extends StatelessWidget {
   final VideoItem video;

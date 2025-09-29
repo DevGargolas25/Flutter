@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'video.dart';
-import './widgets/video_card.dart';
+import 'widgets/video_card.dart';
 
 class VideosScreen extends StatefulWidget {
   const VideosScreen({super.key});

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import './widgets/message.dart';
-import './widgets/message_bubble.dart';
+import 'widgets/message.dart';
+import 'widgets/message_bubble.dart';
 
 class ChatScreen extends StatelessWidget {
   static const routeName = '/chat';
