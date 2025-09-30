@@ -743,11 +743,8 @@ Future<void> showProfileMenuDialog(BuildContext context, VoidCallback? onOpenPro
                 child: InkWell(
                   onTap: () {
                     Navigator.pop(ctx);
-                    // ✅ CAMBIAR ESTO - Navegar directamente a ProfilePage
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const ProfilePage()),
-                    );
+                    // Navegar a ProfilePage mediante callback
+                    onOpenProfile?.call();
                   },
                   borderRadius: BorderRadius.circular(12),
                   child: Container(
