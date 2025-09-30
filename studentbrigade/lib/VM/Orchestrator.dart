@@ -44,10 +44,8 @@ class Orchestrator extends ChangeNotifier {
 
   // Navigation
   void navigateToPage(int index) {
-    print('🎯 Orchestrator: navigateToPage called with index: $index');
     if (_currentPageIndex != index) {
       _currentPageIndex = index;
-      print('🎯 Orchestrator: index updated to: $_currentPageIndex');
       notifyListeners();
     }
   }
@@ -57,8 +55,6 @@ class Orchestrator extends ChangeNotifier {
   }
 
   void navigateToProfile() {
-    print('Orchestraro: nav to profile called');
-    print('current index: $_currentPageIndex');
     navigateToPage(4);
   }
 

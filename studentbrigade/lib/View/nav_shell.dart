@@ -30,7 +30,6 @@ class _NavShellState extends State<NavShell> {
   }
 
   void _onOrchestratorChanged() {
-    print('🎯 NavShell: Orchestrator changed, new index: ${_orchestrator.currentPageIndex}');
     if (_orchestrator.currentPageIndex != _index) {
       setState(() {
         _index = _orchestrator.currentPageIndex;
@@ -48,7 +47,6 @@ class _NavShellState extends State<NavShell> {
   Widget _getPage(int index) {
     switch (index) {
       case 0: 
-        print('callback executed');
         return HomePage(
           onOpenProfile: () => _orchestrator.navigateToProfile(),
         );
