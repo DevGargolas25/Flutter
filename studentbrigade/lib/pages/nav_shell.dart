@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+
+// import Views
 import 'home.dart';
 import 'profile_page.dart';
 import 'chat_page.dart';
 import 'videos_screen.dart';
 import 'map_page.dart';
 import 'emergency/sos_dialog.dart';
+
+// import Orchestrator 
+import '../VM/Orchestrator.dart';
 
 class NavShell extends StatefulWidget {
   const NavShell({super.key});
@@ -14,20 +19,30 @@ class NavShell extends StatefulWidget {
 
 class _NavShellState extends State<NavShell> {
   int _index = 0;
+  late final Orchestrator _orchestrator;
 
-  // Páginas reales/placeholders
-  final _pages = const [
-    HomePage(),
-    ChatbotsScreen(),
-    MapPage(),
-    VideosScreen(),
-    ProfilePage(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _orchestrator = Orchestrator(); 
+  }
+
+  // Change the page index using the orchestrator
+  Widget _getPage(int index) {
+    switch (index) {
+      case 0: return const HomePage();
+      case 1: return const ChatbotsScreen();
+      case 2: return MapPage(orchestrator: _orchestrator); 
+      case 3: return const VideosScreen();
+      case 4: return const ProfilePage();
+      default: return const HomePage();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _pages[_index],
+      body: _getPage(_index),
 
       // Bottom Navigation Bar with integrated SOS button
       bottomNavigationBar: Container(

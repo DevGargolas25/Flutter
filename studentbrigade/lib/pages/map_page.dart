@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import '../VM/Orchestrator.dart';
 
 class MapPage extends StatefulWidget {
-  const MapPage({super.key});
+  final Orchestrator orchestrator;
+  
+  const MapPage({super.key, required this.orchestrator});
 
   @override
   State<MapPage> createState() => _MapPageState();
@@ -11,22 +14,23 @@ class MapPage extends StatefulWidget {
 
 class _MapPageState extends State<MapPage> {
   final MapController _mapController = MapController();
-  
-  // Universidad de los Andes coordinates
-  final LatLng _uniandes = const LatLng(4.6014, -74.0660);
+  late LatLng _currentLocation;
+
+  @override
+  void initState() {
+    super.initState();
+    // Pedir ubicación al orchestrator
+    final location = widget.orchestrator.getUniandesLocation();
+    _currentLocation = LatLng(location.latitude, location.longitude);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Map'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
       body: FlutterMap(
         mapController: _mapController,
         options: MapOptions(
-          initialCenter: _uniandes,
+          initialCenter: _currentLocation,
           initialZoom: 16.0,
           minZoom: 5.0,
           maxZoom: 18.0,
@@ -40,7 +44,7 @@ class _MapPageState extends State<MapPage> {
           MarkerLayer(
             markers: [
               Marker(
-                point: _uniandes,
+                point: _currentLocation,
                 width: 40,
                 height: 40,
                 child: const Icon(
@@ -55,7 +59,7 @@ class _MapPageState extends State<MapPage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          _mapController.move(_uniandes, 16.0);
+          _mapController.move(_currentLocation, 16.0);
         },
         child: const Icon(Icons.my_location),
       ),
