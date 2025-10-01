@@ -61,9 +61,42 @@ class Orchestrator extends ChangeNotifier {
 
 
   // MAP OPERATIONS
-  MapLocation getUniandesLocation() {
-    return _mapVM.getUniandesLocation();
+  Future<UserLocation?> getCurrentLocation() async {
+    return await _mapVM.getCurrentLocation();
   }
+
+  void startLocationTracking() {
+    _mapVM.startLocationTracking();
+  }
+
+  void stopLocationTracking() {
+    _mapVM.stopLocationTracking();
+  }
+
+  List<MapLocation> getMeetingPoints() {
+    return _mapVM.getMeetingPoints();
+  }
+
+  MapLocation? getClosestMeetingPoint() {
+    final userLocation = _mapVM.currentUserLocation;
+    if (userLocation == null) return null;
+    return _mapVM.getClosestMeetingPoint(userLocation);
+  }
+
+  Future<List<RoutePoint>?> calculateRouteToClosestPoint() async {
+    return await _mapVM.calculateRouteToClosestPoint();
+  }
+
+  List<RoutePoint>? get currentRoute => _mapVM.currentRoute;
+
+  void clearRoute() {
+    _mapVM.clearRoute();
+  }
+
+  // Getters
+  UserLocation? get currentUserLocation => _mapVM.currentUserLocation;
+  bool get isLocationLoading => _mapVM.isLocationLoading;
+  String? get locationError => _mapVM.locationError;
 
 
   // USER OPERATIONS
