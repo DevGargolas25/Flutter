@@ -492,7 +492,6 @@ Future<void> showProfileMenuDialog(
                   ),
                 ),
               ),
-            ),
 
             // 🔹 Nuevo botón: Logout
             Padding(

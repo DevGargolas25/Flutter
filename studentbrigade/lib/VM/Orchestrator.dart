@@ -68,12 +68,6 @@ class Orchestrator extends ChangeNotifier {
     navigateToPage(3);
   }
 
-  // Map operations - delegar a MapVM
-  MapLocation getUniandesLocation() {
-    return _mapVM.getUniandesLocation();
-
-
-
   // MAP OPERATIONS
   Future<UserLocation?> getCurrentLocation() async {
     return await _mapVM.getCurrentLocation();
