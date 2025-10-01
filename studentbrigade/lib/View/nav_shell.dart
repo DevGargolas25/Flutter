@@ -8,7 +8,7 @@ import 'videos_screen.dart';
 import 'map_page.dart';
 import 'emergency/sos_dialog.dart';
 
-// import Orchestrator 
+// import Orchestrator
 import '../VM/Orchestrator.dart';
 
 class NavShell extends StatefulWidget {
@@ -24,18 +24,24 @@ class _NavShellState extends State<NavShell> {
   @override
   void initState() {
     super.initState();
-    _orchestrator = Orchestrator(); 
+    _orchestrator = Orchestrator();
   }
 
   // Change the page index using the orchestrator
   Widget _getPage(int index) {
     switch (index) {
-      case 0: return const HomePage();
-      case 1: return const ChatbotsScreen();
-      case 2: return MapPage(orchestrator: _orchestrator); 
-      case 3: return const VideosScreen();
-      case 4: return const ProfilePage();
-      default: return const HomePage();
+      case 0:
+        return HomePage(orchestrator: _orchestrator);
+      case 1:
+        return const ChatbotsScreen();
+      case 2:
+        return MapPage(orchestrator: _orchestrator);
+      case 3:
+        return VideosPage(orchestrator: _orchestrator);
+      case 4:
+        return const ProfilePage();
+      default:
+        return HomePage(orchestrator: _orchestrator);
     }
   }
 
@@ -98,7 +104,6 @@ class _NavShellState extends State<NavShell> {
     );
   }
 }
-  
 
 /* ======================= SOS Button ======================= */
 class _SOSButton extends StatelessWidget {
@@ -168,7 +173,10 @@ class _NavItem extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4), // Reduced padding
+        padding: const EdgeInsets.symmetric(
+          horizontal: 4,
+          vertical: 4,
+        ), // Reduced padding
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
