@@ -4,6 +4,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 
 import 'auth_service.dart';
 import 'welcome_screen.dart';
+import 'package:flutter/foundation.dart'; 
 
 // Si necesitas navegar a tu Home/NavShell, lo pasas como childWhenAuthed
 class AuthGate extends StatefulWidget {
@@ -28,6 +29,17 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   Future<void> _bootstrap() async {
+
+    if (kDebugMode) {
+      // En modo debug, saltar autenticación
+      await Future.delayed(const Duration(seconds: 1));
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _loggedIn = true;
+      });
+      return;
+    }
     // 1) Detectar red una vez
     final status = await _connectivity.checkConnectivity();
     _offline = (status == ConnectivityResult.none);

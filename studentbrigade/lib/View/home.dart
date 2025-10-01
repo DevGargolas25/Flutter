@@ -9,6 +9,7 @@ import 'analytics.dart';
 import 'Auth0/auth_service.dart';
 import 'Auth0/auth_gate.dart';
 import 'nav_shell.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 
 typedef VideoSelect = void Function(int videoId);
@@ -284,7 +285,21 @@ class _HomePageState extends State<HomePage> {
                                             ),
                                           ),
                                         ),
-                                        onPressed: widget.onOpenProfile,
+                                        onPressed: () async {
+                                          final url = Uri.parse('https://www.instagram.com/beuniandes/');
+                                          if (await canLaunchUrl(url)) {
+                                            await launchUrl(url, mode: LaunchMode.externalApplication);
+                                          } else {
+                                            // Fallback si no puede abrir el enlace
+                                            if (!context.mounted) return;
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text('Could not open Instagram link'),
+                                                backgroundColor: Colors.red,
+                                              ),
+                                            );
+                                          }
+                                        },
                                         child: const Text(
                                           'Learn More',
                                           overflow: TextOverflow.ellipsis,
