@@ -4,6 +4,12 @@ import 'package:studentbrigade/VM/Orchestrator.dart';
 import 'profile_page.dart';
 import 'widgets/video_card.dart';
 import 'widgets/rotating_image_box.dart'; // o reemplaza por Image.asset('assets/medical.png', fit: BoxFit.cover)
+import 'widgets/rotating_image_box.dart';
+import 'analytics.dart';
+import 'Auth0/auth_service.dart';
+import 'Auth0/auth_gate.dart';
+import 'nav_shell.dart';
+
 
 typedef VideoSelect = void Function(int videoId);
 
@@ -28,6 +34,8 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+
+
   // ===== Notificaciones (rotan cada 10s) =====
   final List<String> notifications = const [
     'Campus safety drill scheduled for tomorrow at 2 PM',
@@ -95,6 +103,10 @@ class _HomePageState extends State<HomePage> {
     final tt = Theme.of(context).textTheme;
     final vm = widget.orchestrator.videoVM;
     final items = vm.videos;
+    final creds = AuthService.instance.credentials;
+    final roles = creds?.roles ?? [];
+
+
     return Scaffold(
       backgroundColor: const Color(0xFFF7FBFC),
       body: SafeArea(
@@ -122,25 +134,35 @@ class _HomePageState extends State<HomePage> {
                     tooltip: 'All notifications',
                     onPressed: () =>
                         showAllNotificationsDialog(context, notifications),
-                    icon: const Icon(
-                      Icons.notifications_none_rounded,
-                      size: 20,
-                      color: Color(0xFF4A2951),
-                    ),
+                    icon: const Icon(Icons.notifications_none_rounded,
+                        size: 20, color: Color(0xFF4A2951)),
                   ),
                   IconButton(
                     tooltip: 'Profile',
                     onPressed: () =>
                         showProfileMenuDialog(context, widget.onOpenProfile),
-                    icon: const Icon(
-                      Icons.account_circle,
-                      size: 20,
-                      color: Color(0xFF4A2951),
-                    ),
+                    icon: const Icon(Icons.account_circle,
+                        size: 20, color: Color(0xFF4A2951)),
+                  ),
+                  // 🔹 Nuevo botón de Analytics
+                  if (roles.contains('analytics'))
+                  IconButton(
+                    tooltip: 'Analytics',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AnalyticsPage(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.analytics_outlined,
+                        size: 20, color: Color(0xFF4A2951)),
                   ),
                 ],
               ),
             ),
+
 
             // ===== Contenido scrollable =====
             Expanded(
@@ -382,73 +404,56 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
+ 
 
-  // =================== Modal de Video (fallback) ===================
 
-  /* =================== Video Card ELÁSTICA (sin overflow) =================== */
-
-  /* =================== Modelo de datos =================== */
-
-  /* =================== Modales reutilizables =================== */
-  Future<void> showProfileMenuDialog(
-    BuildContext context,
-    VoidCallback? onOpenProfile,
-  ) {
-    return showDialog(
-      context: context,
-      barrierColor: Colors.black.withOpacity(.6),
-      builder: (ctx) {
-        return Dialog(
-          insetPadding: const EdgeInsets.symmetric(horizontal: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header turquesa
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
-                decoration: const BoxDecoration(
-                  color: Color(0xFF75C1C7),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-                ),
-                child: Column(
-                  children: const [
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundColor: Colors.white24,
-                      child: Icon(Icons.person, color: Colors.white, size: 28),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Profile & Settings',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'Manage your account and preferences',
-                      style: TextStyle(color: Colors.white70),
-                    ),
-                  ],
-                ),
+/* =================== Modales reutilizables =================== */
+Future<void> showProfileMenuDialog(
+    BuildContext context, VoidCallback? onOpenProfile) {
+  return showDialog(
+    context: context,
+    barrierColor: Colors.black.withOpacity(.6),
+    builder: (ctx) {
+      return Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Header turquesa
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
+              decoration: const BoxDecoration(
+                color: Color(0xFF75C1C7),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
               ),
-              Padding(
-                padding: const EdgeInsets.all(16),
+              child: Column(
+                children: const [
+                  CircleAvatar(
+                    radius: 28,
+                    backgroundColor: Colors.white24,
+                    child: Icon(Icons.person, color: Colors.white, size: 28),
+                  ),
+                  SizedBox(height: 8),
+                  Text('Profile & Settings',
+                      style: TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.w600)),
+                  SizedBox(height: 4),
+                  Text('Manage your account and preferences',
+                      style: TextStyle(color: Colors.white70)),
+                ],
+              ),
+            ),
+
+            // Opción: Profile Settings
+            Padding(
+              padding: const EdgeInsets.all(16),
                 child: InkWell(
                   onTap: () {
                     Navigator.pop(ctx);
-                    // ✅ CAMBIAR ESTO - Navegar directamente a ProfilePage
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ProfilePage(),
-                      ),
-                    );
+                    // Navegar a ProfilePage mediante callback
+                    onOpenProfile?.call();
                   },
                   borderRadius: BorderRadius.circular(12),
                   child: Container(
@@ -487,13 +492,60 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        );
-      },
-    );
-  }
+            ),
+
+            // 🔹 Nuevo botón: Logout
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: InkWell(
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  await AuthService.instance.logout();
+                  if (!context.mounted) return;
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const AuthGate(childWhenAuthed: NavShell())),
+                        (_) => false,
+                  );
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: double.infinity,
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF7FBFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: const Color(0xFF99D2D2).withOpacity(.3)),
+                  ),
+                  child: Row(
+                    children: const [
+                      CircleAvatar(
+                        radius: 16,
+                        backgroundColor: Color(0xFF99D2D2),
+                        child: Icon(Icons.logout, color: Colors.white),
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text('Log out',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF4A2951))),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 8),
+          ],
+        ),
+      );
+    },
+  );
+}
+
 
   Future<void> showAllNotificationsDialog(
     BuildContext context,

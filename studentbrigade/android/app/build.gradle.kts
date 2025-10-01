@@ -8,7 +8,7 @@ plugins {
 android {
     namespace = "com.example.studentbrigade"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -20,15 +20,27 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.studentbrigade"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
+
+        // Si ya tienes estas props definidas por Flutter, déjalas así;
+        // si no, pon números/literales (p.ej. minSdk = 23).
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // ✅ Kotlin DSL:
+        manifestPlaceholders.putAll(
+            mapOf(
+                "auth0Domain" to "dev-wahfof5ie3r5xpns.us.auth0.com",
+                "auth0Scheme" to "com.example.studentbrigade" // o "https" si usarás App Links
+            )
+        )
+        // Alternativa equivalente:
+        // manifestPlaceholders["auth0Domain"] = "dev-wahfof5ie3r5xpns.us.auth0.com"
+        // manifestPlaceholders["auth0Scheme"] = "com.example.studentbrigade"
     }
+
 
     buildTypes {
         release {
