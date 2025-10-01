@@ -1,7 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'profile_page.dart';
-import 'widgets/rotating_image_box.dart'; // o reemplaza por Image.asset('assets/medical.png', fit: BoxFit.cover)
+import 'widgets/rotating_image_box.dart';
+import 'analytics.dart';
+import 'Auth0/auth_service.dart';
+import 'Auth0/auth_gate.dart';
+import 'nav_shell.dart';
 
 typedef VideoSelect = void Function(int videoId);
 
@@ -24,6 +28,8 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
+
+
   // ===== Notificaciones (rotan cada 10s) =====
   final List<String> notifications = const [
     'Campus safety drill scheduled for tomorrow at 2 PM',
@@ -138,6 +144,8 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final tt = Theme.of(context).textTheme;
+    final creds = AuthService.instance.credentials;
+    final roles = creds?.roles ?? [];
 
     return Scaffold(
       backgroundColor: const Color(0xFFF7FBFC),
@@ -164,19 +172,37 @@ class _HomePageState extends State<HomePage> {
                   ),
                   IconButton(
                     tooltip: 'All notifications',
-                    onPressed: () => showAllNotificationsDialog(context, notifications),
+                    onPressed: () =>
+                        showAllNotificationsDialog(context, notifications),
                     icon: const Icon(Icons.notifications_none_rounded,
                         size: 20, color: Color(0xFF4A2951)),
                   ),
                   IconButton(
                     tooltip: 'Profile',
-                    onPressed: () => showProfileMenuDialog(context, widget.onOpenProfile),
+                    onPressed: () =>
+                        showProfileMenuDialog(context, widget.onOpenProfile),
                     icon: const Icon(Icons.account_circle,
+                        size: 20, color: Color(0xFF4A2951)),
+                  ),
+                  // 🔹 Nuevo botón de Analytics
+                  if (roles.contains('analytics'))
+                  IconButton(
+                    tooltip: 'Analytics',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AnalyticsPage(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.analytics_outlined,
                         size: 20, color: Color(0xFF4A2951)),
                   ),
                 ],
               ),
             ),
+
 
             // ===== Contenido scrollable =====
             Expanded(
@@ -702,7 +728,8 @@ class _Video {
 }
 
 /* =================== Modales reutilizables =================== */
-Future<void> showProfileMenuDialog(BuildContext context, VoidCallback? onOpenProfile) {
+Future<void> showProfileMenuDialog(
+    BuildContext context, VoidCallback? onOpenProfile) {
   return showDialog(
     context: context,
     barrierColor: Colors.black.withOpacity(.6),
@@ -738,6 +765,8 @@ Future<void> showProfileMenuDialog(BuildContext context, VoidCallback? onOpenPro
                 ],
               ),
             ),
+
+            // Opción: Profile Settings
             Padding(
               padding: const EdgeInsets.all(16),
                 child: InkWell(
@@ -774,6 +803,51 @@ Future<void> showProfileMenuDialog(BuildContext context, VoidCallback? onOpenPro
                 ),
               ),
             ),
+
+            // 🔹 Nuevo botón: Logout
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: InkWell(
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  await AuthService.instance.logout();
+                  if (!context.mounted) return;
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const AuthGate(childWhenAuthed: NavShell())),
+                        (_) => false,
+                  );
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: double.infinity,
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF7FBFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: const Color(0xFF99D2D2).withOpacity(.3)),
+                  ),
+                  child: Row(
+                    children: const [
+                      CircleAvatar(
+                        radius: 16,
+                        backgroundColor: Color(0xFF99D2D2),
+                        child: Icon(Icons.logout, color: Colors.white),
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text('Log out',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF4A2951))),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
             const SizedBox(height: 8),
           ],
         ),
