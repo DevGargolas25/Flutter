@@ -83,7 +83,7 @@ class VideosInfo {
       id: '4',
       title: 'Fire Safety on Campus',
       author: 'Student Brigade',
-      tags: ['Safety', 'Energency'],
+      tags: ['Safety', 'Emergency'],
       url:
           'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4',
       duration: const Duration(minutes: 6, seconds: 45),

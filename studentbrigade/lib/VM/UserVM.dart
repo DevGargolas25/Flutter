@@ -76,6 +76,39 @@ class UserVM extends ChangeNotifier {
     }
   }
 
+  // Methods for the map in emergency
+  Brigadist? _assignedBrigadist;
+  Brigadist? get assignedBrigadist => _assignedBrigadist;
+  
+  // Obtener brigadista más cercano
+  Future<Brigadist?> getClosestBrigadist(double userLat, double userLon) async {
+    try {
+      // Simular llamada a API
+      await Future.delayed(const Duration(milliseconds: 500));
+      
+      _assignedBrigadist = BrigadistData.getClosestAvailableBrigadist(userLat, userLon);
+      notifyListeners();
+      return _assignedBrigadist;
+    } catch (e) {
+      print('Error getting brigadist: $e');
+      return null;
+    }
+  }
+  
+  // Obtener brigadista asignado a emergencia activa
+  Future<Brigadist?> getAssignedBrigadist(String emergencyId) async {
+    try {
+      await Future.delayed(const Duration(milliseconds: 300));
+      
+      _assignedBrigadist = BrigadistData.getAssignedBrigadist(emergencyId);
+      notifyListeners();
+      return _assignedBrigadist;
+    } catch (e) {
+      print('Error getting assigned brigadist: $e');
+      return null;
+    }
+  }
+
   void clearError() {
     _errorMessage = null;
     notifyListeners();

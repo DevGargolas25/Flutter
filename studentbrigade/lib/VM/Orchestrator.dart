@@ -96,12 +96,18 @@ class Orchestrator extends ChangeNotifier {
   }
 
   List<RoutePoint>? get currentRoute => _mapVM.currentRoute;
+  List<RoutePoint>? get meetingPointRoute => _mapVM.meetingPointRoute;
+  List<RoutePoint>? get brigadistRoute => _mapVM.brigadistRoute;
+
 
   void clearRoute() {
     _mapVM.clearRoute();
   }
+  void clearMeetingPointRoute() => _mapVM.clearMeetingPointRoute();
+  void clearBrigadistRoute() => _mapVM.clearBrigadistRoute();
+  void clearAllRoutes() => _mapVM.clearAllRoutes();
 
-  // Getters
+  // Getters MAP
   UserLocation? get currentUserLocation => _mapVM.currentUserLocation;
   bool get isLocationLoading => _mapVM.isLocationLoading;
   String? get locationError => _mapVM.locationError;
@@ -151,6 +157,24 @@ class Orchestrator extends ChangeNotifier {
 
   }
 
+    // Methods on UserVM to get Brigadist in map of emergency
+  Future<Brigadist?> getClosestBrigadist(double userLat, double userLon) async {
+    return await _userVM.getClosestBrigadist(userLat, userLon);
+  }
+  
+  Future<Brigadist?> getAssignedBrigadist(String emergencyId) async {
+    return await _userVM.getAssignedBrigadist(emergencyId);
+  }
+
+  Future<List<RoutePoint>?> calculateRouteToBrigadist(double brigadistLat, double brigadistLon) async {
+    return await _mapVM.calculateRouteToBrigadist(brigadistLat, brigadistLon);
+  }
+  
+  Brigadist? get assignedBrigadist => _userVM.assignedBrigadist;
+
+
+
+  // VIDEO OPERATIONS
   void openVideoDetails(BuildContext context, VideoMod v) {
     _videoVM.play(v);
     showModalBottomSheet(

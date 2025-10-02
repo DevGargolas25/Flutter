@@ -161,11 +161,11 @@ class _MapPageState extends State<MapPage> {
                 userAgentPackageName: 'com.example.studentbrigade',
                 maxZoom: 18,
               ),
-              if (widget.orchestrator.currentRoute != null)
+              if (widget.orchestrator.meetingPointRoute != null)
                 PolylineLayer(
                   polylines: [
                     Polyline(
-                      points: widget.orchestrator.currentRoute!
+                      points: widget.orchestrator.meetingPointRoute!
                         .map((point) => LatLng(point.latitude, point.longitude))
                         .toList(), // pasar de RoutePoint a LatLong
                       color: Colors.blue,

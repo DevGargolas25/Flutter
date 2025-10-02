@@ -164,9 +164,14 @@ class MapVM extends ChangeNotifier {
     return degrees * (math.pi / 180);
   }
 
-  // ✅ Agregar al final de la clase MapVM, antes del dispose
-  List<RoutePoint>? _currentRoute;
-  List<RoutePoint>? get currentRoute => _currentRoute;
+  // Rutas calculadas según tipo
+  RouteData? _meetingPointRoute;
+  RouteData? _brigadistRoute;
+
+  // Getters
+  List<RoutePoint>? get meetingPointRoute => _meetingPointRoute?.points;
+  List<RoutePoint>? get brigadistRoute => _brigadistRoute?.points;
+  List<RoutePoint>? get currentRoute => _meetingPointRoute?.points ?? _brigadistRoute?.points;
 
   // Calcular ruta desde ubicación actual al punto más cercano
   Future<List<RoutePoint>?> calculateRouteToClosestPoint() async {
@@ -181,9 +186,15 @@ class MapVM extends ChangeNotifier {
         _currentUserLocation!.longitude,
         closest.latitude,
         closest.longitude,
+        routeType: 'walking',
       );
       
-      _currentRoute = route;
+      _meetingPointRoute = RouteData(
+        points: route,
+        type: RouteType.meetingPoint,
+        calculatedAt: DateTime.now(),
+      );
+
       notifyListeners();
       return route;
     } catch (e) {
@@ -195,11 +206,12 @@ class MapVM extends ChangeNotifier {
   // Método privado para llamar API de rutas
   Future<List<RoutePoint>> _fetchRouteFromAPI(
     double startLat, double startLon,
-    double endLat, double endLon,
-  ) async {
+    double endLat, double endLon, {
+    String routeType = 'walking',
+  }) async {
     try {
       // OSRM (Open Source Routing Machine) - gratuito, sin API key
-      final String url = 'http://router.project-osrm.org/route/v1/walking'
+      final String url = 'http://router.project-osrm.org/route/v1/$routeType'
           '/$startLon,$startLat;$endLon,$endLat?'
           'overview=full&geometries=geojson';
       
@@ -220,10 +232,10 @@ class MapVM extends ChangeNotifier {
         }
       }
       
-      print('❌ OSRM API Error: ${response.statusCode}');
+      print('OSRM API Error: ${response.statusCode}');
       return _fallbackRoute(startLat, startLon, endLat, endLon);
     } catch (e) {
-      print('❌ OSRM Network Error: $e');
+      print('OSRM Network Error: $e');
       return _fallbackRoute(startLat, startLon, endLat, endLon);
     }
   }
@@ -237,10 +249,52 @@ class MapVM extends ChangeNotifier {
       RoutePoint(latitude: endLat, longitude: endLon),
     ];
   }
-  
-  void clearRoute() {
-    _currentRoute = null;
+
+  // Method for the map in emergency view
+  // Calculate route to assigned brigadist
+  Future<List<RoutePoint>?> calculateRouteToBrigadist(double brigadistLat, double brigadistLon) async {
+    if (_currentUserLocation == null) return null;
+    
+    try {
+      final route = await _fetchRouteFromAPI(
+        _currentUserLocation!.latitude,
+        _currentUserLocation!.longitude,
+        brigadistLat,
+        brigadistLon,
+        routeType: 'walking',
+      );
+      
+      _brigadistRoute = RouteData(
+        points: route,
+        type: RouteType.brigadist,
+        calculatedAt: DateTime.now(),
+      );
+      notifyListeners();
+      return route;
+    } catch (e) {
+      print('Error calculating route to brigadist: $e');
+      return null;
+    }
+  }
+
+  void clearMeetingPointRoute() {
+    _meetingPointRoute = null;
     notifyListeners();
+  }
+
+  void clearBrigadistRoute() {
+    _brigadistRoute = null;
+    notifyListeners();
+  }
+
+  void clearAllRoutes() {
+    _meetingPointRoute = null;
+    _brigadistRoute = null;
+    notifyListeners();
+  }
+
+  void clearRoute() {
+    clearAllRoutes();
   }
 
   @override

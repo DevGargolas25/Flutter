@@ -99,7 +99,7 @@ class _NavShellState extends State<NavShell> {
               onTap: () {_orchestrator.navigateToPage(1);},
             ),
             // SOS Button in center
-            _SOSButton(onTap: () => SosDialog.show(context)),
+            _SOSButton(onTap: () => SosDialog.show(context, _orchestrator)),
             _NavItem(
               icon: Icons.map_outlined,
               selectedIcon: Icons.map,
