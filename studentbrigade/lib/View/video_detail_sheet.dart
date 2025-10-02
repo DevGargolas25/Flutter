@@ -9,8 +9,8 @@ class VideoDetailsSheet extends StatelessWidget {
   String _timeAgo(DateTime dt) {
     final d = DateTime.now().difference(dt);
     if (d.inDays >= 30) return '${(d.inDays / 30).floor()} months ago';
-    if (d.inDays >= 7) return '${(d.inDays / 7).floor()} weeks ago';
-    if (d.inDays >= 1) return '${d.inDays} days ago';
+    if (d.inDays >= 7)  return '${(d.inDays / 7).floor()} weeks ago';
+    if (d.inDays >= 1)  return '${d.inDays} days ago';
     if (d.inHours >= 1) return '${d.inHours} hours ago';
     return 'just now';
   }
@@ -24,6 +24,10 @@ class VideoDetailsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final tt = theme.textTheme;
+
     return DraggableScrollableSheet(
       expand: false,
       maxChildSize: 0.98,
@@ -31,17 +35,17 @@ class VideoDetailsSheet extends StatelessWidget {
       minChildSize: 0.65,
       builder: (ctx, scrollCtrl) {
         return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          decoration: BoxDecoration(
+            color: theme.cardColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: CustomScrollView(
             controller: scrollCtrl,
             slivers: [
-              // Barra superior oscura con título y back
+              // Barra superior con colores del tema
               SliverToBoxAdapter(
                 child: Container(
-                  color: Colors.black87,
+                  color: cs.surface,
                   padding: const EdgeInsets.only(top: 12),
                   child: SafeArea(
                     bottom: false,
@@ -50,16 +54,15 @@ class VideoDetailsSheet extends StatelessWidget {
                       child: Row(
                         children: [
                           IconButton(
-                            color: Colors.white,
+                            color: cs.onSurface,
                             icon: const Icon(Icons.arrow_back),
                             onPressed: () => Navigator.of(context).pop(),
                           ),
                           Expanded(
                             child: Text(
                               video.title,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
+                              style: tt.titleMedium?.copyWith(
+                                color: cs.onSurface,
                                 fontWeight: FontWeight.w700,
                               ),
                               overflow: TextOverflow.ellipsis,
@@ -73,7 +76,13 @@ class VideoDetailsSheet extends StatelessWidget {
                 ),
               ),
 
-              // Área de video (fondo negro)
+              // Área de video (negro, estándar de players)
+              const SliverToBoxAdapter(
+                child: ColoredBox(
+                  color: Colors.black,
+                  child: SizedBox.shrink(),
+                ),
+              ),
               SliverToBoxAdapter(
                 child: Container(
                   color: Colors.black,
@@ -81,66 +90,44 @@ class VideoDetailsSheet extends StatelessWidget {
                 ),
               ),
 
-              // Título / métricas
+              // Título
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
                   child: Text(
                     video.title,
-                    style: const TextStyle(
-                      fontSize: 20,
+                    style: tt.titleLarge?.copyWith(
                       fontWeight: FontWeight.w700,
+                      color: cs.onSurface,
                     ),
                   ),
                 ),
               ),
+
+              // Métricas (views, likes, publicado, duración)
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
+                  child: Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 16,
+                    runSpacing: 8,
                     children: [
-                      const Icon(
-                        Icons.visibility,
-                        size: 18,
-                        color: Colors.black54,
+                      _Metric(
+                        icon: Icons.visibility,
+                        text: '${video.views} views',
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '${video.views} views',
-                        style: const TextStyle(color: Colors.black54),
+                      _Metric(
+                        icon: Icons.thumb_up_alt_outlined,
+                        text: '${video.likes}',
                       ),
-                      const SizedBox(width: 16),
-                      const Icon(
-                        Icons.thumb_up_alt_outlined,
-                        size: 18,
-                        color: Colors.black54,
+                      _Metric(
+                        icon: Icons.schedule,
+                        text: _timeAgo(video.publishedAt),
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '${video.likes}',
-                        style: const TextStyle(color: Colors.black54),
-                      ),
-                      const SizedBox(width: 16),
-                      const Icon(
-                        Icons.schedule,
-                        size: 18,
-                        color: Colors.black54,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        _timeAgo(video.publishedAt),
-                        style: const TextStyle(color: Colors.black54),
-                      ),
-                      const SizedBox(width: 16),
-                      const Icon(
-                        Icons.timelapse,
-                        size: 18,
-                        color: Colors.black54,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        _durationText(video.duration),
-                        style: const TextStyle(color: Colors.black54),
+                      _Metric(
+                        icon: Icons.timelapse,
+                        text: _durationText(video.duration),
                       ),
                     ],
                   ),
@@ -154,12 +141,21 @@ class VideoDetailsSheet extends StatelessWidget {
               SliverToBoxAdapter(
                 child: ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                  leading: const CircleAvatar(child: Icon(Icons.group)),
+                  leading: CircleAvatar(
+                    backgroundColor: cs.primary,
+                    child: Icon(Icons.group, color: cs.onPrimary),
+                  ),
                   title: Text(
                     video.author,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+                    style: tt.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: cs.onSurface,
+                    ),
                   ),
-                  subtitle: const Text('Campus Safety Team'),
+                  subtitle: Text(
+                    'Campus Safety Team',
+                    style: tt.bodySmall?.copyWith(color: cs.onSurface.withOpacity(.7)),
+                  ),
                   trailing: FilledButton(
                     onPressed: () {},
                     child: const Text('Subscribe'),
@@ -176,17 +172,18 @@ class VideoDetailsSheet extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Description',
-                        style: TextStyle(fontWeight: FontWeight.w700),
-                      ),
+                      Text('Description',
+                          style: tt.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: cs.onSurface,
+                          )),
                       const SizedBox(height: 8),
                       Text(
                         (video.description.isEmpty)
                             ? 'No description.'
                             : video.description,
-                        style: TextStyle(
-                          color: Colors.grey.shade800,
+                        style: tt.bodyMedium?.copyWith(
+                          color: cs.onSurface.withOpacity(.9),
                           height: 1.3,
                         ),
                       ),
@@ -201,3 +198,28 @@ class VideoDetailsSheet extends StatelessWidget {
     );
   }
 }
+
+/// Pequeño helper para mostrar un icono + texto usando el tema
+class _Metric extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _Metric({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 18, color: cs.onSurface.withOpacity(.7)),
+        const SizedBox(width: 6),
+        Text(
+          text,
+          style: tt.bodyMedium?.copyWith(color: cs.onSurface.withOpacity(.7)),
+        ),
+      ],
+    );
+  }
+}
+

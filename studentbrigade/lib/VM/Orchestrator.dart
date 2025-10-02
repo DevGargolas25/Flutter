@@ -2,53 +2,112 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:studentbrigade/View/video_detail_sheet.dart';
 
-// Import the VM clases
+// VM clases
 import 'ChatVM.dart';
 import 'UserVM.dart';
 import 'VideosVM.dart';
 import 'AnalyticsVM.dart';
 import 'MapVM.dart';
 
-// Import the Model classes
+// Models
 import '../Models/mapMod.dart';
 import '../Models/videoMod.dart';
 import '../Models/userMod.dart';
 
+// NUEVO: servicio del sensor de luz
+import 'theme_sensor_service.dart';
 
-class Orchestrator extends ChangeNotifier {
-  // Singleton pattern
+// (Opcional) para permitir override manual del usuario
+enum ThemeOverride { followSystem, autoByLight, forceLight, forceDark }
+
+class Orchestrator extends ChangeNotifier with WidgetsBindingObserver { // NUEVO: observer
+  // Singleton
   static final Orchestrator _instance = Orchestrator._internal();
   factory Orchestrator() => _instance;
 
-  // Define the VM logic
+  // VMs
   late final MapVM _mapVM;
-
   late final VideosVM _videoVM;
   late final UserVM _userVM;
-  
-  // Navigation state
-  int _currentPageIndex = 0; // Home by default
+
+  // Navegación
+  int _currentPageIndex = 0;
+
+  // ====== NUEVO: Tema por sensor ======
+  final ThemeSensorService _themeSensor = ThemeSensorService(
+    darkEnterLux: 10,   // ajusta a gusto
+    lightEnterLux: 80,  // ajusta a gusto
+    smoothWindow: 5,
+  );
+  final ValueNotifier<ThemeMode> themeMode = ValueNotifier(ThemeMode.system);
+  ThemeOverride _override = ThemeOverride.autoByLight;
+  // =====================================
 
   Orchestrator._internal() {
     _mapVM = MapVM();
     _videoVM = VideosVM(VideosInfo());
     _userVM = UserVM();
-    _loadInitialUser(); // TODO cambiar por quien inicie sesion
+    _loadInitialUser(); // TODO: cambiar por quien inicie sesión
+
+    // ====== NUEVO: iniciar sensor y escuchar cambios ======
+    WidgetsBinding.instance.addObserver(this);
+    _themeSensor.addListener(_recomputeTheme);
+    _themeSensor.start();        // comienza a escuchar lux
+    _recomputeTheme();           // fija tema inicial
+    // ======================================================
   }
 
-  //Cargar datos iniciales
+  // IMPORTANTE: llámalo cuando cierres la app (desde MyApp.dispose)
+  void disposeOrchestrator() {
+    WidgetsBinding.instance.removeObserver(this);
+    _themeSensor.removeListener(_recomputeTheme);
+    _themeSensor.dispose();
+  }
+
+  // ====== NUEVO: lógica para decidir ThemeMode final ======
+  void _recomputeTheme() {
+    final sys = WidgetsBinding.instance.platformDispatcher.platformBrightness;
+    ThemeMode resolved;
+    switch (_override) {
+      case ThemeOverride.forceLight: resolved = ThemeMode.light; break;
+      case ThemeOverride.forceDark:  resolved = ThemeMode.dark;  break;
+      case ThemeOverride.followSystem:
+        resolved = (sys == Brightness.dark) ? ThemeMode.dark : ThemeMode.light;
+        break;
+      case ThemeOverride.autoByLight:
+        resolved = _themeSensor.mode; // viene del sensor (con histeresis)
+        break;
+    }
+    if (themeMode.value != resolved) themeMode.value = resolved;
+  }
+
+  // (Opcional) para ofrecer un menú de ajustes y cambiar la política
+  void setThemeOverride(ThemeOverride o) {
+    _override = o;
+    _recomputeTheme();
+  }
+
+  // Permite simular lux en emulador/PC
+  void themeDebugLux(num lux) => _themeSensor.debugSetLux(lux.toDouble());
+  // ========================================================
+
+  // Ciclo de vida: pausa/reanuda sensor
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed)  _themeSensor.start();
+    if (state == AppLifecycleState.paused)   _themeSensor.stop();
+  }
+
+  // ===== Tu código tal cual =====
   Future<void> _loadInitialUser() async {
     await _userVM.fetchUserData('current-user-id');
   }
 
-  // Getters
   int get currentPageIndex => _currentPageIndex;
   MapVM get mapVM => _mapVM;
   VideosVM get videoVM => _videoVM;
   UserVM get userVM => _userVM;
 
-
-  // Navigation
   void navigateToPage(int index) {
     if (_currentPageIndex != index) {
       _currentPageIndex = index;
@@ -56,34 +115,19 @@ class Orchestrator extends ChangeNotifier {
     }
   }
 
-  void navigateToMap(){
-    navigateToPage(2);
-  }
+  void navigateToMap()     => navigateToPage(2);
+  void navigateToProfile() => navigateToPage(4);
+  void navigateToVideos()  => navigateToPage(3);
 
-  void navigateToProfile() {
-    navigateToPage(4);
-  }
-
-  void navigateToVideos() {
-    navigateToPage(3);
-  }
-
-  // MAP OPERATIONS
+  // MAP
   Future<UserLocation?> getCurrentLocation() async {
     return await _mapVM.getCurrentLocation();
   }
 
-  void startLocationTracking() {
-    _mapVM.startLocationTracking();
-  }
+  void startLocationTracking() => _mapVM.startLocationTracking();
+  void stopLocationTracking()  => _mapVM.stopLocationTracking();
 
-  void stopLocationTracking() {
-    _mapVM.stopLocationTracking();
-  }
-
-  List<MapLocation> getMeetingPoints() {
-    return _mapVM.getMeetingPoints();
-  }
+  List<MapLocation> getMeetingPoints() => _mapVM.getMeetingPoints();
 
   MapLocation? getClosestMeetingPoint() {
     final userLocation = _mapVM.currentUserLocation;
@@ -97,20 +141,15 @@ class Orchestrator extends ChangeNotifier {
 
   List<RoutePoint>? get currentRoute => _mapVM.currentRoute;
 
-  void clearRoute() {
-    _mapVM.clearRoute();
-  }
+  void clearRoute() => _mapVM.clearRoute();
 
   // Getters
   UserLocation? get currentUserLocation => _mapVM.currentUserLocation;
   bool get isLocationLoading => _mapVM.isLocationLoading;
   String? get locationError => _mapVM.locationError;
 
-
-  // USER OPERATIONS
-  User? getUserData() {
-    return _userVM.getUserData();
-  }
+  // USER
+  User? getUserData() => _userVM.getUserData();
 
   Future<bool> updateUserData({
     String? emergencyName1,
@@ -148,7 +187,6 @@ class Orchestrator extends ChangeNotifier {
       vitaminsSupplements: vitaminsSupplements,
       specialInstructions: specialInstructions,
     );
-
   }
 
   void openVideoDetails(BuildContext context, VideoMod v) {
