@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../Models/videoMod.dart'; // VideoMod, VideosInfo
-import '../../VM/VideosVM.dart'; // VideosVM
+import '../../VM/VideosVM.dart';     // VideosVM
 import 'video_detail_sheet.dart';
-import '../VM/Orchestrator.dart'; // tu player
+import '../VM/Orchestrator.dart';    // Orchestrator
 
 class VideosPage extends StatefulWidget {
   final Orchestrator orchestrator;
@@ -25,13 +25,13 @@ class _VideosPageState extends State<VideosPage> {
   @override
   void initState() {
     super.initState();
-    // merge de escuchas: si en el futuro el Orchestrator cambia estado de navegación, etc.
+
     _listenableMerge = Listenable.merge([_orch, _orch.videoVM]);
 
     // Cargar datos iniciales del VM (a través del orquestador)
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _orch.videoVM.init();
-      setState(() {}); // por si algo inicial depende de contexto
+      if (mounted) setState(() {});
     });
 
     // Suscripción para repaint
@@ -53,15 +53,15 @@ class _VideosPageState extends State<VideosPage> {
   @override
   Widget build(BuildContext context) {
     final vm = _orch.videoVM;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final tt = theme.textTheme;
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: const Color(0xFF5EB4B6),
-        title: const Text(
-          'Training Videos',
-          style: TextStyle(color: Colors.white),
-        ),
-        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: cs.primary,
+        title: Text('Training Videos', style: tt.titleLarge?.copyWith(color: cs.onPrimary)),
+        iconTheme: IconThemeData(color: cs.onPrimary),
       ),
       body: Column(
         children: [
@@ -73,14 +73,16 @@ class _VideosPageState extends State<VideosPage> {
               onChanged: vm.search, // a través del orquestador.videoVM
               decoration: InputDecoration(
                 hintText: 'Search videos...',
-                prefixIcon: const Icon(Icons.search),
+                prefixIcon: Icon(Icons.search, color: cs.primary),
                 filled: true,
-                fillColor: Colors.grey.shade100,
+                fillColor: theme.inputDecorationTheme.fillColor ?? cs.surfaceVariant,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none,
                 ),
+                hintStyle: tt.bodyMedium?.copyWith(color: cs.onSurface.withOpacity(.6)),
               ),
+              style: tt.bodyMedium?.copyWith(color: cs.onSurface),
             ),
           ),
 
@@ -97,11 +99,13 @@ class _VideosPageState extends State<VideosPage> {
                 return ChoiceChip(
                   label: Text(f),
                   selected: selected,
-                  onSelected: (_) =>
-                      vm.setFilter(f), // delega al VM vía orquestador
-                  selectedColor: const Color(0xFF5EB4B6),
+                  onSelected: (_) => vm.setFilter(f),
+                  selectedColor: cs.primary,
+                  backgroundColor: cs.surface,
+                  side: BorderSide(color: cs.outlineVariant),
                   labelStyle: TextStyle(
-                    color: selected ? Colors.white : Colors.black87,
+                    color: selected ? cs.onPrimary : cs.onSurface,
+                    fontWeight: FontWeight.w600,
                   ),
                 );
               },
@@ -114,22 +118,22 @@ class _VideosPageState extends State<VideosPage> {
           // Lista de videos
           Expanded(
             child: vm.videos.isEmpty
-                ? const Center(child: Text('No videos found'))
+                ? Center(
+              child: Text('No videos found', style: tt.bodyLarge?.copyWith(color: cs.onSurface)),
+            )
                 : ListView.separated(
-                    controller: _scrollCtrl,
-                    padding: const EdgeInsets.all(16),
-                    itemCount: vm.videos.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 16),
-                    itemBuilder: (_, i) {
-                      final v = vm.videos[i];
-                      return _VideoCard(
-                        video: v,
-                        onPlay: () {
-                          _orch.openVideoDetails(context, v);
-                        },
-                      );
-                    },
-                  ),
+              controller: _scrollCtrl,
+              padding: const EdgeInsets.all(16),
+              itemCount: vm.videos.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 16),
+              itemBuilder: (_, i) {
+                final v = vm.videos[i];
+                return _VideoCard(
+                  video: v,
+                  onPlay: () => _orch.openVideoDetails(context, v),
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -137,7 +141,7 @@ class _VideosPageState extends State<VideosPage> {
   }
 }
 
-/// Card estilizada similar a tu mock
+/// Card estilizada, sin colores fijos: usa el tema
 class _VideoCard extends StatelessWidget {
   final VideoMod video;
   final VoidCallback onPlay;
@@ -146,8 +150,8 @@ class _VideoCard extends StatelessWidget {
   String _timeAgo(DateTime dt) {
     final d = DateTime.now().difference(dt);
     if (d.inDays >= 30) return '${(d.inDays / 30).floor()} months ago';
-    if (d.inDays >= 7) return '${(d.inDays / 7).floor()} weeks ago';
-    if (d.inDays >= 1) return '${d.inDays} days ago';
+    if (d.inDays >= 7)  return '${(d.inDays / 7).floor()} weeks ago';
+    if (d.inDays >= 1)  return '${d.inDays} days ago';
     if (d.inHours >= 1) return '${d.inHours} hours ago';
     return 'just now';
   }
@@ -161,11 +165,15 @@ class _VideoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final tt = theme.textTheme;
     final nf = NumberFormat.compact();
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
+
+    return Card(
+      color: theme.cardColor,
       elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: onPlay,
@@ -178,15 +186,10 @@ class _VideoCard extends StatelessWidget {
                 Container(
                   height: 160,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE5F5F5),
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(16),
-                    ),
+                    color: cs.surfaceVariant,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                     image: video.thumbnail.isNotEmpty
-                        ? DecorationImage(
-                            image: NetworkImage(video.thumbnail),
-                            fit: BoxFit.cover,
-                          )
+                        ? DecorationImage(image: NetworkImage(video.thumbnail), fit: BoxFit.cover)
                         : null,
                   ),
                 ),
@@ -194,15 +197,11 @@ class _VideoCard extends StatelessWidget {
                   child: Center(
                     child: Container(
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.7),
+                        color: cs.surface.withOpacity(.7),
                         shape: BoxShape.circle,
                       ),
                       padding: const EdgeInsets.all(12),
-                      child: const Icon(
-                        Icons.play_arrow_rounded,
-                        size: 36,
-                        color: Color(0xFF5EB4B6),
-                      ),
+                      child: Icon(Icons.play_arrow_rounded, size: 36, color: cs.primary),
                     ),
                   ),
                 ),
@@ -210,20 +209,14 @@ class _VideoCard extends StatelessWidget {
                   right: 12,
                   bottom: 12,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF4E2A7F),
+                      color: cs.primaryContainer,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       _durationText(video.duration),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: tt.labelLarge?.copyWith(color: cs.onPrimaryContainer, fontWeight: FontWeight.w700),
                     ),
                   ),
                 ),
@@ -236,34 +229,30 @@ class _VideoCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    video.title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  Text(video.title, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.onSurface)),
                   const SizedBox(height: 8),
+
+                  // Tags/chips
                   Wrap(
                     spacing: 8,
                     runSpacing: -8,
                     children: video.tags
                         .map(
                           (t) => Chip(
-                            label: Text(t),
-                            backgroundColor: Colors.grey.shade100,
-                            labelStyle: const TextStyle(
-                              color: Color(0xFF5E5A6B),
-                            ),
-                            padding: EdgeInsets.zero,
-                          ),
-                        )
+                        label: Text(t),
+                        backgroundColor: cs.surfaceVariant,
+                        labelStyle: tt.labelMedium?.copyWith(color: cs.onSurface),
+                        padding: EdgeInsets.zero,
+                        side: BorderSide(color: cs.outlineVariant),
+                      ),
+                    )
                         .toList(),
                   ),
+
                   const SizedBox(height: 8),
                   Text(
                     '${video.author}   •   ${nf.format(video.views)} views   •   ${_timeAgo(video.publishedAt)}',
-                    style: TextStyle(color: Colors.grey.shade600),
+                    style: tt.bodySmall?.copyWith(color: cs.onSurface.withOpacity(.7)),
                   ),
                 ],
               ),
@@ -274,3 +263,4 @@ class _VideoCard extends StatelessWidget {
     );
   }
 }
+
