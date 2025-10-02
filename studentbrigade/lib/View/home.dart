@@ -3,14 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:studentbrigade/VM/Orchestrator.dart';
 import 'profile_page.dart';
 import 'widgets/video_card.dart';
-import 'widgets/rotating_image_box.dart'; // o reemplaza por Image.asset('assets/medical.png', fit: BoxFit.cover)
 import 'widgets/rotating_image_box.dart';
 import 'analytics.dart';
 import 'Auth0/auth_service.dart';
 import 'Auth0/auth_gate.dart';
 import 'nav_shell.dart';
 import 'package:url_launcher/url_launcher.dart';
-
 
 typedef VideoSelect = void Function(int videoId);
 
@@ -35,8 +33,6 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-
-
   // ===== Notificaciones (rotan cada 10s) =====
   final List<String> notifications = const [
     'Campus safety drill scheduled for tomorrow at 2 PM',
@@ -49,7 +45,6 @@ class _HomePageState extends State<HomePage> {
   ];
   int currentNotificationIndex = 0;
 
-  // Reemplaza el getter:
   int get currentHourVideoIndex {
     final len = widget.orchestrator.videoVM.videos.length;
     if (len == 0) return 0;
@@ -65,7 +60,6 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
 
-    // timers que ya tenías
     _notifTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (!mounted) return;
       setState(() {
@@ -79,7 +73,6 @@ class _HomePageState extends State<HomePage> {
       setState(() => featuredIndex = currentHourVideoIndex);
     });
 
-    // Carga del VM y set del destacado
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final vm = widget.orchestrator.videoVM;
       if (vm.videos.isEmpty) {
@@ -87,7 +80,7 @@ class _HomePageState extends State<HomePage> {
       }
       if (!mounted) return;
       setState(() {
-        featuredIndex = currentHourVideoIndex; // ahora sí con datos reales
+        featuredIndex = currentHourVideoIndex;
       });
     });
   }
@@ -101,21 +94,23 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final tt = Theme.of(context).textTheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final tt = theme.textTheme;
+
     final vm = widget.orchestrator.videoVM;
     final items = vm.videos;
     final creds = AuthService.instance.credentials;
     final roles = creds?.roles ?? [];
 
-
     return Scaffold(
-      backgroundColor: const Color(0xFFF7FBFC),
+      backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
-            // ===== Barra superior turquesa =====
+            // ===== Barra superior usando el color primario del tema =====
             Container(
-              color: const Color(0xFF99D2D2),
+              color: cs.primary,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               child: Row(
                 children: [
@@ -124,10 +119,9 @@ class _HomePageState extends State<HomePage> {
                       notifications[currentNotificationIndex],
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF4A2951),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
+                      style: tt.bodyMedium?.copyWith(
+                        color: cs.onPrimary,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -135,35 +129,33 @@ class _HomePageState extends State<HomePage> {
                     tooltip: 'All notifications',
                     onPressed: () =>
                         showAllNotificationsDialog(context, notifications),
-                    icon: const Icon(Icons.notifications_none_rounded,
-                        size: 20, color: Color(0xFF4A2951)),
+                    icon: Icon(Icons.notifications_none_rounded,
+                        size: 20, color: cs.onPrimary),
                   ),
                   IconButton(
                     tooltip: 'Profile',
                     onPressed: () =>
                         showProfileMenuDialog(context, widget.onOpenProfile),
-                    icon: const Icon(Icons.account_circle,
-                        size: 20, color: Color(0xFF4A2951)),
+                    icon: Icon(Icons.account_circle,
+                        size: 20, color: cs.onPrimary),
                   ),
-                  // 🔹 Nuevo botón de Analytics
                   if (roles.contains('analytics'))
-                  IconButton(
-                    tooltip: 'Analytics',
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const AnalyticsPage(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.analytics_outlined,
-                        size: 20, color: Color(0xFF4A2951)),
-                  ),
+                    IconButton(
+                      tooltip: 'Analytics',
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const AnalyticsPage(),
+                          ),
+                        );
+                      },
+                      icon: Icon(Icons.analytics_outlined,
+                          size: 20, color: cs.onPrimary),
+                    ),
                 ],
               ),
             ),
-
 
             // ===== Contenido scrollable =====
             Expanded(
@@ -173,23 +165,23 @@ class _HomePageState extends State<HomePage> {
                   Text(
                     'Hi ${widget.userName}!',
                     style: tt.headlineSmall?.copyWith(
-                      color: const Color(0xFF4A2951),
+                      color: cs.onSurface,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 16),
 
-                  // --- Join the Brigade (SIN altura fija + botón que no desborda) ---
+                  // --- Join the Brigade ---
                   Container(
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF7FBFC),
+                      color: theme.cardColor,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: const Color(0xFF99D2D2).withOpacity(.2),
-                      ),
+                      border: Border.all(color: theme.dividerColor),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(.05),
+                          color: Colors.black.withOpacity(
+                            theme.brightness == Brightness.light ? .05 : .25,
+                          ),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -197,7 +189,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                     child: Row(
                       children: [
-                        // Ilustración (cuadrada, no empuja el contenido)
+                        // Ilustración (cuadrada)
                         Expanded(
                           flex: 2,
                           child: ClipRRect(
@@ -206,11 +198,10 @@ class _HomePageState extends State<HomePage> {
                               bottomLeft: Radius.circular(16),
                             ),
                             child: AspectRatio(
-                              aspectRatio: 1, // 1:1 evita crecimientos raros
+                              aspectRatio: 1,
                               child: Container(
-                                color: Colors.white,
-                                child:
-                                    const RotatingImageBox(), // o Image.asset(...)
+                                color: cs.surface,
+                                child: const RotatingImageBox(),
                               ),
                             ),
                           ),
@@ -227,25 +218,24 @@ class _HomePageState extends State<HomePage> {
                               children: [
                                 Row(
                                   mainAxisSize: MainAxisSize.min,
-                                  children: const [
+                                  children: [
                                     CircleAvatar(
                                       radius: 16,
-                                      backgroundColor: Color(0xFF75C1C7),
+                                      backgroundColor: cs.primary,
                                       child: Icon(
                                         Icons.group,
-                                        color: Colors.white,
+                                        color: cs.onPrimary,
                                         size: 18,
                                       ),
                                     ),
-                                    SizedBox(width: 10),
+                                    const SizedBox(width: 10),
                                     Flexible(
                                       child: Text(
                                         'Join the Brigade',
                                         overflow: TextOverflow.ellipsis,
                                         maxLines: 1,
-                                        style: TextStyle(
-                                          color: Color(0xFF4A2951),
-                                          fontSize: 18,
+                                        style: tt.titleMedium?.copyWith(
+                                          color: cs.onSurface,
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
@@ -253,59 +243,40 @@ class _HomePageState extends State<HomePage> {
                                   ],
                                 ),
                                 const SizedBox(height: 8),
-                                const Text(
+                                Text(
                                   'Become part of the student safety team and help keep our campus secure.',
-                                  style: TextStyle(color: Color(0xFF4A2951)),
+                                  style: tt.bodyMedium?.copyWith(
+                                    color: cs.onSurface,
+                                  ),
                                 ),
                                 const SizedBox(height: 12),
 
-                                // Botón protegido contra overflow
+                                // Botón deja que herede del tema (FilledButtonTheme)
                                 Align(
                                   alignment: Alignment.centerLeft,
-                                  child: ConstrainedBox(
-                                    constraints: const BoxConstraints(
-                                      maxWidth: 180,
-                                    ),
-                                    child: FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      alignment: Alignment.centerLeft,
-                                      child: FilledButton(
-                                        style: FilledButton.styleFrom(
-                                          backgroundColor: const Color(
-                                            0xFF75C1C7,
+                                  child: FilledButton(
+                                    onPressed: () async {
+                                      final url = Uri.parse(
+                                          'https://www.instagram.com/beuniandes/');
+                                      if (await canLaunchUrl(url)) {
+                                        await launchUrl(url,
+                                            mode: LaunchMode
+                                                .externalApplication);
+                                      } else {
+                                        if (!context.mounted) return;
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content: const Text(
+                                                'Could not open Instagram link'),
+                                            backgroundColor: cs.error,
+                                            behavior:
+                                            SnackBarBehavior.floating,
                                           ),
-                                          foregroundColor: Colors.white,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 18,
-                                            vertical: 12,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              12,
-                                            ),
-                                          ),
-                                        ),
-                                        onPressed: () async {
-                                          final url = Uri.parse('https://www.instagram.com/beuniandes/');
-                                          if (await canLaunchUrl(url)) {
-                                            await launchUrl(url, mode: LaunchMode.externalApplication);
-                                          } else {
-                                            // Fallback si no puede abrir el enlace
-                                            if (!context.mounted) return;
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(
-                                                content: Text('Could not open Instagram link'),
-                                                backgroundColor: Colors.red,
-                                              ),
-                                            );
-                                          }
-                                        },
-                                        child: const Text(
-                                          'Learn More',
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                    ),
+                                        );
+                                      }
+                                    },
+                                    child: const Text('Learn More'),
                                   ),
                                 ),
                               ],
@@ -321,12 +292,14 @@ class _HomePageState extends State<HomePage> {
                   // --- Learn on Your Own ---
                   Container(
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: theme.cardColor,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.grey.shade200),
+                      border: Border.all(color: theme.dividerColor),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(.05),
+                          color: Colors.black.withOpacity(
+                            theme.brightness == Brightness.light ? .05 : .25,
+                          ),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -337,72 +310,63 @@ class _HomePageState extends State<HomePage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Row(
-                          children: const [
+                          children: [
                             CircleAvatar(
                               radius: 16,
-                              backgroundColor: Color(0xFF60B896),
+                              backgroundColor: cs.secondary,
                               child: Icon(
                                 Icons.menu_book_rounded,
-                                color: Colors.white,
+                                color: cs.onSecondary,
                                 size: 18,
                               ),
                             ),
-                            SizedBox(width: 10),
+                            const SizedBox(width: 10),
                             Text(
                               'Learn on Your Own',
-                              style: TextStyle(
-                                color: Color(0xFF4A2951),
-                                fontSize: 18,
+                              style: tt.titleMedium?.copyWith(
+                                color: cs.onSurface,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 6),
-                        const Text(
+                        Text(
                           'Watch training videos and safety guides at your own pace.',
-                          style: TextStyle(
-                            color: Color(0xFF4A2951),
-                            fontSize: 13,
+                          style: tt.bodySmall?.copyWith(
+                            color: cs.onSurface,
                           ),
                         ),
                         const SizedBox(height: 12),
 
-                        // Carrusel: altura suficiente + tarjeta elástica => sin overflow
                         SizedBox(
                           height: 280,
                           child: items.isEmpty
                               ? const Center(child: CircularProgressIndicator())
                               : ListView.separated(
-                                  scrollDirection: Axis.horizontal,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 4,
-                                  ),
-                                  itemCount: items.length,
-                                  separatorBuilder: (_, __) =>
-                                      const SizedBox(width: 16),
-                                  itemBuilder: (context, i) {
-                                    final v =
-                                        items[i]; // <-- VideoMod del modelo
-                                    final isFeatured =
-                                        i == (featuredIndex % vm.videos.length);
-                                    return VideoCard(
-                                      video: v,
-                                      isFeatured: isFeatured,
-                                      onTap: () => widget.orchestrator
-                                          .openVideoDetails(context, v),
-                                    );
-                                  },
-                                ),
+                            scrollDirection: Axis.horizontal,
+                            padding:
+                            const EdgeInsets.symmetric(horizontal: 4),
+                            itemCount: items.length,
+                            separatorBuilder: (_, __) =>
+                            const SizedBox(width: 16),
+                            itemBuilder: (context, i) {
+                              final v = items[i];
+                              final isFeatured =
+                                  i == (featuredIndex % vm.videos.length);
+                              return VideoCard(
+                                video: v,
+                                isFeatured: isFeatured,
+                                onTap: () => widget.orchestrator
+                                    .openVideoDetails(context, v),
+                              );
+                            },
+                          ),
                         ),
 
                         const SizedBox(height: 8),
                         TextButton(
                           onPressed: widget.onNavigateToVideos,
-                          style: TextButton.styleFrom(
-                            foregroundColor: const Color(0xFF75C1C7),
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                          ),
                           child: const Align(
                             alignment: Alignment.centerLeft,
                             child: Text('View All Videos'),
@@ -419,12 +383,18 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
- 
-
+}
 
 /* =================== Modales reutilizables =================== */
+
 Future<void> showProfileMenuDialog(
-    BuildContext context, VoidCallback? onOpenProfile) {
+    BuildContext context,
+    VoidCallback? onOpenProfile,
+    ) {
+  final theme = Theme.of(context);
+  final cs = theme.colorScheme;
+  final tt = theme.textTheme;
+
   return showDialog(
     context: context,
     barrierColor: Colors.black.withOpacity(.6),
@@ -435,28 +405,29 @@ Future<void> showProfileMenuDialog(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header turquesa
+            // Header
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
-              decoration: const BoxDecoration(
-                color: Color(0xFF75C1C7),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+              decoration: BoxDecoration(
+                color: cs.primary,
+                borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(16)),
               ),
               child: Column(
-                children: const [
+                children: [
                   CircleAvatar(
                     radius: 28,
-                    backgroundColor: Colors.white24,
-                    child: Icon(Icons.person, color: Colors.white, size: 28),
+                    backgroundColor: cs.onPrimary.withOpacity(.2),
+                    child:
+                    Icon(Icons.person, color: cs.onPrimary, size: 28),
                   ),
-                  SizedBox(height: 8),
+                  const SizedBox(height: 8),
                   Text('Profile & Settings',
-                      style: TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.w600)),
-                  SizedBox(height: 4),
+                      style: tt.titleMedium?.copyWith(color: cs.onPrimary)),
+                  const SizedBox(height: 4),
                   Text('Manage your account and preferences',
-                      style: TextStyle(color: Colors.white70)),
+                      style: tt.bodySmall?.copyWith(color: cs.onPrimary)),
                 ],
               ),
             ),
@@ -464,51 +435,47 @@ Future<void> showProfileMenuDialog(
             // Opción: Profile Settings
             Padding(
               padding: const EdgeInsets.all(16),
-                child: InkWell(
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    // Navegar a ProfilePage mediante callback
-                    onOpenProfile?.call();
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 16,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF7FBFC),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: const Color(0xFF99D2D2).withOpacity(.3),
+              child: InkWell(
+                onTap: () {
+                  Navigator.pop(ctx);
+                  onOpenProfile?.call();
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  width: double.infinity,
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  decoration: BoxDecoration(
+                    color: theme.cardColor,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: theme.dividerColor),
+                  ),
+                  child: Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 16,
+                        backgroundColor: cs.primaryContainer,
+                        child: Icon(Icons.person_outline,
+                            color: cs.onPrimaryContainer),
                       ),
-                    ),
-                    child: Row(
-                      children: const [
-                        CircleAvatar(
-                          radius: 16,
-                          backgroundColor: Color(0xFF99D2D2),
-                          child: Icon(
-                            Icons.person_outline,
-                            color: Colors.white,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Profile Settings',
+                          style: tt.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: cs.onSurface,
                           ),
                         ),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Profile Settings',
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                        Icon(Icons.chevron_right),
-                      ],
-                    ),
+                      ),
+                      Icon(Icons.chevron_right, color: cs.onSurface),
+                    ],
                   ),
                 ),
               ),
+            ),
 
-            // 🔹 Nuevo botón: Logout
+            // Logout
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: InkWell(
@@ -517,7 +484,9 @@ Future<void> showProfileMenuDialog(
                   await AuthService.instance.logout();
                   if (!context.mounted) return;
                   Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (_) => const AuthGate(childWhenAuthed: NavShell())),
+                    MaterialPageRoute(
+                      builder: (_) => const AuthGate(childWhenAuthed: NavShell()),
+                    ),
                         (_) => false,
                   );
                 },
@@ -527,24 +496,26 @@ Future<void> showProfileMenuDialog(
                   padding:
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF7FBFC),
+                    color: theme.cardColor,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                        color: const Color(0xFF99D2D2).withOpacity(.3)),
+                    border: Border.all(color: theme.dividerColor),
                   ),
                   child: Row(
-                    children: const [
+                    children: [
                       CircleAvatar(
                         radius: 16,
-                        backgroundColor: Color(0xFF99D2D2),
-                        child: Icon(Icons.logout, color: Colors.white),
+                        backgroundColor: cs.errorContainer,
+                        child: Icon(Icons.logout, color: cs.onErrorContainer),
                       ),
-                      SizedBox(width: 12),
+                      const SizedBox(width: 12),
                       Expanded(
-                        child: Text('Log out',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF4A2951))),
+                        child: Text(
+                          'Log out',
+                          style: tt.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: cs.onSurface,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -560,137 +531,120 @@ Future<void> showProfileMenuDialog(
   );
 }
 
-
-  Future<void> showAllNotificationsDialog(
+Future<void> showAllNotificationsDialog(
     BuildContext context,
     List<String> notifications,
-  ) {
-    return showDialog(
-      context: context,
-      barrierColor: Colors.black.withOpacity(.3),
-      builder: (ctx) {
-        return Dialog(
-          insetPadding: const EdgeInsets.symmetric(horizontal: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: SizedBox(
-            width: 420,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Header
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border(
-                      bottom: BorderSide(
-                        color: const Color(0xFF99D2D2).withOpacity(.2),
-                      ),
-                    ),
-                  ),
-                  child: Row(
-                    children: const [
-                      CircleAvatar(
-                        radius: 16,
-                        backgroundColor: Color(0xFF75C1C7),
-                        child: Icon(
-                          Icons.notifications_none_rounded,
-                          color: Colors.white,
-                          size: 18,
-                        ),
-                      ),
-                      SizedBox(width: 10),
-                      Text(
-                        'All Notifications',
-                        style: TextStyle(
-                          color: Color(0xFF4A2951),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+    ) {
+  final theme = Theme.of(context);
+  final cs = theme.colorScheme;
+  final tt = theme.textTheme;
+
+  return showDialog(
+    context: context,
+    barrierColor: Colors.black.withOpacity(.3),
+    builder: (ctx) {
+      return Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: theme.cardColor,
+                  border: Border(
+                    bottom: BorderSide(color: theme.dividerColor),
                   ),
                 ),
-                Flexible(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      children: notifications
-                          .map(
-                            (n) => Container(
-                              margin: const EdgeInsets.only(bottom: 10),
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: const Color(
-                                    0xFF99D2D2,
-                                  ).withOpacity(.25),
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(.03),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: cs.primary,
+                      child:
+                      Icon(Icons.notifications_none_rounded, color: cs.onPrimary, size: 18),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      'All Notifications',
+                      style: tt.titleMedium?.copyWith(
+                        color: cs.onSurface,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    children: notifications
+                        .map(
+                          (n) => Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: theme.cardColor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: theme.dividerColor),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(
+                                theme.brightness == Brightness.light
+                                    ? .03
+                                    : .2,
                               ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const CircleAvatar(
-                                    radius: 14,
-                                    backgroundColor: Color(0xFF75C1C7),
-                                    child: Icon(
-                                      Icons.notifications,
-                                      size: 14,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      n,
-                                      style: const TextStyle(
-                                        color: Color(0xFF4A2951),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            CircleAvatar(
+                              radius: 14,
+                              backgroundColor: cs.primary,
+                              child: Icon(Icons.notifications,
+                                  size: 14, color: cs.onPrimary),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                n,
+                                style: tt.bodyMedium?.copyWith(
+                                  color: cs.onSurface,
+                                ),
                               ),
                             ),
-                          )
-                          .toList(),
-                    ),
+                          ],
+                        ),
+                      ),
+                    )
+                        .toList(),
                   ),
                 ),
-                const SizedBox(height: 8),
-                Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF75C1C7),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 28,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Close'),
-                  ),
+              ),
+              const SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Close'),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
 }

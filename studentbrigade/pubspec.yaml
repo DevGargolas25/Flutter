@@ -42,6 +42,7 @@ dependencies:
   auth0_flutter: ^1.14.0
   shared_preferences: ^2.2.3
   url_launcher: ^6.2.1
+  ambient_light: ^0.1.4
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.

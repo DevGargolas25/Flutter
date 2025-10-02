@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
-import '../../app_colors.dart';
 
 enum EmergencyType { fire, earthquake, medical }
 
 class EmergencySuccessDialog {
   static void show(BuildContext context, EmergencyType type) {
-    final tt = Theme.of(context).textTheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final tt = theme.textTheme;
 
     // Mensajes por tipo
-    final title = 'Alert Sent Successfully';
-    final subtitle = 'Emergency personnel have been notified';
+    const title = 'Alert Sent Successfully';
+    const subtitle = 'Emergency personnel have been notified';
     final body = switch (type) {
       EmergencyType.fire =>
       'The fire emergency has been reported to the corresponding personnel.',
@@ -30,44 +31,46 @@ class EmergencySuccessDialog {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Header verde con icono - MÁS ALTO
+              // ===== Header de “éxito”: usa secondary / onSecondary =====
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(24, 32, 24, 32), // Más padding vertical
+                padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
                 decoration: BoxDecoration(
-                  color: greenShade, // de app_colors.dart
+                  color: cs.secondary,
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
                 ),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Container(
-                      width: 72, // Icono más grande
+                      width: 72,
                       height: 72,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white.withOpacity(0.16),
+                        color: cs.onSecondary.withOpacity(0.16),
                       ),
-                      child: const Center(
-                        child: Icon(Icons.warning_amber_rounded, color: Colors.white, size: 40), // Icono más grande
+                      child: Icon(
+                        Icons.check_circle_rounded,
+                        color: cs.onSecondary,
+                        size: 40,
                       ),
                     ),
-                    const SizedBox(height: 16), // Más espacio
+                    const SizedBox(height: 16),
                     Text(
                       title,
                       style: tt.titleLarge?.copyWith(
-                        color: Colors.white,
+                        color: cs.onSecondary,
                         fontWeight: FontWeight.w700,
-                        fontSize: 20, // Texto más grande
+                        fontSize: 20,
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 8), // Más espacio
+                    const SizedBox(height: 8),
                     Text(
                       subtitle,
                       style: tt.bodyMedium?.copyWith(
-                        color: Colors.white70,
-                        fontSize: 16, // Texto más grande
+                        color: cs.onSecondary.withOpacity(.85),
+                        fontSize: 16,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -75,23 +78,24 @@ class EmergencySuccessDialog {
                 ),
               ),
 
-              // Mensaje inferior - MÁS ESPACIO
+              // ===== Mensaje inferior: usa surfaceVariant / onSurfaceVariant =====
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24), // Más padding
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18), // Más padding interno
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFEAF7F1),
+                    color: cs.surfaceVariant.withOpacity(.7),
                     borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: theme.dividerColor),
                   ),
                   child: Text(
                     body,
                     style: tt.bodyMedium?.copyWith(
-                      color: Colors.grey.shade800,
-                      fontSize: 15, // Texto más grande
-                      height: 1.4, // Más altura de línea
+                      color: cs.onSurfaceVariant,
+                      fontSize: 15,
+                      height: 1.4,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -104,3 +108,4 @@ class EmergencySuccessDialog {
     );
   }
 }
+

@@ -14,7 +14,7 @@ class _ProfilePageState extends State<ProfilePage> {
   // MODES
   bool _isEditing = false;
   bool _isSaving = false;
-  
+
   // Personal Information
   late String _fullName;
   late String _email;
@@ -48,53 +48,43 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
-    _loadUserData(); // Upload data
+    _loadUserData();
   }
 
   void _loadUserData() {
     final user = widget.orchestrator.getUserData();
     if (user != null) {
-      // Personal Information
       _fullName = user.fullName;
       _email = user.email;
       _studentId = user.studentId;
       _phone = user.phone;
 
-      // Emergency Contact
       _emergencyName1 = user.emergencyName1;
       _emergencyPhone1 = user.emergencyPhone1;
       _emergencyName2 = user.emergencyName2 ?? '';
       _emergencyPhone2 = user.emergencyPhone2 ?? '';
 
-      // Medical Information
       _bloodType = user.bloodType;
       _doctorName = user.doctorName ?? '';
       _doctorPhone = user.doctorPhone ?? '';
       _insuranceProvider = user.insuranceProvider;
 
-      // Allergies
       _foodAllergies = user.foodAllergies ?? '';
       _environmentalAllergies = user.environmentalAllergies ?? '';
       _drugAllergies = user.drugAllergies ?? '';
       _severityNotes = user.severityNotes ?? '';
 
-      // Current Medications
       _dailyMedications = user.dailyMedications ?? '';
       _emergencyMedications = user.emergencyMedications ?? '';
       _vitaminsSupplements = user.vitaminsSupplements ?? '';
       _specialInstructions = user.specialInstructions ?? '';
-    } 
+    }
   }
 
-  // ✅ FUNCIÓN PARA GUARDAR CAMBIOS
   Future<void> _saveChanges() async {
-    setState(() {
-      _isSaving = true;
-    });
-
+    setState(() => _isSaving = true);
     try {
-      // ✅ USAR EL NUEVO MÉTODO - Solo campos editables
-      bool success = await widget.orchestrator.updateUserData(
+      final success = await widget.orchestrator.updateUserData(
         emergencyName1: _emergencyName1,
         emergencyPhone1: _emergencyPhone1,
         emergencyName2: _emergencyName2,
@@ -112,78 +102,72 @@ class _ProfilePageState extends State<ProfilePage> {
         vitaminsSupplements: _vitaminsSupplements,
         specialInstructions: _specialInstructions,
       );
-      
+
+      if (!mounted) return;
+
       if (success) {
-        setState(() {
-          _isEditing = false;
-        });
-        
+        setState(() => _isEditing = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profile updated successfully!'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: const Text('Profile updated successfully!'),
+            backgroundColor: Theme.of(context).snackBarTheme.backgroundColor ??
+                Theme.of(context).colorScheme.inverseSurface,
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to update profile. Please try again.'),
-            backgroundColor: Colors.red,
+          SnackBar(
+            content: const Text('Failed to update profile. Please try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
     } finally {
-      setState(() {
-        _isSaving = false;
-      });
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
-  // FUNCIÓN PARA CANCELAR EDICIÓN
   void _cancelEditing() {
-    setState(() {
-      _isEditing = false;
-    });
-    _loadUserData(); // Recargar datos originales
+    setState(() => _isEditing = false);
+    _loadUserData();
   }
-
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final tt = theme.textTheme;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profile'),
         backgroundColor: cs.primary,
+        foregroundColor: cs.onPrimary,
         actions: [
           if (_isEditing) ...[
-            // BOTONES PARA MODO EDICIÓN
             TextButton(
               onPressed: _isSaving ? null : _cancelEditing,
-              child: const Text('Cancel', style: TextStyle(color: Colors.white)),
+              child: Text('Cancel', style: tt.labelLarge?.copyWith(color: cs.onPrimary)),
             ),
             const SizedBox(width: 8),
-            ElevatedButton(
+            FilledButton(
               onPressed: _isSaving ? null : _saveChanges,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
+              style: FilledButton.styleFrom(
+                backgroundColor: cs.onPrimary,
                 foregroundColor: cs.primary,
               ),
-              child: _isSaving 
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Save'),
+              child: _isSaving
+                  ? const SizedBox(
+                  width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text('Save'),
             ),
             const SizedBox(width: 8),
           ],
@@ -192,35 +176,29 @@ class _ProfilePageState extends State<ProfilePage> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Profile Header
           _ProfileHeader(
             name: _fullName,
             subtitle: 'Student Brigade Member',
             isEditing: _isEditing,
-            onEditPressed: () {
-              setState(() {
-                _isEditing = !_isEditing;
-              });
-            }
+            onEditPressed: () => setState(() => _isEditing = !_isEditing),
           ),
-          
           const SizedBox(height: 24),
 
-          // Personal Information
+          // Personal Information (solo lectura)
           _ReadOnlySection(
-              title: 'Personal Information',
-              icon: Icons.person,
-              fields: [
-                _ReadOnlyField(label: 'Full Name', value: _fullName),
-                _ReadOnlyField(label: 'Student ID', value: _studentId),
-                _ReadOnlyField(label: 'Email', value: _email),
-                _ReadOnlyField(label: 'Phone', value: _phone),
-              ],
+            title: 'Personal Information',
+            icon: Icons.person,
+            fields: [
+              _ReadOnlyField(label: 'Full Name', value: _fullName),
+              _ReadOnlyField(label: 'Student ID', value: _studentId),
+              _ReadOnlyField(label: 'Email', value: _email),
+              _ReadOnlyField(label: 'Phone', value: _phone),
+            ],
           ),
 
           const SizedBox(height: 16),
 
-          // Emergency Contact
+          // Emergency Contact (editable)
           _EditableSection(
             title: 'Emergency Contact',
             icon: Icons.contact_phone,
@@ -230,32 +208,32 @@ class _ProfilePageState extends State<ProfilePage> {
                 label: 'Contact Name 1',
                 value: _emergencyName1,
                 isEditing: _isEditing,
-                onChanged: (value) => setState(() => _emergencyName1 = value),
+                onChanged: (v) => _emergencyName1 = v,
               ),
               _EditableField(
                 label: 'Contact Phone 1',
                 value: _emergencyPhone1,
                 isEditing: _isEditing,
-                onChanged: (value) => setState(() => _emergencyPhone1 = value),
+                onChanged: (v) => _emergencyPhone1 = v,
               ),
               _EditableField(
                 label: 'Contact Name 2',
                 value: _emergencyName2,
                 isEditing: _isEditing,
-                onChanged: (value) => setState(() => _emergencyName2 = value),
+                onChanged: (v) => _emergencyName2 = v,
               ),
               _EditableField(
                 label: 'Contact Phone 2',
                 value: _emergencyPhone2,
                 isEditing: _isEditing,
-                onChanged: (value) => setState(() => _emergencyPhone2 = value),
+                onChanged: (v) => _emergencyPhone2 = v,
               ),
             ],
           ),
 
           const SizedBox(height: 16),
 
-          // Medical Information
+          // Medical Information (editable)
           _EditableSection(
             title: 'Medical Information',
             icon: Icons.medical_services,
@@ -265,32 +243,32 @@ class _ProfilePageState extends State<ProfilePage> {
                 label: 'Blood Type',
                 value: _bloodType,
                 isEditing: _isEditing,
-                onChanged: (value) => setState(() => _bloodType = value),
+                onChanged: (v) => _bloodType = v,
               ),
               _EditableField(
                 label: 'Doctor Name',
                 value: _doctorName,
                 isEditing: _isEditing,
-                onChanged: (value) => setState(() => _doctorName = value),
+                onChanged: (v) => _doctorName = v,
               ),
               _EditableField(
                 label: 'Doctor Phone',
                 value: _doctorPhone,
                 isEditing: _isEditing,
-                onChanged: (value) => setState(() => _doctorPhone = value),
+                onChanged: (v) => _doctorPhone = v,
               ),
               _EditableField(
                 label: 'Insurance Provider',
                 value: _insuranceProvider,
                 isEditing: _isEditing,
-                onChanged: (value) => setState(() => _insuranceProvider = value),
+                onChanged: (v) => _insuranceProvider = v,
               ),
             ],
           ),
 
           const SizedBox(height: 16),
 
-          // Allergies
+          // Allergies (editable)
           _EditableSection(
             title: 'Allergies',
             icon: Icons.warning,
@@ -300,28 +278,28 @@ class _ProfilePageState extends State<ProfilePage> {
                 label: 'Food Allergies',
                 value: _foodAllergies,
                 isEditing: _isEditing,
-                onChanged: (value) => setState(() => _foodAllergies = value),
+                onChanged: (v) => _foodAllergies = v,
                 maxLines: 2,
               ),
               _EditableField(
                 label: 'Environmental Allergies',
                 value: _environmentalAllergies,
                 isEditing: _isEditing,
-                onChanged: (value) => setState(() => _environmentalAllergies = value),
+                onChanged: (v) => _environmentalAllergies = v,
                 maxLines: 2,
               ),
               _EditableField(
                 label: 'Drug Allergies',
                 value: _drugAllergies,
                 isEditing: _isEditing,
-                onChanged: (value) => setState(() => _drugAllergies = value),
+                onChanged: (v) => _drugAllergies = v,
                 maxLines: 2,
               ),
               _EditableField(
                 label: 'Severity/Notes',
                 value: _severityNotes,
                 isEditing: _isEditing,
-                onChanged: (value) => setState(() => _severityNotes = value),
+                onChanged: (v) => _severityNotes = v,
                 maxLines: 3,
               ),
             ],
@@ -329,7 +307,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
           const SizedBox(height: 16),
 
-          // Current Medications
+          // Current Medications (editable)
           _EditableSection(
             title: 'Current Medications',
             icon: Icons.local_pharmacy,
@@ -339,28 +317,28 @@ class _ProfilePageState extends State<ProfilePage> {
                 label: 'Daily Medications',
                 value: _dailyMedications,
                 isEditing: _isEditing,
-                onChanged: (value) => setState(() => _dailyMedications = value),
+                onChanged: (v) => _dailyMedications = v,
                 maxLines: 2,
               ),
               _EditableField(
                 label: 'Emergency Medications',
                 value: _emergencyMedications,
                 isEditing: _isEditing,
-                onChanged: (value) => setState(() => _emergencyMedications = value),
+                onChanged: (v) => _emergencyMedications = v,
                 maxLines: 2,
               ),
               _EditableField(
                 label: 'Vitamins/Supplements',
                 value: _vitaminsSupplements,
                 isEditing: _isEditing,
-                onChanged: (value) => setState(() => _vitaminsSupplements = value),
+                onChanged: (v) => _vitaminsSupplements = v,
                 maxLines: 2,
               ),
               _EditableField(
                 label: 'Special Instructions',
                 value: _specialInstructions,
                 isEditing: _isEditing,
-                onChanged: (value) => setState(() => _specialInstructions = value),
+                onChanged: (v) => _specialInstructions = v,
                 maxLines: 3,
               ),
             ],
@@ -376,61 +354,60 @@ class _ProfilePageState extends State<ProfilePage> {
 class _ProfileHeader extends StatelessWidget {
   final String name;
   final String subtitle;
-  final bool isEditing; // ✅ AGREGAR
-  final VoidCallback onEditPressed; // ✅ AGREGAR
+  final bool isEditing;
+  final VoidCallback onEditPressed;
 
   const _ProfileHeader({
     required this.name,
     required this.subtitle,
-    required this.isEditing, // ✅ AGREGAR
-    required this.onEditPressed, // ✅ AGREGAR
+    required this.isEditing,
+    required this.onEditPressed,
   });
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final tt = theme.textTheme;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFFE8F5F3),
+        color: theme.cardColor,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: theme.dividerColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(
+              theme.brightness == Brightness.light ? .05 : .25,
+            ),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
           CircleAvatar(
             radius: 32,
-            backgroundColor: const Color(0xFF7DD3C0),
-            child: Icon(
-              Icons.person,
-              size: 32,
-              color: Colors.white,
-            ),
+            backgroundColor: cs.primary,
+            child: Icon(Icons.person, size: 32, color: cs.onPrimary),
           ),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                Text(name, style: tt.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: cs.onSurface)),
                 const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                  ),
-                ),
+                Text(subtitle, style: tt.bodySmall?.copyWith(color: cs.onSurface.withOpacity(.7))),
               ],
             ),
           ),
           IconButton(
-            icon: Icon(isEditing ? Icons.close : Icons.edit), // ✅ CAMBIAR
-            onPressed: onEditPressed, // ✅ CAMBIAR
+            icon: Icon(isEditing ? Icons.close : Icons.edit, color: cs.onSurface),
+            onPressed: onEditPressed,
+            tooltip: isEditing ? 'Close editing' : 'Edit',
           ),
         ],
       ),
@@ -453,10 +430,14 @@ class _EditableSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final tt = theme.textTheme;
 
     return Card(
+      color: theme.cardColor,
       elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -466,13 +447,7 @@ class _EditableSection extends StatelessWidget {
               children: [
                 Icon(icon, color: cs.primary, size: 20),
                 const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                Text(title, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: cs.onSurface)),
               ],
             ),
             const SizedBox(height: 16),
@@ -504,32 +479,26 @@ class _EditableField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final tt = theme.textTheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
+        Text(label, style: tt.bodySmall?.copyWith(fontWeight: FontWeight.w600, color: cs.onSurface)),
         const SizedBox(height: 4),
-        Container(
-          decoration: BoxDecoration(
-            color: Colors.grey[100],
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey[300]!),
+        TextFormField(
+          initialValue: value,
+          onChanged: onChanged,
+          maxLines: maxLines,
+          enabled: isEditing,
+          decoration: InputDecoration(
+            isCollapsed: false,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            // hereda de InputDecorationTheme de tu theme
           ),
-          child: TextFormField(
-            initialValue: value,
-            onChanged: onChanged,
-            maxLines: maxLines,
-            decoration: const InputDecoration(
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            ),
-          ),
+          style: tt.bodyMedium?.copyWith(color: cs.onSurface),
         ),
       ],
     );
@@ -549,10 +518,14 @@ class _ReadOnlySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final tt = theme.textTheme;
 
     return Card(
+      color: theme.cardColor,
       elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -562,15 +535,9 @@ class _ReadOnlySection extends StatelessWidget {
               children: [
                 Icon(icon, color: cs.primary, size: 20),
                 const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                Text(title, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: cs.onSurface)),
                 const Spacer(),
-                Icon(Icons.lock, color: Colors.grey[400], size: 16),
+                Icon(Icons.lock, color: cs.onSurface.withOpacity(.4), size: 16),
               ],
             ),
             const SizedBox(height: 16),
@@ -596,22 +563,22 @@ class _ReadOnlyField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final tt = theme.textTheme;
+
+    final isEmpty = value.isEmpty;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
+        Text(label, style: tt.bodySmall?.copyWith(fontWeight: FontWeight.w600, color: cs.onSurface)),
         const SizedBox(height: 4),
         Container(
           decoration: BoxDecoration(
-            color: Colors.grey[50],
+            color: theme.inputDecorationTheme.fillColor ?? cs.surface,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey[200]!),
+            border: Border.all(color: theme.dividerColor),
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -619,14 +586,14 @@ class _ReadOnlyField extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    value.isEmpty ? 'Not specified' : value,
-                    style: TextStyle(
-                      color: value.isEmpty ? Colors.grey[600] : Colors.black87,
-                      fontStyle: value.isEmpty ? FontStyle.italic : FontStyle.normal,
+                    isEmpty ? 'Not specified' : value,
+                    style: tt.bodyMedium?.copyWith(
+                      color: isEmpty ? cs.onSurface.withOpacity(.6) : cs.onSurface,
+                      fontStyle: isEmpty ? FontStyle.italic : FontStyle.normal,
                     ),
                   ),
                 ),
-                Icon(Icons.lock, color: Colors.grey[400], size: 16),
+                Icon(Icons.lock, color: cs.onSurface.withOpacity(.4), size: 16),
               ],
             ),
           ),
