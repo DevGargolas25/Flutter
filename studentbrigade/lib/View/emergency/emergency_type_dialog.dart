@@ -1,11 +1,12 @@
 // lib/widgets/emergency_type_dialog.dart
 import 'package:flutter/material.dart';
-import '../../app_colors.dart';
 import 'emergency_success_dialog.dart';
 
 class EmergencyTypeDialog {
   static void show(BuildContext context) {
-    final tt = Theme.of(context).textTheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final tt = theme.textTheme;
 
     showDialog(
       context: context,
@@ -18,11 +19,11 @@ class EmergencyTypeDialog {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // ===== Header rojo con icono y textos =====
+              // ===== Header SOS (usa error/onError) =====
               Container(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
                 decoration: BoxDecoration(
-                  color: pastelRed,
+                  color: cs.error,
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
                 ),
                 child: Column(
@@ -31,7 +32,7 @@ class EmergencyTypeDialog {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.close, color: Colors.white),
+                          icon: Icon(Icons.close, color: cs.onError),
                           onPressed: () => Navigator.of(context).pop(),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
@@ -39,26 +40,29 @@ class EmergencyTypeDialog {
                       ],
                     ),
                     Container(
-                      width: 62, height: 62,
+                      width: 62,
+                      height: 62,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white.withOpacity(0.15),
+                        color: cs.onError.withOpacity(0.15),
                       ),
-                      child: const Center(
-                        child: Icon(Icons.warning_amber_rounded, color: Colors.white, size: 34),
+                      child: Center(
+                        child: Icon(Icons.warning_amber_rounded, color: cs.onError, size: 34),
                       ),
                     ),
                     const SizedBox(height: 12),
                     Text(
                       'Select Emergency Type',
                       style: tt.titleLarge?.copyWith(
-                          color: Colors.white, fontWeight: FontWeight.w700),
+                        color: cs.onError,
+                        fontWeight: FontWeight.w700,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'Choose the type of emergency to report',
-                      style: tt.bodyMedium?.copyWith(color: Colors.white70),
+                      style: tt.bodyMedium?.copyWith(color: cs.onError.withOpacity(.85)),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -71,57 +75,65 @@ class EmergencyTypeDialog {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // FIRE
                     _TypeTile(
                       icon: Icons.local_fire_department_rounded,
-                      iconBg: const Color(0xFFFFE9E3),
-                      iconColor: const Color(0xFFFF6A3D),
+                      containerColor: cs.errorContainer,
+                      iconColor: cs.error,
                       title: 'Fire Alert',
                       subtitle: 'Report fire emergency or smoke detection',
                       onTap: () {
                         Navigator.pop(context);
-                        // Aquí podrías llamar a tu backend antes de mostrar el éxito
-                        Future.microtask(() =>
-                            EmergencySuccessDialog.show(context, EmergencyType.fire));
+                        Future.microtask(
+                              () => EmergencySuccessDialog.show(context, EmergencyType.fire),
+                        );
                       },
                     ),
                     const SizedBox(height: 12),
+
+                    // EARTHQUAKE
                     _TypeTile(
                       icon: Icons.public_rounded,
-                      iconBg: const Color(0xFFE9F7F0),
-                      iconColor: const Color(0xFF2EB580),
+                      containerColor: cs.secondaryContainer,
+                      iconColor: cs.secondary,
                       title: 'Earthquake Alert',
                       subtitle: 'Report seismic activity or structural damage',
                       onTap: () {
                         Navigator.pop(context);
-                        Future.microtask(() =>
-                            EmergencySuccessDialog.show(context, EmergencyType.earthquake));
+                        Future.microtask(
+                              () => EmergencySuccessDialog.show(context, EmergencyType.earthquake),
+                        );
                       },
                     ),
                     const SizedBox(height: 12),
+
+                    // MEDICAL
                     _TypeTile(
                       icon: Icons.favorite_rounded,
-                      iconBg: const Color(0xFFF6ECF5),
-                      iconColor: const Color(0xFFE04F8A),
+                      containerColor: cs.tertiaryContainer,
+                      iconColor: cs.tertiary,
                       title: 'Medical Alert',
                       subtitle: 'Report medical emergency or injury',
                       onTap: () {
                         Navigator.pop(context);
-                        Future.microtask(() =>
-                            EmergencySuccessDialog.show(context, EmergencyType.medical));
+                        Future.microtask(
+                              () => EmergencySuccessDialog.show(context, EmergencyType.medical),
+                        );
                       },
                     ),
 
                     const SizedBox(height: 16),
+                    // Nota informativa que respeta tema
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEAF7F5),
+                        color: cs.surfaceVariant.withOpacity(.6),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         'Emergency personnel will be notified immediately upon selection.',
-                        style: tt.bodySmall?.copyWith(color: Colors.grey.shade700),
+                        style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -138,7 +150,7 @@ class EmergencyTypeDialog {
 
 class _TypeTile extends StatelessWidget {
   final IconData icon;
-  final Color iconBg;
+  final Color containerColor;
   final Color iconColor;
   final String title;
   final String subtitle;
@@ -146,7 +158,7 @@ class _TypeTile extends StatelessWidget {
 
   const _TypeTile({
     required this.icon,
-    required this.iconBg,
+    required this.containerColor,
     required this.iconColor,
     required this.title,
     required this.subtitle,
@@ -155,10 +167,12 @@ class _TypeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tt = Theme.of(context).textTheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final tt = theme.textTheme;
 
     return Material(
-      color: Colors.white,
+      color: theme.cardColor,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
@@ -167,13 +181,17 @@ class _TypeTile extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.black12),
+            border: Border.all(color: theme.dividerColor),
           ),
           child: Row(
             children: [
               Container(
-                width: 44, height: 44,
-                decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: containerColor,
+                  shape: BoxShape.circle,
+                ),
                 child: Icon(icon, color: iconColor),
               ),
               const SizedBox(width: 14),
@@ -181,13 +199,22 @@ class _TypeTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                    Text(
+                      title,
+                      style: tt.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: cs.onSurface,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text(subtitle, style: tt.bodySmall?.copyWith(color: Colors.grey.shade600)),
+                    Text(
+                      subtitle,
+                      style: tt.bodySmall?.copyWith(color: cs.onSurface.withOpacity(.7)),
+                    ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: Colors.black26),
+              Icon(Icons.chevron_right, color: cs.onSurface.withOpacity(.35)),
             ],
           ),
         ),

@@ -5,6 +5,7 @@
 import FlutterMacOS
 import Foundation
 
+import ambient_light
 import auth0_flutter
 import connectivity_plus
 import geolocator_apple
@@ -15,6 +16,7 @@ import url_launcher_macos
 import video_player_avfoundation
 
 func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
+  AmbientLightPlugin.register(with: registry.registrar(forPlugin: "AmbientLightPlugin"))
   Auth0FlutterPlugin.register(with: registry.registrar(forPlugin: "Auth0FlutterPlugin"))
   ConnectivityPlusPlugin.register(with: registry.registrar(forPlugin: "ConnectivityPlusPlugin"))
   GeolocatorPlugin.register(with: registry.registrar(forPlugin: "GeolocatorPlugin"))

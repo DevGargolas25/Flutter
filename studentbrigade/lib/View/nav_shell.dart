@@ -24,61 +24,63 @@ class _NavShellState extends State<NavShell> {
   @override
   void initState() {
     super.initState();
-
-    _orchestrator = Orchestrator(); 
-
+    _orchestrator = Orchestrator();
     _orchestrator.addListener(_onOrchestratorChanged);
   }
 
   void _onOrchestratorChanged() {
     if (_orchestrator.currentPageIndex != _index) {
-      setState(() {
-        _index = _orchestrator.currentPageIndex;
-      });
+      setState(() => _index = _orchestrator.currentPageIndex);
     }
   }
 
   @override
   void dispose() {
-    _orchestrator.removeListener(_onOrchestratorChanged); // ✅ CLEANUP CORRECTO
+    _orchestrator.removeListener(_onOrchestratorChanged);
     super.dispose();
   }
 
-  // Change the page index using the orchestrator
   Widget _getPage(int index) {
     switch (index) {
-      case 0: 
+      case 0:
         return HomePage(
           orchestrator: _orchestrator,
           onOpenProfile: () => _orchestrator.navigateToProfile(),
         );
-      case 1: return const ChatbotsScreen();
-      case 2: return MapPage(orchestrator: _orchestrator); 
-      case 3: return VideosPage(orchestrator: _orchestrator);
-      case 4: return ProfilePage(orchestrator: _orchestrator);
-      default: return HomePage(orchestrator: _orchestrator);
-
+      case 1:
+        return const ChatbotsScreen();
+      case 2:
+        return MapPage(orchestrator: _orchestrator);
+      case 3:
+        return VideosPage(orchestrator: _orchestrator);
+      case 4:
+        return ProfilePage(orchestrator: _orchestrator);
+      default:
+        return HomePage(orchestrator: _orchestrator);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
     return Scaffold(
       body: _getPage(_index),
 
-      // Bottom Navigation Bar with integrated SOS button
+      // Bottom Navigation Bar con tema dinámico
       bottomNavigationBar: Container(
-        height: 60, // Further reduced height
+        height: 60,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: theme.bottomNavigationBarTheme.backgroundColor ?? cs.surface,
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              spreadRadius: 0,
+              color: cs.shadow.withOpacity(theme.brightness == Brightness.light ? .06 : .28),
               blurRadius: 10,
               offset: const Offset(0, -2),
             ),
           ],
+          border: Border(top: BorderSide(color: theme.dividerColor)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -89,30 +91,37 @@ class _NavShellState extends State<NavShell> {
               selectedIcon: Icons.home,
               label: 'Home',
               selected: _index == 0,
-              onTap: () {_orchestrator.navigateToPage(0);},
+              onTap: () => _orchestrator.navigateToPage(0),
             ),
             _NavItem(
               icon: Icons.chat_bubble_outline,
               selectedIcon: Icons.chat_bubble,
               label: 'Chat',
               selected: _index == 1,
-              onTap: () {_orchestrator.navigateToPage(1);},
+              onTap: () => _orchestrator.navigateToPage(1),
             ),
+<<<<<<< HEAD
             // SOS Button in center
             _SOSButton(onTap: () => SosDialog.show(context, _orchestrator)),
+=======
+
+            // SOS centrado
+            _SOSButton(onTap: () => SosDialog.show(context)),
+
+>>>>>>> fd94a0b679ee8aa361c2e0b43893871bde4d5311
             _NavItem(
               icon: Icons.map_outlined,
               selectedIcon: Icons.map,
               label: 'Map',
               selected: _index == 2,
-              onTap: () {_orchestrator.navigateToPage(2);},
+              onTap: () => _orchestrator.navigateToPage(2),
             ),
             _NavItem(
               icon: Icons.play_circle_outline,
               selectedIcon: Icons.play_circle_filled,
               label: 'Videos',
               selected: _index == 3,
-              onTap: () {_orchestrator.navigateToPage(3);},
+              onTap: () => _orchestrator.navigateToPage(3),
             ),
           ],
         ),
@@ -129,30 +138,33 @@ class _SOSButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return GestureDetector(
       onTap: onTap,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 36, // Much smaller
+            width: 36,
             height: 36,
-            decoration: const BoxDecoration(
-              color: Color(0xFFE53E3E),
+            decoration: BoxDecoration(
+              color: cs.error, // usa color de error del tema
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.warning_amber_rounded,
-              color: Colors.white,
-              size: 18, // Smaller icon
+              color: cs.onError, // contraste correcto
+              size: 18,
             ),
           ),
-          const Text(
+          Text(
             'SOS',
             style: TextStyle(
-              fontSize: 7, // Very small text
-              color: Color(0xFFE53E3E),
+              fontSize: 9,
+              color: cs.error,
               fontWeight: FontWeight.w600,
+              height: 1.0,
             ),
           ),
         ],
@@ -179,33 +191,32 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
 
-    // Colores sutiles como en tus capturas
-    final baseColor = Colors.grey.shade500;
-    final selColor = cs.primary;
+    final baseColor = theme.bottomNavigationBarTheme.unselectedItemColor ??
+        cs.onSurface.withOpacity(.6);
+    final selColor =
+        theme.bottomNavigationBarTheme.selectedItemColor ?? cs.primary;
 
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 4,
-          vertical: 4,
-        ), // Reduced padding
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               selected ? (selectedIcon ?? icon) : icon,
-              size: 22, // Smaller icons
+              size: 22,
               color: selected ? selColor : baseColor,
             ),
-            const SizedBox(height: 2), // Reduced spacing
+            const SizedBox(height: 2),
             Text(
               label,
               style: TextStyle(
-                fontSize: 9, // Smaller text
+                fontSize: 9,
                 color: selected ? selColor : baseColor,
                 fontWeight: FontWeight.w500,
                 height: 1.0,

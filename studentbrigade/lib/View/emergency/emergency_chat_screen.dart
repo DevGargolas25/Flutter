@@ -16,15 +16,6 @@ class EmergencyChatScreen extends StatefulWidget {
   State<EmergencyChatScreen> createState() => _EmergencyChatScreenState();
 }
 
-/* ======================= PALETA (match TSX) ======================= */
-const _red = Color(0xFFE63946);
-const _teal = Color(0xFF75C1C7);
-const _green = Color(0xFF60B896);
-const _aqua = Color(0xFF99D2D2);
-const _peach = Color(0xFFF1AC89);
-const _bg = Color(0xFFF7FBFC);
-const _ink = Color(0xFF4A2951);
-
 enum _TabKey { brigadist, medical, assistant, map }
 
 class _Msg {
@@ -203,15 +194,17 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tt = Theme.of(context).textTheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final tt = theme.textTheme;
 
     return Scaffold(
-      backgroundColor: _bg,
+      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: _red,
+        backgroundColor: cs.error, // rojo “alerta”
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(Icons.arrow_back, color: cs.onError),
           onPressed: () => Navigator.pop(context),
           tooltip: 'Back',
         ),
@@ -219,9 +212,9 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Emergency Active',
-                style: tt.titleMedium?.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
+                style: tt.titleMedium?.copyWith(color: cs.onError, fontWeight: FontWeight.w600)),
             Text('Help is on the way',
-                style: tt.bodySmall?.copyWith(color: Colors.white.withOpacity(.9))),
+                style: tt.bodySmall?.copyWith(color: cs.onError.withOpacity(.9))),
           ],
         ),
         actions: [
@@ -232,11 +225,11 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
                 Container(
                   width: 8,
                   height: 8,
-                  decoration: const BoxDecoration(color: _green, shape: BoxShape.circle),
+                  decoration: BoxDecoration(color: cs.secondary, shape: BoxShape.circle),
                 ),
                 const SizedBox(width: 6),
                 Text('Connected',
-                    style: tt.bodySmall?.copyWith(color: Colors.white, fontSize: 12)),
+                    style: tt.bodySmall?.copyWith(color: cs.onError, fontSize: 12)),
               ],
             ),
           ),
@@ -244,7 +237,7 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(44),
           child: Container(
-            color: Colors.white,
+            color: theme.cardColor,
             child: Row(
               children: [
                 _TabBtn(
@@ -278,14 +271,14 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
       ),
 
       body: Container(
-        color: _bg,
+        color: theme.scaffoldBackgroundColor,
         child: IndexedStack(
           index: _activeTab.index,
           children: [
-            _buildBrigadist(tt),
-            _buildMedical(tt),
-            _buildAssistant(tt),
-            _buildMap(tt),
+            _buildBrigadist(theme),
+            _buildMedical(theme),
+            _buildAssistant(theme),
+            _buildMap(theme),
           ],
         ),
       ),
@@ -293,19 +286,22 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
   }
 
   /* ======================= BRIGADIST CHAT ======================= */
-  Widget _buildBrigadist(TextTheme tt) {
+  Widget _buildBrigadist(ThemeData theme) {
+    final cs = theme.colorScheme;
+    final tt = theme.textTheme;
+
     return Column(
       children: [
-        // Header verde suave como en TSX
+        // Header suave con secondary (estado “en camino”)
         Container(
-          color: _green.withOpacity(.2),
+          color: cs.secondary.withOpacity(.15),
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              const CircleAvatar(
+              CircleAvatar(
                 radius: 20,
-                backgroundColor: _green,
-                child: Icon(Icons.person, color: Colors.white, size: 20),
+                backgroundColor: cs.secondary,
+                child: Icon(Icons.person, color: cs.onSecondary, size: 20),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -314,7 +310,7 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
                   children: [
                     Text('Sarah Martinez',
                         style: tt.titleSmall?.copyWith(
-                          color: _ink,
+                          color: cs.onSurface,
                           fontWeight: FontWeight.w600,
                         )),
                     Row(
@@ -322,24 +318,22 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
                         Container(
                           width: 8,
                           height: 8,
-                          decoration: const BoxDecoration(
-                            color: _green,
+                          decoration: BoxDecoration(
+                            color: cs.secondary,
                             shape: BoxShape.circle,
                           ),
                         ),
                         const SizedBox(width: 6),
                         Text('Available - 2 min away',
-                            style: tt.bodySmall?.copyWith(color: _green)),
+                            style: tt.bodySmall?.copyWith(color: cs.secondary)),
                       ],
                     ),
                   ],
                 ),
               ),
               IconButton(
-                onPressed: () {
-                  // TODO: llamada telefónica
-                },
-                icon: const Icon(Icons.call, color: _green),
+                onPressed: () {/* TODO: call */},
+                icon: Icon(Icons.call, color: cs.secondary),
                 tooltip: 'Call',
               ),
             ],
@@ -358,10 +352,9 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
                 text: m.text,
                 time: m.time,
                 fromMe: isMe,
-                bg: isMe ? _green : _aqua,
-                fg: isMe ? Colors.white : _ink,
-                avatarColor: isMe ? Colors.grey.shade300 : _green.withOpacity(.2),
-                avatarIconColor: isMe ? Colors.grey.shade700 : _green,
+                // yo: secondary (verde/teal), bot: primaryContainer
+                bg: isMe ? cs.secondary : cs.primaryContainer,
+                fg: isMe ? cs.onSecondary : cs.onPrimaryContainer,
               );
             },
           ),
@@ -372,13 +365,14 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
           controller: _brigadistInput,
           hint: 'Type your response...',
           onSend: _sendBrigadist,
-          buttonColor: _green,
+          buttonColor: cs.secondary,
         ),
       ],
     );
   }
 
   /* ======================= MEDICAL INFO ======================= */
+<<<<<<< HEAD
   Widget _buildMedical(TextTheme tt) {
     final user = widget.orchestrator.userVM.currentUser;
     
@@ -394,11 +388,20 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
         ),
       );
     }
+=======
+  Widget _buildMedical(ThemeData theme) {
+    final cs = theme.colorScheme;
+    final tt = theme.textTheme;
+
+    Color chipBg(Color base) => Color.alphaBlend(base.withOpacity(.18), cs.surface);
+    Color borderFaint = cs.outline.withOpacity(.25);
+>>>>>>> fd94a0b679ee8aa361c2e0b43893871bde4d5311
 
     return Padding(
       padding: const EdgeInsets.all(12.0),
-      child: Column(
+      child: ListView(
         children: [
+<<<<<<< HEAD
           Expanded(
             child: ListView(
               children: [
@@ -508,6 +511,86 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
                   ),
                 ],
               ],
+=======
+          _InfoCard(
+            title: 'Blood Type',
+            icon: Icons.favorite,
+            iconBg: chipBg(cs.error),
+            iconColor: cs.error,
+            borderColor: borderFaint,
+            child: Text(
+              _medicalInfo['bloodType'] as String,
+              style: tt.headlineSmall?.copyWith(
+                color: cs.error,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _InfoCard(
+            title: 'Critical Allergies',
+            icon: Icons.error_outline,
+            iconBg: chipBg(cs.tertiary),
+            iconColor: cs.tertiary,
+            borderColor: borderFaint,
+            child: Column(
+              children: ( _medicalInfo['allergies'] as List )
+                  .map((a) => Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: chipBg(cs.tertiary),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border(left: BorderSide(color: cs.tertiary, width: 3)),
+                ),
+                child: Text(a, style: tt.bodyMedium?.copyWith(color: cs.onSurface)),
+              ))
+                  .toList(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _InfoCard(
+            title: 'Emergency Medications',
+            icon: Icons.medication_outlined,
+            iconBg: chipBg(cs.primary),
+            iconColor: cs.primary,
+            borderColor: borderFaint,
+            child: Column(
+              children: ( _medicalInfo['medications'] as List )
+                  .map((m) => Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: chipBg(cs.primary),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(m, style: tt.bodyMedium?.copyWith(color: cs.onSurface)),
+              ))
+                  .toList(),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _InfoCard(
+            title: 'Emergency Notes',
+            icon: Icons.report_gmailerrorred_outlined,
+            iconBg: chipBg(cs.error),
+            iconColor: cs.error,
+            borderColor: borderFaint,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: chipBg(cs.error),
+                borderRadius: BorderRadius.circular(10),
+                border: Border(left: BorderSide(color: cs.error, width: 3)),
+              ),
+              child: Text(
+                _medicalInfo['notes'] as String,
+                style: tt.bodyMedium?.copyWith(color: cs.onSurface, fontWeight: FontWeight.w600),
+              ),
+>>>>>>> fd94a0b679ee8aa361c2e0b43893871bde4d5311
             ),
           ),
         ],
@@ -550,27 +633,36 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
   }
 
   /* ======================= ASSISTANT (CHATBOT) ======================= */
-  Widget _buildAssistant(TextTheme tt) {
+  Widget _buildAssistant(ThemeData theme) {
+    final cs = theme.colorScheme;
+    final tt = theme.textTheme;
+
     return Column(
       children: [
         Container(
-          color: _teal.withOpacity(.2),
+          color: cs.primary.withOpacity(.15),
           padding: const EdgeInsets.all(12),
           child: const Row(
             children: [
               CircleAvatar(
                 radius: 20,
-                backgroundColor: _teal,
-                child: Icon(Icons.support_agent, color: Colors.white, size: 20),
+                backgroundColor: cs.primary,
+                child: Icon(Icons.support_agent, color: cs.onPrimary, size: 20),
               ),
               SizedBox(width: 10),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('Brigade Assistant AI',
+<<<<<<< HEAD
                       style: TextStyle(color: _ink, fontWeight: FontWeight.w600)),
                   Text('Emergency support specialist',
                       style: TextStyle(color: _teal)),
+=======
+                      style: tt.titleSmall?.copyWith(color: cs.onSurface, fontWeight: FontWeight.w600)),
+                  Text('Emergency support specialist',
+                      style: tt.bodySmall?.copyWith(color: cs.primary)),
+>>>>>>> fd94a0b679ee8aa361c2e0b43893871bde4d5311
                 ],
               ),
             ],
@@ -587,11 +679,10 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
                 text: m.text,
                 time: m.time,
                 fromMe: isMe,
-                bg: isMe ? _green : _aqua,
-                fg: isMe ? Colors.white : _ink,
-                avatarColor: isMe ? _green.withOpacity(.15) : _teal.withOpacity(.2),
-                avatarIconColor: isMe ? _ink : _teal,
-                iconData: isMe ? Icons.person : Icons.smart_toy_outlined,
+                bg: isMe ? cs.secondary : cs.surfaceVariant,
+                fg: isMe ? cs.onSecondary : cs.onSurfaceVariant,
+                leadingIcon: isMe ? Icons.person : Icons.smart_toy_outlined,
+                leadingColor: isMe ? cs.secondary : cs.primary,
               );
             },
           ),
@@ -600,18 +691,26 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
           controller: _botInput,
           hint: 'Ask about emergency procedures...',
           onSend: _sendBot,
-          buttonColor: _teal,
+          buttonColor: cs.primary,
         ),
       ],
     );
   }
 
+<<<<<<< HEAD
   /* ======================= MAP / LOCATION ======================= */
   Widget _buildMap(TextTheme tt) {
     final userLocation = widget.orchestrator.currentUserLocation;
     final assignedBrigadist = widget.orchestrator.assignedBrigadist;
     final brigadistRoute = widget.orchestrator.brigadistRoute;
     
+=======
+  /* ======================= MAP / LOCATION (placeholder) ======================= */
+  Widget _buildMap(ThemeData theme) {
+    final cs = theme.colorScheme;
+    final tt = theme.textTheme;
+
+>>>>>>> fd94a0b679ee8aa361c2e0b43893871bde4d5311
     return Padding(
       padding: const EdgeInsets.all(12.0),
       child: Column(
@@ -621,16 +720,17 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: _green.withOpacity(.2),
+              color: cs.secondary.withOpacity(.15),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: _green.withOpacity(.3)),
+              border: Border.all(color: cs.secondary.withOpacity(.3)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Brigadist Location',
-                    style: tt.titleMedium?.copyWith(color: _ink, fontWeight: FontWeight.w600)),
+                    style: tt.titleMedium?.copyWith(color: cs.onSurface, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 6),
+<<<<<<< HEAD
                 if (_isLoadingBrigadist) ...[
                   const Row(
                     children: [
@@ -665,6 +765,24 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
                   const Text('No brigadist assigned', 
                       style: TextStyle(color: Colors.orange)),
                 ],
+=======
+                Row(
+                  children: [
+                    Container(
+                      width: 8, height: 8,
+                      decoration: BoxDecoration(color: cs.secondary, shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text('Sarah Martinez - 2 minutes away',
+                          style: tt.bodyMedium?.copyWith(color: cs.onSurface, fontWeight: FontWeight.w600)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text('Moving towards your location',
+                    style: tt.bodySmall?.copyWith(color: cs.secondary)),
+>>>>>>> fd94a0b679ee8aa361c2e0b43893871bde4d5311
               ],
             ),
           ),
@@ -674,6 +792,7 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
           Expanded(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
+<<<<<<< HEAD
               child: userLocation != null 
                   ? FlutterMap(
                       mapController: _mapController,
@@ -794,6 +913,22 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
                         ],
                       ),
                     ),
+=======
+              child: Container(
+                width: double.infinity,
+                color: cs.primary.withOpacity(.08),
+                alignment: Alignment.center,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.map, size: 48, color: cs.primary),
+                    const SizedBox(height: 8),
+                    Text('Map goes here',
+                        style: tt.bodyMedium?.copyWith(color: cs.onSurface)),
+                  ],
+                ),
+              ),
+>>>>>>> fd94a0b679ee8aa361c2e0b43893871bde4d5311
             ),
           ),
 
@@ -855,14 +990,15 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: _peach.withOpacity(.2),
-              border: Border.all(color: _peach.withOpacity(.3)),
+              color: cs.tertiaryContainer.withOpacity(.6),
+              border: Border.all(color: cs.tertiary.withOpacity(.4)),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               children: [
-                const Icon(Icons.access_time, size: 18, color: _ink),
+                Icon(Icons.access_time, size: 18, color: cs.onTertiaryContainer),
                 const SizedBox(width: 8),
+<<<<<<< HEAD
                 Text(
                   assignedBrigadist != null 
                       ? 'Estimated arrival: ${assignedBrigadist.estimatedArrivalMinutes?.toInt() ?? 0} minutes'
@@ -871,6 +1007,13 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
                     color: _ink,
                     fontWeight: FontWeight.w600,
                   )),
+=======
+                Text('Estimated arrival: 2 minutes',
+                    style: tt.bodyMedium?.copyWith(
+                      color: cs.onTertiaryContainer,
+                      fontWeight: FontWeight.w600,
+                    )),
+>>>>>>> fd94a0b679ee8aa361c2e0b43893871bde4d5311
               ],
             ),
           ),
@@ -898,6 +1041,7 @@ class _TabBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+<<<<<<< HEAD
     final base = active
         ? BoxDecoration(
             color: _teal.withOpacity(.1),
@@ -906,9 +1050,16 @@ class _TabBtn extends StatelessWidget {
             ),
           )
         : const BoxDecoration();
+=======
+    final cs = Theme.of(context).colorScheme;
+    final activeStyle = BoxDecoration(
+      color: cs.primary.withOpacity(.08),
+      border: Border(bottom: BorderSide(color: cs.primary, width: 2)),
+    );
+>>>>>>> fd94a0b679ee8aa361c2e0b43893871bde4d5311
 
     final labelStyle = TextStyle(
-      color: active ? _teal : _ink.withOpacity(.6),
+      color: active ? cs.primary : cs.onSurface.withOpacity(.6),
       fontWeight: active ? FontWeight.w600 : FontWeight.w500,
       fontSize: 13,
     );
@@ -917,7 +1068,7 @@ class _TabBtn extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Container(
-          decoration: base,
+          decoration: active ? activeStyle : const BoxDecoration(),
           padding: const EdgeInsets.symmetric(vertical: 10),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -939,9 +1090,8 @@ class _Bubble extends StatelessWidget {
   final bool fromMe;
   final Color bg;
   final Color fg;
-  final Color avatarColor;
-  final Color avatarIconColor;
-  final IconData iconData;
+  final IconData leadingIcon;
+  final Color? leadingColor;
 
   const _Bubble({
     super.key,
@@ -950,13 +1100,14 @@ class _Bubble extends StatelessWidget {
     required this.fromMe,
     required this.bg,
     required this.fg,
-    required this.avatarColor,
-    required this.avatarIconColor,
-    this.iconData = Icons.person,
+    this.leadingIcon = Icons.person,
+    this.leadingColor,
   });
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     final bubble = Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * .75),
@@ -968,6 +1119,7 @@ class _Bubble extends StatelessWidget {
           bottomLeft: Radius.circular(fromMe ? 12 : 4),
           bottomRight: Radius.circular(fromMe ? 4 : 12),
         ),
+        border: Border.all(color: cs.outline.withOpacity(.15)),
       ),
       child: Text(text, style: TextStyle(color: fg, height: 1.35, fontSize: 14)),
     );
@@ -976,14 +1128,14 @@ class _Bubble extends StatelessWidget {
       padding: const EdgeInsets.only(top: 4),
       child: Text(
         time,
-        style: TextStyle(color: Colors.black54, fontSize: 11),
+        style: TextStyle(color: cs.onSurface.withOpacity(.6), fontSize: 11),
       ),
     );
 
     final avatar = CircleAvatar(
       radius: 14,
-      backgroundColor: avatarColor,
-      child: Icon(iconData, size: 16, color: avatarIconColor),
+      backgroundColor: (leadingColor ?? cs.primary).withOpacity(.15),
+      child: Icon(leadingIcon, size: 16, color: leadingColor ?? cs.primary),
     );
 
     return Container(
@@ -1022,12 +1174,15 @@ class _InputBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
     return SafeArea(
       top: false,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border(top: BorderSide(color: Colors.grey.shade300)),
+          color: theme.cardColor,
+          border: Border(top: BorderSide(color: theme.dividerColor)),
         ),
         padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
         child: Row(
@@ -1039,21 +1194,21 @@ class _InputBar extends StatelessWidget {
                 onSubmitted: (_) => onSend(),
                 decoration: InputDecoration(
                   hintText: hint,
-                  hintStyle: TextStyle(color: _ink.withOpacity(.5), fontSize: 14),
+                  hintStyle: TextStyle(color: cs.onSurface.withOpacity(.6), fontSize: 14),
                   filled: true,
-                  fillColor: _bg,
+                  fillColor: cs.surface,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: _aqua.withOpacity(.3)),
+                    borderSide: BorderSide(color: cs.outline.withOpacity(.25)),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: _aqua.withOpacity(.3)),
+                    borderSide: BorderSide(color: cs.outline.withOpacity(.25)),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: _teal, width: 1),
+                    borderSide: BorderSide(color: cs.primary, width: 1.2),
                   ),
                 ),
                 style: const TextStyle(fontSize: 14),
@@ -1079,36 +1234,37 @@ class _InputBar extends StatelessWidget {
   }
 }
 
-/* ======================= Cards genéricas ======================= */
+/* ======================= Card genérica ======================= */
 class _InfoCard extends StatelessWidget {
   final String title;
   final IconData icon;
   final Widget child;
-  final Color chipBg;
-  final Color borderColor;
-  final Color titleColor;
+  final Color iconBg;
   final Color iconColor;
+  final Color borderColor;
 
   const _InfoCard({
     required this.title,
     required this.icon,
     required this.child,
-    required this.chipBg,
+    required this.iconBg,
+    required this.iconColor,
     required this.borderColor,
-    required this.titleColor,
-    this.iconColor = _teal,
   });
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: theme.cardColor,
         border: Border.all(color: borderColor),
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(.03),
+            color: Colors.black.withOpacity(theme.brightness == Brightness.light ? .03 : .2),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -1121,15 +1277,17 @@ class _InfoCard extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 16,
-                backgroundColor: chipBg,
+                backgroundColor: iconBg,
                 child: Icon(icon, size: 18, color: iconColor),
               ),
               const SizedBox(width: 8),
-              Text(title,
-                  style: TextStyle(
-                    color: titleColor,
-                    fontWeight: FontWeight.w600,
-                  )),
+              Text(
+                title,
+                style: TextStyle(
+                  color: cs.onSurface,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -1139,3 +1297,4 @@ class _InfoCard extends StatelessWidget {
     );
   }
 }
+
