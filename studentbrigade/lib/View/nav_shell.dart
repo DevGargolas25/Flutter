@@ -102,7 +102,7 @@ class _NavShellState extends State<NavShell> {
             ),
 
             // SOS centrado
-            _SOSButton(onTap: () => SosDialog.show(context)),
+            _SOSButton(onTap: () => SosDialog.show(context, _orchestrator)),
 
             _NavItem(
               icon: Icons.map_outlined,

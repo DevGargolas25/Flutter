@@ -1,10 +1,11 @@
 // lib/widgets/sos_dialog.dart
 import 'package:flutter/material.dart';
-import 'emergency_type_dialog.dart';
+import '../../VM/Orchestrator.dart';
 import 'emergency_chat_screen.dart';
+import 'emergency_type_dialog.dart';
 
 class SosDialog {
-  static void show(BuildContext context) {
+  static void show(BuildContext context, Orchestrator orchestrator) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final tt = theme.textTheme;
@@ -20,7 +21,7 @@ class SosDialog {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // ===== Header (usa error/onError para semántica de SOS) =====
+              // ===== Header SOS =====
               Container(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
                 decoration: BoxDecoration(
@@ -30,7 +31,6 @@ class SosDialog {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Close
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
@@ -42,13 +42,11 @@ class SosDialog {
                         ),
                       ],
                     ),
-                    // Título centrado
                     Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          width: 62,
-                          height: 62,
+                          width: 62, height: 62,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: cs.onError.withOpacity(0.15),
@@ -58,17 +56,12 @@ class SosDialog {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        Text(
-                          'Emergency Assistance',
-                          style: tt.titleLarge?.copyWith(
-                            color: cs.onError,
-                            fontWeight: FontWeight.w700,
-                          ),
+                        Text('Emergency Assistance',
+                          style: tt.titleLarge?.copyWith(color: cs.onError, fontWeight: FontWeight.w700),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          'Choose how you need help',
+                        Text('Choose how you need help',
                           style: tt.bodyMedium?.copyWith(color: cs.onError.withOpacity(.8)),
                           textAlign: TextAlign.center,
                         ),
@@ -78,7 +71,7 @@ class SosDialog {
                 ),
               ),
 
-              // ===== Cuerpo =====
+              // ===== Body =====
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
                 child: Column(
@@ -88,26 +81,60 @@ class SosDialog {
                       leading: Icons.campaign_rounded,
                       title: 'Send Emergency Alert',
                       subtitle: 'Alert campus security and brigade members',
-                      onTap: () {
+                      onTap: () async {
                         Navigator.of(context).pop();
                         Future.microtask(() => EmergencyTypeDialog.show(context));
                       },
                     ),
                     const SizedBox(height: 12),
+
+                    // >>> AQUÍ LLAMA AL PULSAR <<<
                     _ActionTile(
                       leading: Icons.support_agent_rounded,
                       title: 'Contact Brigade',
-                      subtitle: 'Connect with nearest brigade member',
-                      onTap: () {
-                        Navigator.of(context).pop();
-                        Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const EmergencyChatScreen()),
-                        );
+                      subtitle: 'Call nearest brigade member',
+                      onTap: () async {
+                        // 1) Prepara navegación post-llamada
+                        final nav = Navigator.of(context);
+                        bool done = false;
+
+                        void onReturn() {
+                          // Orchestrator/EmergencyVM setea lastCallDurationSeconds al volver
+                          if (!done && orchestrator.lastCallDurationSeconds != null) {
+                            done = true;
+                            orchestrator.emergencyVM.removeListener(onReturn);
+                            // Abrir chat al regresar del dialer
+                            nav.push(MaterialPageRoute(
+                              builder: (_) => const EmergencyChatScreen(),
+                            ));
+                          }
+                        }
+
+                        // Suscribirse ANTES de lanzar la llamada
+                        orchestrator.emergencyVM.addListener(onReturn);
+
+                        // 2) Cerrar el diálogo
+                        nav.pop();
+
+                        // 3) Iniciar la llamada (captura ubicación + abre dialer)
+                        try {
+                          await orchestrator.callBrigadistWithLocation('+573053343497');
+                          // No navegues aquí; la app se va al dialer.
+                          // El listener hará el push al volver.
+                        } catch (e) {
+                          // Si algo falla antes de salir al dialer, limpia listener
+                          orchestrator.emergencyVM.removeListener(onReturn);
+                          final mounted = nav.mounted;
+                          if (mounted) {
+                            ScaffoldMessenger.of(nav.context).showSnackBar(
+                              SnackBar(content: Text('Error al llamar: $e')),
+                            );
+                          }
+                        }
                       },
                     ),
 
                     const SizedBox(height: 16),
-                    // Nota informativa que también respeta el tema
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -137,7 +164,7 @@ class _ActionTile extends StatelessWidget {
   final IconData leading;
   final String title;
   final String subtitle;
-  final VoidCallback onTap;
+  final Future<void> Function() onTap; // async
 
   const _ActionTile({
     required this.leading,
@@ -156,7 +183,7 @@ class _ActionTile extends StatelessWidget {
       color: theme.cardColor,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
-        onTap: onTap,
+        onTap: () => onTap(),
         borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.all(14),
@@ -167,12 +194,8 @@ class _ActionTile extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: cs.surfaceVariant,
-                ),
+                width: 44, height: 44,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: cs.surfaceVariant),
                 child: Icon(leading, color: cs.onSurfaceVariant),
               ),
               const SizedBox(width: 14),
@@ -180,18 +203,11 @@ class _ActionTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: tt.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: cs.onSurface,
-                      ),
-                    ),
+                    Text(title, style: tt.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600, color: cs.onSurface)),
                     const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: tt.bodySmall?.copyWith(color: cs.onSurface.withOpacity(.7)),
-                    ),
+                    Text(subtitle, style: tt.bodySmall?.copyWith(
+                        color: cs.onSurface.withOpacity(.7))),
                   ],
                 ),
               ),
@@ -203,4 +219,5 @@ class _ActionTile extends StatelessWidget {
     );
   }
 }
+
 

@@ -173,12 +173,6 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
                   onTap: () => setState(() => _activeTab = _TabKey.medical),
                 ),
                 _TabBtn(
-                  label: 'Assistant',
-                  icon: Icons.support_agent_outlined,
-                  active: _activeTab == _TabKey.assistant,
-                  onTap: () => setState(() => _activeTab = _TabKey.assistant),
-                ),
-                _TabBtn(
                   label: 'Location',
                   icon: Icons.location_on_outlined,
                   active: _activeTab == _TabKey.map,
@@ -195,7 +189,7 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
         child: IndexedStack(
           index: _activeTab.index,
           children: [
-            _buildBrigadist(theme),
+
             _buildMedical(theme),
             _buildAssistant(theme),
             _buildMap(theme),
@@ -205,91 +199,7 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
     );
   }
 
-  /* ======================= BRIGADIST CHAT ======================= */
-  Widget _buildBrigadist(ThemeData theme) {
-    final cs = theme.colorScheme;
-    final tt = theme.textTheme;
 
-    return Column(
-      children: [
-        // Header suave con secondary (estado “en camino”)
-        Container(
-          color: cs.secondary.withOpacity(.15),
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: cs.secondary,
-                child: Icon(Icons.person, color: cs.onSecondary, size: 20),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Sarah Martinez',
-                        style: tt.titleSmall?.copyWith(
-                          color: cs.onSurface,
-                          fontWeight: FontWeight.w600,
-                        )),
-                    Row(
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color: cs.secondary,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text('Available - 2 min away',
-                            style: tt.bodySmall?.copyWith(color: cs.secondary)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                onPressed: () {/* TODO: call */},
-                icon: Icon(Icons.call, color: cs.secondary),
-                tooltip: 'Call',
-              ),
-            ],
-          ),
-        ),
-
-        // Mensajes
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            itemCount: _brigadistMsgs.length,
-            itemBuilder: (ctx, i) {
-              final m = _brigadistMsgs[i];
-              final isMe = m.fromMe;
-              return _Bubble(
-                text: m.text,
-                time: m.time,
-                fromMe: isMe,
-                // yo: secondary (verde/teal), bot: primaryContainer
-                bg: isMe ? cs.secondary : cs.primaryContainer,
-                fg: isMe ? cs.onSecondary : cs.onPrimaryContainer,
-              );
-            },
-          ),
-        ),
-
-        // Input
-        _InputBar(
-          controller: _brigadistInput,
-          hint: 'Type your response...',
-          onSend: _sendBrigadist,
-          buttonColor: cs.secondary,
-        ),
-      ],
-    );
-  }
 
   /* ======================= MEDICAL INFO ======================= */
   Widget _buildMedical(ThemeData theme) {

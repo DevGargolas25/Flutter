@@ -1,113 +1,139 @@
+// lib/Orchestrator/orchestrator.dart
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:studentbrigade/View/video_detail_sheet.dart';
 
-// VM clases
+// ===== VMs =====
 import 'ChatVM.dart';
 import 'UserVM.dart';
 import 'VideosVM.dart';
 import 'AnalyticsVM.dart';
 import 'MapVM.dart';
+import 'EmergencyVM.dart';
 
-// Models
+// ===== Models =====
 import '../Models/mapMod.dart';
 import '../Models/videoMod.dart';
 import '../Models/userMod.dart';
 
-// NUEVO: servicio del sensor de luz
+// ===== UI =====
+import 'package:studentbrigade/View/video_detail_sheet.dart';
+
+// ===== Sensor de luz / tema =====
 import 'theme_sensor_service.dart';
 
 // (Opcional) para permitir override manual del usuario
 enum ThemeOverride { followSystem, autoByLight, forceLight, forceDark }
 
-class Orchestrator extends ChangeNotifier with WidgetsBindingObserver { // NUEVO: observer
-  // Singleton
+class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
+  // ---------- Singleton ----------
   static final Orchestrator _instance = Orchestrator._internal();
   factory Orchestrator() => _instance;
 
-  // VMs
+  // ---------- VMs ----------
   late final MapVM _mapVM;
   late final VideosVM _videoVM;
   late final UserVM _userVM;
+  late final EmergencyVM _emergencyVM;
 
-  // Navegación
+  // ---------- Navegación ----------
   int _currentPageIndex = 0;
 
-  // ====== NUEVO: Tema por sensor ======
+  // ---------- Tema por sensor ----------
   final ThemeSensorService _themeSensor = ThemeSensorService(
-    darkEnterLux: 10,   // ajusta a gusto
-    lightEnterLux: 80,  // ajusta a gusto
-    smoothWindow: 5,
+    darkEnterLux: 10,     // umbral para entrar a modo oscuro
+    lightEnterLux: 80,    // umbral para volver a claro
+    smoothWindow: 5,      // suavizado
   );
+
   final ValueNotifier<ThemeMode> themeMode = ValueNotifier(ThemeMode.system);
   ThemeOverride _override = ThemeOverride.autoByLight;
-  // =====================================
 
   Orchestrator._internal() {
+    // Instancias de VMs
     _mapVM = MapVM();
     _videoVM = VideosVM(VideosInfo());
     _userVM = UserVM();
-    _loadInitialUser(); // TODO: cambiar por quien inicie sesión
 
-    // ====== NUEVO: iniciar sensor y escuchar cambios ======
+    // EmergencyVM con hooks hacia Analytics/DAO si los necesitas
+    _emergencyVM = EmergencyVM(
+      onLocationSaved: (lat, lng, ts) {
+        // Envía a Analytics/DAO si aplica
+        // _analyticsVM.logEmergencyLocation(lat, lng, ts);
+      },
+      onCallDurationSaved: (secs) {
+        // _analyticsVM.logCallDuration(secs);
+      },
+    );
+
+    _loadInitialUser(); // TODO: reemplazar por el usuario autenticado
+
+    // Observadores de ciclo de vida (sensor y medición de llamada)
     WidgetsBinding.instance.addObserver(this);
+
+    // Sensor de luz → recomputar tema
     _themeSensor.addListener(_recomputeTheme);
-    _themeSensor.start();        // comienza a escuchar lux
-    _recomputeTheme();           // fija tema inicial
-    // ======================================================
+    _themeSensor.start();
+    _recomputeTheme();
   }
 
-  // IMPORTANTE: llámalo cuando cierres la app (desde MyApp.dispose)
+  // ---------- Limpieza explícita ----------
   void disposeOrchestrator() {
     WidgetsBinding.instance.removeObserver(this);
+
     _themeSensor.removeListener(_recomputeTheme);
     _themeSensor.dispose();
+
+    // Si tus VMs necesitan limpieza, hazlo aquí
+    // _mapVM.dispose(); etc.
   }
 
-  // ====== NUEVO: lógica para decidir ThemeMode final ======
+  // ---------- Theme / sensor ----------
   void _recomputeTheme() {
     final sys = WidgetsBinding.instance.platformDispatcher.platformBrightness;
     ThemeMode resolved;
     switch (_override) {
-      case ThemeOverride.forceLight: resolved = ThemeMode.light; break;
-      case ThemeOverride.forceDark:  resolved = ThemeMode.dark;  break;
+      case ThemeOverride.forceLight:
+        resolved = ThemeMode.light;
+        break;
+      case ThemeOverride.forceDark:
+        resolved = ThemeMode.dark;
+        break;
       case ThemeOverride.followSystem:
         resolved = (sys == Brightness.dark) ? ThemeMode.dark : ThemeMode.light;
         break;
       case ThemeOverride.autoByLight:
-        resolved = _themeSensor.mode; // viene del sensor (con histeresis)
+        resolved = _themeSensor.mode; // viene del servicio por lux (histeresis)
         break;
     }
     if (themeMode.value != resolved) themeMode.value = resolved;
   }
 
-  // (Opcional) para ofrecer un menú de ajustes y cambiar la política
   void setThemeOverride(ThemeOverride o) {
     _override = o;
     _recomputeTheme();
   }
 
-  // Permite simular lux en emulador/PC
+  /// Para emulador/PC: simular lux
   void themeDebugLux(num lux) => _themeSensor.debugSetLux(lux.toDouble());
-  // ========================================================
 
-  // Ciclo de vida: pausa/reanuda sensor
+  // Pausar/Reanudar servicios por ciclo de vida de la app
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed)  _themeSensor.start();
-    if (state == AppLifecycleState.paused)   _themeSensor.stop();
+    // Sensor de luz
+    if (state == AppLifecycleState.resumed) _themeSensor.start();
+    if (state == AppLifecycleState.paused)  _themeSensor.stop();
+
+    // Delegar a EmergencyVM (mide regreso tras llamada)
+    _emergencyVM.didChangeAppLifecycleState(state);
   }
 
-  // ===== Tu código tal cual =====
+  // ---------- Sesión / bootstrap ----------
   Future<void> _loadInitialUser() async {
     await _userVM.fetchUserData('current-user-id');
   }
 
+  // ---------- Navegación ----------
   int get currentPageIndex => _currentPageIndex;
-  MapVM get mapVM => _mapVM;
-  VideosVM get videoVM => _videoVM;
-  UserVM get userVM => _userVM;
-
   void navigateToPage(int index) {
     if (_currentPageIndex != index) {
       _currentPageIndex = index;
@@ -119,11 +145,14 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver { // NUEVO
   void navigateToProfile() => navigateToPage(4);
   void navigateToVideos()  => navigateToPage(3);
 
-  // MAP
-  Future<UserLocation?> getCurrentLocation() async {
-    return await _mapVM.getCurrentLocation();
-  }
+  // ---------- Exponer VMs (solo lectura si quieres encapsular más) ----------
+  MapVM get mapVM => _mapVM;
+  VideosVM get videoVM => _videoVM;
+  UserVM get userVM => _userVM;
+  EmergencyVM get emergencyVM => _emergencyVM;
 
+  // ---------- MAP ----------
+  Future<UserLocation?> getCurrentLocation() => _mapVM.getCurrentLocation();
   void startLocationTracking() => _mapVM.startLocationTracking();
   void stopLocationTracking()  => _mapVM.stopLocationTracking();
 
@@ -135,20 +164,17 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver { // NUEVO
     return _mapVM.getClosestMeetingPoint(userLocation);
   }
 
-  Future<List<RoutePoint>?> calculateRouteToClosestPoint() async {
-    return await _mapVM.calculateRouteToClosestPoint();
-  }
+  Future<List<RoutePoint>?> calculateRouteToClosestPoint() =>
+      _mapVM.calculateRouteToClosestPoint();
 
   List<RoutePoint>? get currentRoute => _mapVM.currentRoute;
-
   void clearRoute() => _mapVM.clearRoute();
 
-  // Getters
   UserLocation? get currentUserLocation => _mapVM.currentUserLocation;
   bool get isLocationLoading => _mapVM.isLocationLoading;
   String? get locationError => _mapVM.locationError;
 
-  // USER
+  // ---------- USER ----------
   User? getUserData() => _userVM.getUserData();
 
   Future<bool> updateUserData({
@@ -168,8 +194,8 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver { // NUEVO
     String? emergencyMedications,
     String? vitaminsSupplements,
     String? specialInstructions,
-  }) async {
-    return await _userVM.updateUserData(
+  }) {
+    return _userVM.updateUserData(
       emergencyName1: emergencyName1,
       emergencyPhone1: emergencyPhone1,
       emergencyName2: emergencyName2,
@@ -189,6 +215,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver { // NUEVO
     );
   }
 
+  // ---------- VIDEOS ----------
   void openVideoDetails(BuildContext context, VideoMod v) {
     _videoVM.play(v);
     showModalBottomSheet(
@@ -198,4 +225,18 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver { // NUEVO
       builder: (_) => VideoDetailsSheet(video: v),
     );
   }
+
+  // ---------- EMERGENCY (llamada + ubicación) ----------
+  /// Llama al brigadista y captura lat/lng actuales antes de salir a la app de Teléfono.
+  Future<void> callBrigadistWithLocation(String phone) =>
+      _emergencyVM.callBrigadistWithLocation(phone);
+
+  /// Accesores útiles para UI/analytics
+  bool get isCalling => _emergencyVM.isCalling;
+  int? get lastCallDurationSeconds => _emergencyVM.lastCallDurationSeconds;
+
+  double? get lastLatitude  => _emergencyVM.lastLatitude;
+  double? get lastLongitude => _emergencyVM.lastLongitude;
+  DateTime? get lastLocationAt => _emergencyVM.lastLocationAt;
 }
+
