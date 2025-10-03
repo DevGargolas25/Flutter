@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app_theme.dart';
 import 'View/nav_shell.dart';
-import 'View/chat_screen.dart';
+
 import 'View/Auth0/auth_gate.dart';
 
 void main() => runApp(const MyApp());
@@ -18,13 +18,9 @@ class MyApp extends StatelessWidget {
         textTheme: GoogleFonts.robotoTextTheme(base.textTheme),
       ),
       home: const AuthGate(
-        childWhenAuthed: NavShell(), // si hay sesión (u offline con sesión previa), entra aquí
+        childWhenAuthed:
+            NavShell(), // si hay sesión (u offline con sesión previa), entra aquí
       ),
-      routes: {
-        ChatScreen.routeName: (_) => const ChatScreen(),
-      },
     );
   }
 }
-
-

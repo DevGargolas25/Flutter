@@ -25,7 +25,7 @@ class _NavShellState extends State<NavShell> {
   void initState() {
     super.initState();
 
-    _orchestrator = Orchestrator(); 
+    _orchestrator = Orchestrator();
 
     _orchestrator.addListener(_onOrchestratorChanged);
   }
@@ -47,17 +47,21 @@ class _NavShellState extends State<NavShell> {
   // Change the page index using the orchestrator
   Widget _getPage(int index) {
     switch (index) {
-      case 0: 
+      case 0:
         return HomePage(
           orchestrator: _orchestrator,
           onOpenProfile: () => _orchestrator.navigateToProfile(),
         );
-      case 1: return const ChatbotsScreen();
-      case 2: return MapPage(orchestrator: _orchestrator); 
-      case 3: return VideosPage(orchestrator: _orchestrator);
-      case 4: return ProfilePage(orchestrator: _orchestrator);
-      default: return HomePage(orchestrator: _orchestrator);
-
+      case 1:
+        return ChatView(orchestrator: _orchestrator);
+      case 2:
+        return MapPage(orchestrator: _orchestrator);
+      case 3:
+        return VideosPage(orchestrator: _orchestrator);
+      case 4:
+        return ProfilePage(orchestrator: _orchestrator);
+      default:
+        return HomePage(orchestrator: _orchestrator);
     }
   }
 
@@ -89,14 +93,18 @@ class _NavShellState extends State<NavShell> {
               selectedIcon: Icons.home,
               label: 'Home',
               selected: _index == 0,
-              onTap: () {_orchestrator.navigateToPage(0);},
+              onTap: () {
+                _orchestrator.navigateToPage(0);
+              },
             ),
             _NavItem(
               icon: Icons.chat_bubble_outline,
               selectedIcon: Icons.chat_bubble,
               label: 'Chat',
               selected: _index == 1,
-              onTap: () {_orchestrator.navigateToPage(1);},
+              onTap: () {
+                _orchestrator.navigateToPage(1);
+              },
             ),
             // SOS Button in center
             _SOSButton(onTap: () => SosDialog.show(context)),
@@ -105,14 +113,18 @@ class _NavShellState extends State<NavShell> {
               selectedIcon: Icons.map,
               label: 'Map',
               selected: _index == 2,
-              onTap: () {_orchestrator.navigateToPage(2);},
+              onTap: () {
+                _orchestrator.navigateToPage(2);
+              },
             ),
             _NavItem(
               icon: Icons.play_circle_outline,
               selectedIcon: Icons.play_circle_filled,
               label: 'Videos',
               selected: _index == 3,
-              onTap: () {_orchestrator.navigateToPage(3);},
+              onTap: () {
+                _orchestrator.navigateToPage(3);
+              },
             ),
           ],
         ),

@@ -1,214 +1,312 @@
+// lib/View/chat_view.dart
 import 'package:flutter/material.dart';
-import 'chat_screen.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
-class ChatbotsScreen extends StatelessWidget {
-  static const routeName = '/chatbots';
-  const ChatbotsScreen({super.key});
+import '../VM/Orchestrator.dart'; // Orchestrator que expone chatMessages/chatIsTyping/sendChatMessage
+import '../Models/chatModel.dart'; // ChatMessage, Sender
+
+class ChatView extends StatefulWidget {
+  final Orchestrator orchestrator;
+  const ChatView({super.key, required this.orchestrator});
+
+  @override
+  State<ChatView> createState() => _ChatViewState();
+}
+
+class _ChatViewState extends State<ChatView> {
+  late final Orchestrator _orch;
+  late final VoidCallback _orchListener;
+
+  final _inputCtrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _orch = widget.orchestrator;
+    // Redibuja cuando cambie el estado del orquestador
+    _orchListener = () => setState(() {});
+    _orch.addListener(_orchListener);
+  }
+
+  @override
+  void dispose() {
+    _orch.removeListener(_orchListener);
+    _inputCtrl.dispose();
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  void _send() {
+    final text = _inputCtrl.text.trim();
+    if (text.isEmpty) return;
+    _orch.sendChatMessage(text);
+    _inputCtrl.clear();
+
+    // Desplaza al final cuando se pinte el nuevo mensaje
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.animateTo(
+          _scrollCtrl.position.maxScrollExtent + 80,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final headerColor = const Color(0xFF62B6B7);
+    final msgs = _orch.chatMessages;
+    final isTyping = _orch.chatIsTyping;
 
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header + buscador
-            Container(
-              width: double.infinity,
-              color: headerColor,
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Messages',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Container(
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(28),
-                    ),
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.search, color: Colors.black54),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Search conversations...',
-                            style: TextStyle(
-                              color: Colors.black45,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+      backgroundColor: const Color(0xFFF3F7F8),
+      appBar: _header(),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              controller: _scrollCtrl,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              itemCount: msgs.length + (isTyping ? 1 : 0),
+              itemBuilder: (_, i) {
+                if (isTyping && i == msgs.length) {
+                  return const _TypingRow();
+                }
+                final m = msgs[i];
+                final isUser = m.sender == Sender.user;
+                return _ChatRow(message: m, isUser: isUser);
+              },
             ),
-            const SizedBox(height: 4),
+          ),
+          const Divider(height: 1),
+          _InputBar(controller: _inputCtrl, onSend: _send),
+        ],
+      ),
+    );
+  }
 
-            // Assistants
-            Expanded(
-              child: ListView(
-                children: [
-                  _ChatbotTile(
-                    title: 'Brigade Assistant',
-                    subtitle:
-                        'The main assembly points are: Main Campus: Front park...',
-                    time: '10:32 AM',
-                    unread: 2,
-                    avatarColor: const Color(0xFF64C3C5),
-                    icon: Icons.smart_toy_outlined,
-                    onTap: () =>
-                        Navigator.pushNamed(context, ChatScreen.routeName),
-                  ),
-                  const Divider(height: 1, indent: 70, endIndent: 16),
-                  // ---- Brigade Team ----
-                  _ChatbotTile(
-                    title: 'Brigade Team',
-                    subtitle:
-                        'Meeting tonight at 7 PM in room 203. Please confirm y...',
-                    time: '9:45 AM',
-                    unread: 0,
-                    avatarColor: const Color(0xFF58A57B),
-                    icon: Icons.groups_rounded,
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Abrir chat Brigade Team'),
-                        ),
-                      );
-                    },
-                  ),
-
-                  const Divider(height: 1, indent: 70, endIndent: 16),
-                  // ---- Brigade Alerts ----
-                  _ChatbotTile(
-                    title: 'Brigade Alerts',
-                    subtitle:
-                        'Weather alert: Strong winds expected this afternoon. St...',
-                    time: 'Yesterday',
-                    unread: 1,
-                    avatarColor: const Color(0xFFE29375),
-                    icon: Icons.chat_bubble_outline_rounded,
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Abrir chat Brigade Alerts'),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+  PreferredSizeWidget _header() {
+    return AppBar(
+      backgroundColor: const Color(0xFF72C6C1),
+      elevation: 0,
+      titleSpacing: 0,
+      title: Row(
+        children: const [
+          SizedBox(width: 4),
+          CircleAvatar(
+            backgroundColor: Colors.white,
+            child: Icon(Icons.smart_toy, color: Color(0xFF72C6C1)),
+          ),
+          SizedBox(width: 10),
+          _TitleBlock(),
+        ],
       ),
     );
   }
 }
 
-class _ChatbotTile extends StatelessWidget {
-  final String title, subtitle, time;
-  final int unread;
-  final Color avatarColor;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _ChatbotTile({
-    required this.title,
-    required this.subtitle,
-    required this.time,
-    required this.unread,
-    required this.avatarColor,
-    required this.icon,
-    required this.onTap,
-  });
+class _TitleBlock extends StatelessWidget {
+  const _TitleBlock();
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 22,
-                backgroundColor: avatarColor.withOpacity(.2),
-                child: Icon(icon, color: avatarColor, size: 22),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.black54,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Brigade Assistant',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+          ),
+        ),
+        Text(
+          'Always here to help',
+          style: TextStyle(color: Colors.white70, fontSize: 12),
+        ),
+      ],
+    );
+  }
+}
+
+class _ChatRow extends StatelessWidget {
+  final ChatMessage message;
+  final bool isUser;
+  const _ChatRow({required this.message, required this.isUser});
+
+  @override
+  Widget build(BuildContext context) {
+    final bubbleColor = isUser ? Colors.white : const Color(0xFF72C6C1);
+    final textColor = isUser ? const Color(0xFF1B1F23) : Colors.white;
+
+    final bubble = ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 440),
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: bubbleColor,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 5,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: isUser
+            ? Text(
+                message.text,
+                style: TextStyle(fontSize: 14, color: textColor, height: 1.35),
+              )
+            : MarkdownBody(
+                data: message.text,
+                styleSheet: MarkdownStyleSheet(
+                  p: TextStyle(fontSize: 14, color: textColor, height: 1.35),
+                  h1: TextStyle(color: textColor, fontWeight: FontWeight.w700),
+                  h2: TextStyle(color: textColor, fontWeight: FontWeight.w700),
+                  strong: TextStyle(
+                    color: textColor,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  listBullet: TextStyle(color: textColor),
                 ),
               ),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    time,
-                    style: const TextStyle(color: Colors.black45, fontSize: 12),
-                  ),
-                  const SizedBox(height: 6),
-                  if (unread > 0)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF63C0C2).withOpacity(.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '$unread',
-                        style: const TextStyle(
-                          color: Color(0xFF2D8E90),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+      ),
+    );
+
+    final avatar = CircleAvatar(
+      radius: 14,
+      backgroundColor: isUser ? const Color(0xFFEFF3F4) : Colors.white,
+      child: Icon(
+        isUser ? Icons.person : Icons.smart_toy,
+        size: 16,
+        color: isUser ? const Color(0xFF7A8C98) : const Color(0xFF72C6C1),
+      ),
+    );
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: isUser
+          ? MainAxisAlignment.end
+          : MainAxisAlignment.start,
+      children: isUser
+          ? [bubble, const SizedBox(width: 8), avatar]
+          : [avatar, const SizedBox(width: 8), bubble],
+    );
+  }
+}
+
+class _TypingRow extends StatelessWidget {
+  const _TypingRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const CircleAvatar(
+          radius: 14,
+          backgroundColor: Colors.white,
+          child: Icon(Icons.smart_toy, size: 16, color: Color(0xFF72C6C1)),
+        ),
+        const SizedBox(width: 8),
+        Container(
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF72C6C1),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              _Dot(),
+              SizedBox(width: 4),
+              _Dot(),
+              SizedBox(width: 4),
+              _Dot(),
             ],
           ),
+        ),
+      ],
+    );
+  }
+}
+
+class _Dot extends StatefulWidget {
+  const _Dot();
+
+  @override
+  State<_Dot> createState() => _DotState();
+}
+
+class _DotState extends State<_Dot> with SingleTickerProviderStateMixin {
+  late final AnimationController c;
+  late final Animation<double> a;
+
+  @override
+  void initState() {
+    super.initState();
+    c = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat();
+    a = Tween(
+      begin: .3,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: c, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: a,
+      child: const Icon(Icons.circle, size: 8, color: Colors.white),
+    );
+  }
+}
+
+class _InputBar extends StatelessWidget {
+  final TextEditingController controller;
+  final VoidCallback onSend;
+  const _InputBar({required this.controller, required this.onSend});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Container(
+        color: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: controller,
+                minLines: 1,
+                maxLines: 4,
+                decoration: const InputDecoration(
+                  hintText: 'Type a message…',
+                  border: OutlineInputBorder(borderSide: BorderSide.none),
+                ),
+                onSubmitted: (_) => onSend(),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.send),
+              onPressed: onSend,
+              tooltip: 'Send',
+            ),
+          ],
         ),
       ),
     );
