@@ -14,7 +14,7 @@ class EmergencyChatScreen extends StatefulWidget {
   State<EmergencyChatScreen> createState() => _EmergencyChatScreenState();
 }
 
-enum _TabKey { brigadist, medical, assistant, map }
+enum _TabKey { brigadist, medical, map }
 
 class _Msg {
   final String text;
@@ -271,9 +271,8 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen>
         child: IndexedStack(
           index: _activeTab.index,
           children: [
-
+            _buildBrigadist(theme),
             _buildMedical(theme),
-            _buildAssistant(theme),
             _buildMap(theme),
           ],
         ),
@@ -319,8 +318,12 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen>
                           ),
                         ),
                         const SizedBox(width: 6),
-                        Text('Available - 2 min away',
-                            style: tt.bodySmall?.copyWith(color: cs.secondary)),
+                        Text(widget.orchestrator.isCalculatingRoute
+                            ? 'Calculating route...'
+                            : widget.orchestrator.estimatedArrivalTime != null
+                                ? 'Available - ${widget.orchestrator.estimatedArrivalTime!.inMinutes} min away'
+                                : 'Available - Calculating time...',
+                          style: tt.bodySmall?.copyWith(color: cs.secondary)),
                       ],
                     ),
                   ],
@@ -594,75 +597,15 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen>
     );
   }
 
-  // ---------- ASSISTANT ----------
-  Widget _buildAssistant(ThemeData theme) {
-    final cs = theme.colorScheme;
-    final tt = theme.textTheme;
-
-    return Column(
-      children: [
-        Container(
-          color: cs.primary.withOpacity(.15),
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 20,
-                backgroundColor: cs.primary,
-                child: Icon(Icons.support_agent, color: cs.onPrimary, size: 20),
-              ),
-              const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Brigade Assistant AI',
-                      style: tt.titleSmall?.copyWith(
-                          color: cs.onSurface, fontWeight: FontWeight.w600)),
-                  Text('Emergency support specialist',
-                      style: tt.bodySmall?.copyWith(color: cs.primary)),
-                ],
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            itemCount: _botMsgs.length,
-            itemBuilder: (ctx, i) {
-              final m = _botMsgs[i];
-              final isMe = m.fromMe;
-              return _Bubble(
-                text: m.text,
-                time: m.time,
-                fromMe: isMe,
-                bg: isMe ? cs.secondary : cs.surfaceVariant,
-                fg: isMe ? cs.onSecondary : cs.onSurfaceVariant,
-                leadingIcon: isMe ? Icons.person : Icons.smart_toy_outlined,
-                leadingColor: isMe ? cs.secondary : cs.primary,
-              );
-            },
-          ),
-        ),
-        _InputBar(
-          controller: _botInput,
-          hint: 'Ask about emergency procedures...',
-          onSend: _sendBot,
-          buttonColor: cs.primary,
-        ),
-      ],
-    );
-  }
-
   // ---------- MAPA / LOCATION ----------
   Widget _buildMap(ThemeData theme) {
     final cs = theme.colorScheme;
     final tt = theme.textTheme;
-
+  
     final userLocation = widget.orchestrator.currentUserLocation;
     final assigned = widget.orchestrator.assignedBrigadist;
     final route = widget.orchestrator.brigadistRoute;
-
+  
     return Padding(
       padding: const EdgeInsets.all(12.0),
       child: Column(
@@ -682,7 +625,9 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen>
                     style: tt.titleMedium
                         ?.copyWith(color: cs.onSurface, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 6),
-                if (_isLoadingBrigadist) ...[
+                
+                // ← USAR DATOS REALES DEL ORCHESTRATOR
+                if (_isLoadingBrigadist || widget.orchestrator.isCalculatingRoute) ...[
                   Row(
                     children: [
                       SizedBox(
@@ -692,8 +637,12 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen>
                             strokeWidth: 2, color: cs.secondary),
                       ),
                       const SizedBox(width: 8),
-                      Text('Finding nearest brigadist...',
-                          style: tt.bodyMedium?.copyWith(color: cs.onSurface)),
+                      Text(
+                        widget.orchestrator.isCalculatingRoute 
+                            ? 'Calculating route...'
+                            : 'Finding nearest brigadist...',
+                        style: tt.bodyMedium?.copyWith(color: cs.onSurface)
+                      ),
                     ],
                   ),
                 ] else if (assigned != null) ...[
@@ -702,19 +651,29 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen>
                       Container(
                         width: 8,
                         height: 8,
-                        decoration:
-                            BoxDecoration(color: cs.secondary, shape: BoxShape.circle),
+                        decoration: BoxDecoration(color: cs.secondary, shape: BoxShape.circle),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          '${assigned.fullName} - ${assigned.estimatedArrivalMinutes?.toInt() ?? 0} minutes away',
+                          // ← USAR TIEMPO REAL CALCULADO
+                          widget.orchestrator.estimatedArrivalTime != null
+                              ? '${assigned.fullName} - ${widget.orchestrator.estimatedArrivalTime!.inMinutes} minutes away'
+                              : '${assigned.fullName} - Calculating time...',
                           style: tt.bodyMedium?.copyWith(
                               color: cs.onSurface, fontWeight: FontWeight.w600),
                         ),
                       ),
                     ],
                   ),
+                  // ← AGREGAR DISTANCIA SI ESTÁ DISPONIBLE
+                  if (widget.orchestrator.routeDistance != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Distance: ${widget.orchestrator.routeDistance!.toStringAsFixed(2)} km',
+                      style: tt.bodySmall?.copyWith(color: cs.secondary)
+                    ),
+                  ],
                   const SizedBox(height: 4),
                   Text('Status: ${assigned.status}',
                       style: tt.bodySmall?.copyWith(color: cs.secondary)),
@@ -890,19 +849,39 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen>
               border: Border.all(color: cs.tertiary.withOpacity(.4)),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Row(
+            child: Column(
               children: [
-                Icon(Icons.access_time, size: 18, color: cs.onTertiaryContainer),
-                const SizedBox(width: 8),
-                Text(
-                  assigned != null
-                      ? 'Estimated arrival: ${assigned.estimatedArrivalMinutes?.toInt() ?? 0} minutes'
-                      : 'Calculating arrival time...',
-                  style: tt.bodyMedium?.copyWith(
-                    color: cs.onTertiaryContainer,
-                    fontWeight: FontWeight.w600,
-                  ),
+                Row(
+                  children: [
+                    Icon(Icons.access_time, size: 18, color: cs.onTertiaryContainer),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        // ← USAR DATOS REALES DEL ORCHESTRATOR
+                        widget.orchestrator.isCalculatingRoute
+                            ? 'Calculating arrival time...'
+                            : widget.orchestrator.estimatedArrivalTime != null
+                                ? 'Estimated arrival: ${widget.orchestrator.estimatedArrivalTime!.inMinutes} minutes'
+                                : 'No arrival time available',
+                        style: tt.bodyMedium?.copyWith(
+                          color: cs.onTertiaryContainer,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
+                // ← AGREGAR INFO DE CÁLCULO PARA DEBUG
+                if (widget.orchestrator.routeCalculationTime != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Route calculated in ${widget.orchestrator.routeCalculationTime!.inMilliseconds}ms',
+                    style: tt.bodySmall?.copyWith(
+                      color: cs.onTertiaryContainer.withOpacity(0.7),
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

@@ -299,16 +299,16 @@ class _MapPageState extends State<MapPage> {
             heroTag: "route",
             onPressed: userLocation != null
                 ? () async {
-              if (widget.orchestrator.currentRoute != null) {
+              if (widget.orchestrator.meetingPointRoute != null) {
                 widget.orchestrator.clearRoute();
               } else {
                 await widget.orchestrator.calculateRouteToClosestPoint();
               }
             }
                 : null,
-            backgroundColor: widget.orchestrator.currentRoute != null ? cs.tertiary : cs.secondary,
-            foregroundColor: widget.orchestrator.currentRoute != null ? cs.onTertiary : cs.onSecondary,
-            child: Icon(widget.orchestrator.currentRoute != null ? Icons.clear : Icons.directions),
+            backgroundColor: widget.orchestrator.meetingPointRoute != null ? cs.tertiary : cs.secondary,
+            foregroundColor: widget.orchestrator.meetingPointRoute != null ? cs.onTertiary : cs.onSecondary,
+            child: Icon(widget.orchestrator.meetingPointRoute != null ? Icons.clear : Icons.directions),
           ),
           const SizedBox(height: 10),
           FloatingActionButton(

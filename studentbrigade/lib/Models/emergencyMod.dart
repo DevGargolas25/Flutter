@@ -1,4 +1,4 @@
-
+/*
 enum EmerType {
   medical,
   psychological,
@@ -108,3 +108,4 @@ class Emergency {
 enum EmergencyStatus { pending, in_progress, resolved, cancelled }
 enum EmergencyType { medical, fire, security, evacuation, other }
 
+*/

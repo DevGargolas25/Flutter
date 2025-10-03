@@ -164,10 +164,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     return _mapVM.getClosestMeetingPoint(userLocation);
   }
 
-  Future<List<RoutePoint>?> calculateRouteToClosestPoint() =>
-      _mapVM.calculateRouteToClosestPoint();
-
-  List<RoutePoint>? get currentRoute => _mapVM.currentRoute;
+  Future<List<RoutePoint>?> calculateRouteToClosestPoint() => _mapVM.calculateRouteToClosestPoint();
 
   List<RoutePoint>? get meetingPointRoute => _mapVM.meetingPointRoute;
   List<RoutePoint>? get brigadistRoute => _mapVM.brigadistRoute;
@@ -178,6 +175,10 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   UserLocation? get currentUserLocation => _mapVM.currentUserLocation;
   bool get isLocationLoading => _mapVM.isLocationLoading;
   String? get locationError => _mapVM.locationError;
+  Duration? get routeCalculationTime => _mapVM.routeCalculationTime;
+  Duration? get estimatedArrivalTime => _mapVM.estimatedArrivalTime;
+  double? get routeDistance => _mapVM.routeDistance;
+  bool get isCalculatingRoute => _mapVM.isCalculatingEmergencyRoute;
 
   // ---------- USER ----------
   User? getUserData() => _userVM.getUserData();
@@ -229,8 +230,19 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     return await _userVM.getAssignedBrigadist(emergencyId);
   }
 
-  Future<List<RoutePoint>?> calculateRouteToBrigadist(double brigadistLat, double brigadistLon) async {
-    return await _mapVM.calculateRouteToBrigadist(brigadistLat, brigadistLon);
+  Future<void> calculateRouteToBrigadist(double brigadistLat, double brigadistLng) async {
+    try {
+      await _mapVM.calculateRouteToBrigadist(brigadistLat, brigadistLng);
+      notifyListeners(); // Notificar cambios a las vistas
+    } catch (e) {
+      print('Error en Orchestrator calculando ruta: $e');
+      rethrow;
+    }
+  }
+
+  // === MÉTODO PARA ANALYTICS ===
+  Map<String, dynamic> getRouteAnalytics() {
+    return _mapVM.getEmergencyRouteAnalytics();
   }
   
   Brigadist? get assignedBrigadist => _userVM.assignedBrigadist;
