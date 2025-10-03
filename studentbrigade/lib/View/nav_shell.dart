@@ -100,10 +100,8 @@ class _NavShellState extends State<NavShell> {
               selected: _index == 1,
               onTap: () => _orchestrator.navigateToPage(1),
             ),
-
-            // SOS centrado
+            // SOS Button in center
             _SOSButton(onTap: () => SosDialog.show(context, _orchestrator)),
-
             _NavItem(
               icon: Icons.map_outlined,
               selectedIcon: Icons.map,

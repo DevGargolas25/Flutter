@@ -79,3 +79,24 @@ class MapData {
     sd_cerca,
   ];
 }
+
+// Para los 2 cálcuos de ruta; al meeting point, y del brigadista
+enum RouteType {
+  meetingPoint,    // Ruta a punto de encuentro (mapa normal)
+  brigadist,       // Ruta al brigadista (emergencia)
+}
+
+//clase para manejar múltiples rutas
+class RouteData {
+  final List<RoutePoint> points;
+  final RouteType type;
+  final DateTime calculatedAt;
+  final double? estimatedDurationMinutes;
+
+  const RouteData({
+    required this.points,
+    required this.type,
+    required this.calculatedAt,
+    this.estimatedDurationMinutes,
+  });
+}
