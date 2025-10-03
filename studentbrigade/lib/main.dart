@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:google_fonts/google_fonts.dart';
-import 'app_theme.dart';          // buildLightTheme()
-import 'dark_theme.dart';        // buildDarkTheme()
+import 'app_theme.dart'; // buildLightTheme()
+import 'dark_theme.dart'; // buildDarkTheme()
 import 'View/nav_shell.dart';
-import 'View/chat_screen.dart';
 import 'View/Auth0/auth_gate.dart';
-import 'VM/Orchestrator.dart';   // importa el orquestador
+import 'VM/Orchestrator.dart'; // importa el orquestador
 // FireBase
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -16,9 +15,7 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Inicializa Firebase
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   runApp(const MyApp());
 }
@@ -54,17 +51,10 @@ class _MyAppState extends State<MyApp> {
             textTheme: GoogleFonts.robotoTextTheme(dark.textTheme),
           ),
           themeMode: mode, // aplica claro/oscuro automático
-          home: const AuthGate(
-            childWhenAuthed: NavShell(),
-          ),
-          routes: {
-            ChatScreen.routeName: (_) => const ChatScreen(),
-            TestFirebasePage.routeName: (_) => TestFirebasePage(),          },
+          home: const AuthGate(childWhenAuthed: NavShell()),
+          routes: {TestFirebasePage.routeName: (_) => TestFirebasePage()},
         );
       },
     );
   }
 }
-
-
-

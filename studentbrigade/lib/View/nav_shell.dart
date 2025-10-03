@@ -48,7 +48,7 @@ class _NavShellState extends State<NavShell> {
           onOpenProfile: () => _orchestrator.navigateToProfile(),
         );
       case 1:
-        return const ChatbotsScreen();
+        return ChatView(orchestrator: _orchestrator);
       case 2:
         return MapPage(orchestrator: _orchestrator);
       case 3:
@@ -75,7 +75,9 @@ class _NavShellState extends State<NavShell> {
           color: theme.bottomNavigationBarTheme.backgroundColor ?? cs.surface,
           boxShadow: [
             BoxShadow(
-              color: cs.shadow.withOpacity(theme.brightness == Brightness.light ? .06 : .28),
+              color: cs.shadow.withOpacity(
+                theme.brightness == Brightness.light ? .06 : .28,
+              ),
               blurRadius: 10,
               offset: const Offset(0, -2),
             ),
@@ -187,7 +189,8 @@ class _NavItem extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    final baseColor = theme.bottomNavigationBarTheme.unselectedItemColor ??
+    final baseColor =
+        theme.bottomNavigationBarTheme.unselectedItemColor ??
         cs.onSurface.withOpacity(.6);
     final selColor =
         theme.bottomNavigationBarTheme.selectedItemColor ?? cs.primary;
