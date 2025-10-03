@@ -144,16 +144,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver { // NUEVO
   List<RoutePoint>? get brigadistRoute => _mapVM.brigadistRoute;
 
 
-<<<<<<< HEAD
-  void clearRoute() {
-    _mapVM.clearRoute();
-  }
-  void clearMeetingPointRoute() => _mapVM.clearMeetingPointRoute();
-  void clearBrigadistRoute() => _mapVM.clearBrigadistRoute();
-  void clearAllRoutes() => _mapVM.clearAllRoutes();
-=======
   void clearRoute() => _mapVM.clearRoute();
->>>>>>> fd94a0b679ee8aa361c2e0b43893871bde4d5311
 
   // Getters MAP
   UserLocation? get currentUserLocation => _mapVM.currentUserLocation;

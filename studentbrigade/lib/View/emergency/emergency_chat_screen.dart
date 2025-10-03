@@ -1,15 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+
+// Orchestrator & Map
 import '../../VM/Orchestrator.dart';
-
-// map imports
-import 'package:flutter_map/flutter_map.dart';  
-import 'package:latlong2/latlong.dart';         
-
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 class EmergencyChatScreen extends StatefulWidget {
   final Orchestrator orchestrator;
-
   const EmergencyChatScreen({super.key, required this.orchestrator});
 
   @override
@@ -25,110 +23,45 @@ class _Msg {
   _Msg({required this.text, required this.fromMe, this.time = 'Now'});
 }
 
-class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
+class _EmergencyChatScreenState extends State<EmergencyChatScreen>
+    with WidgetsBindingObserver {
   _TabKey _activeTab = _TabKey.brigadist;
 
-  // Map controller and simulated brigadist location
-  late MapController _mapController = MapController();
+  // ---------- Mapa / Orchestrator ----------
+  late final MapController _mapController = MapController();
   bool _isLoadingBrigadist = false;
-  String _emergencyId = 'emergency_001'; // ID de emergencia simulado
+  final String _emergencyId = 'emergency_001';
 
-  // Map controller operations
-  @override
-  void initState() {
-    super.initState();
-    // Listener para ubicación
-    widget.orchestrator.mapVM.addListener(_onLocationUpdate);
-    // Solicitar ubicación si no la tiene
-    if (widget.orchestrator.currentUserLocation == null) {
-      widget.orchestrator.getCurrentLocation();
-      widget.orchestrator.startLocationTracking();
-    }
-    // Cargar datos del usuario si no están cargados
-    if (widget.orchestrator.userVM.currentUser == null) {
-      widget.orchestrator.userVM.fetchUserData('current_user_id');
-    }
-
-    // Cargar brigadista asignado
-    _loadAssignedBrigadist();
-  }
-
-  // Method to upload Brigadist info
-  Future<void> _loadAssignedBrigadist() async {
-    setState(() => _isLoadingBrigadist = true);
-    
-    final brigadist = await widget.orchestrator.getAssignedBrigadist(_emergencyId);
-    
-    if (brigadist != null) {
-      _calculateRouteWhenReady();
-    }
-    
-    setState(() => _isLoadingBrigadist = false);
-  }
-
-  void _calculateRouteWhenReady() {
-    final userLocation = widget.orchestrator.currentUserLocation;
-    final assignedBrigadist = widget.orchestrator.assignedBrigadist;
-    
-    if (userLocation != null && assignedBrigadist != null) {
-      widget.orchestrator.calculateRouteToBrigadist(
-        assignedBrigadist.latitude, 
-        assignedBrigadist.longitude
-      );
-    } else {
-      Timer.periodic(const Duration(milliseconds: 500), (timer) {
-        final location = widget.orchestrator.currentUserLocation;
-        final brigadist = widget.orchestrator.assignedBrigadist;
-        
-        if (location != null && brigadist != null) {
-          timer.cancel();
-          widget.orchestrator.calculateRouteToBrigadist(
-            brigadist.latitude, 
-            brigadist.longitude
-          );
-        }
-      });
-    }
-  }
-
-  void _onLocationUpdate() {
-    if (mounted) {
-      setState(() {});
-    }
-  }
-
-  @override
-  void dispose() {
-    _brigadistInput.dispose();
-    _botInput.dispose();
-    widget.orchestrator.mapVM.removeListener(_onLocationUpdate);
-    super.dispose();
-  }
-
-
-
-  // Brigadist chat
+  // ---------- Chats ----------
   final _brigadistInput = TextEditingController();
+  final _botInput = TextEditingController();
+
   final List<_Msg> _brigadistMsgs = [
-    _Msg(text: "Emergency received! I'm Sarah from the Brigade Team. Are you injured?", fromMe: false),
-    _Msg(text: "I'm currently 2 minutes away from your location. Stay calm.", fromMe: false),
+    _Msg(
+        text:
+            "Emergency received! I'm Sarah from the Brigade Team. Are you injured?",
+        fromMe: false),
+    _Msg(
+        text:
+            "I'm currently 2 minutes away from your location. Stay calm.",
+        fromMe: false),
   ];
 
-  // Chatbot (assistant) chat
-  final _botInput = TextEditingController();
   final List<_Msg> _botMsgs = [
     _Msg(
-      text: 'Emergency protocol activated. I can help you with immediate safety instructions while help is on the way.',
+      text:
+          'Emergency protocol activated. I can help you with immediate safety instructions while help is on the way.',
       fromMe: false,
     ),
     _Msg(
-      text: 'Based on your location, the nearest safe assembly point is the Main Campus front parking lot.',
+      text:
+          'Based on your location, the nearest safe assembly point is the Main Campus front parking lot.',
       fromMe: false,
     ),
   ];
 
-  // Medical info (mock)
-  final _medicalInfo = const {
+  // ---------- Mock local (fallback si aún no carga el usuario) ----------
+  final _medicalInfoFallback = const {
     'bloodType': 'O+',
     'allergies': [
       'Peanuts, Shellfish',
@@ -141,10 +74,80 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
       'Vitamin D3 - 1000 IU daily',
     ],
     'notes':
-    'Carry EpiPen for severe reactions. Keep inhaler accessible at all times.',
+        'Carry EpiPen for severe reactions. Keep inhaler accessible at all times.',
   };
 
-  /* ======================= CHATBOT REGLAS ======================= */
+  // ---------- Ciclo de vida ----------
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+
+    // Suscribir a cambios de ubicación / ruta
+    widget.orchestrator.mapVM.addListener(_onLocationUpdate);
+
+    // Disparar flujos necesarios
+    if (widget.orchestrator.currentUserLocation == null) {
+      widget.orchestrator.getCurrentLocation();
+      widget.orchestrator.startLocationTracking();
+    }
+    if (widget.orchestrator.userVM.currentUser == null) {
+      widget.orchestrator.userVM.fetchUserData('current_user_id');
+    }
+
+    _loadAssignedBrigadist();
+  }
+
+  @override
+  void dispose() {
+    _brigadistInput.dispose();
+    _botInput.dispose();
+    widget.orchestrator.mapVM.removeListener(_onLocationUpdate);
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  void _onLocationUpdate() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _loadAssignedBrigadist() async {
+    setState(() => _isLoadingBrigadist = true);
+    final brigadist =
+        await widget.orchestrator.getAssignedBrigadist(_emergencyId);
+    if (brigadist != null) {
+      _calculateRouteWhenReady();
+    }
+    if (mounted) setState(() => _isLoadingBrigadist = false);
+  }
+
+  void _calculateRouteWhenReady() {
+    final userLocation = widget.orchestrator.currentUserLocation;
+    final assigned = widget.orchestrator.assignedBrigadist;
+
+    void calc() {
+      if (assigned != null) {
+        widget.orchestrator
+            .calculateRouteToBrigadist(assigned.latitude, assigned.longitude);
+      }
+    }
+
+    if (userLocation != null && assigned != null) {
+      calc();
+    } else {
+      Timer.periodic(const Duration(milliseconds: 500), (timer) {
+        final loc = widget.orchestrator.currentUserLocation;
+        final br = widget.orchestrator.assignedBrigadist;
+        if (loc != null && br != null) {
+          timer.cancel();
+          widget.orchestrator
+              .calculateRouteToBrigadist(br.latitude, br.longitude);
+        }
+      });
+    }
+  }
+
+  // ---------- Reglas chatbot ----------
   String _aiResponse(String userMessage) {
     final m = userMessage.toLowerCase();
     if (m.contains('first aid') || m.contains('injured') || m.contains('hurt')) {
@@ -183,7 +186,6 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
       _botInput.clear();
     });
 
-    // Respuesta "AI" simulada a los 800ms
     Future.delayed(const Duration(milliseconds: 800), () {
       if (!mounted) return;
       setState(() {
@@ -201,7 +203,7 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: cs.error, // rojo “alerta”
+        backgroundColor: cs.error, // rojo alerta
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: cs.onError),
@@ -212,7 +214,8 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Emergency Active',
-                style: tt.titleMedium?.copyWith(color: cs.onError, fontWeight: FontWeight.w600)),
+                style:
+                    tt.titleMedium?.copyWith(color: cs.onError, fontWeight: FontWeight.w600)),
             Text('Help is on the way',
                 style: tt.bodySmall?.copyWith(color: cs.onError.withOpacity(.9))),
           ],
@@ -269,7 +272,6 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
           ),
         ),
       ),
-
       body: Container(
         color: theme.scaffoldBackgroundColor,
         child: IndexedStack(
@@ -285,14 +287,13 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
     );
   }
 
-  /* ======================= BRIGADIST CHAT ======================= */
+  // ---------- BRIGADIST ----------
   Widget _buildBrigadist(ThemeData theme) {
     final cs = theme.colorScheme;
     final tt = theme.textTheme;
 
     return Column(
       children: [
-        // Header suave con secondary (estado “en camino”)
         Container(
           color: cs.secondary.withOpacity(.15),
           padding: const EdgeInsets.all(12),
@@ -332,15 +333,15 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
                 ),
               ),
               IconButton(
-                onPressed: () {/* TODO: call */},
+                onPressed: () {
+                  // TODO: Integrar llamada telefónica real si aplica
+                },
                 icon: Icon(Icons.call, color: cs.secondary),
                 tooltip: 'Call',
               ),
             ],
           ),
         ),
-
-        // Mensajes
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
@@ -352,15 +353,14 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
                 text: m.text,
                 time: m.time,
                 fromMe: isMe,
-                // yo: secondary (verde/teal), bot: primaryContainer
                 bg: isMe ? cs.secondary : cs.primaryContainer,
                 fg: isMe ? cs.onSecondary : cs.onPrimaryContainer,
+                leadingIcon: isMe ? Icons.person : Icons.medical_services_outlined,
+                leadingColor: isMe ? cs.secondary : cs.primary,
               );
             },
           ),
         ),
-
-        // Input
         _InputBar(
           controller: _brigadistInput,
           hint: 'Type your response...',
@@ -371,147 +371,125 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
     );
   }
 
-  /* ======================= MEDICAL INFO ======================= */
-<<<<<<< HEAD
-  Widget _buildMedical(TextTheme tt) {
+  // ---------- MEDICAL ----------
+  Widget _buildMedical(ThemeData theme) {
+    final cs = theme.colorScheme;
+    final tt = theme.textTheme;
     final user = widget.orchestrator.userVM.currentUser;
-    
+
+    Color chipBg(Color base) => Color.alphaBlend(base.withOpacity(.18), cs.surface);
+    Color borderFaint = cs.outline.withOpacity(.25);
+
     if (user == null) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+      // Fallback a mock mientras carga el usuario real
+      return Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: ListView(
           children: [
-            CircularProgressIndicator(color: _teal),
-            SizedBox(height: 16),
-            Text('Loading medical information...'),
+            _InfoCard(
+              title: 'Blood Type',
+              icon: Icons.favorite,
+              iconBg: chipBg(cs.error),
+              iconColor: cs.error,
+              borderColor: borderFaint,
+              child: Text(
+                _medicalInfoFallback['bloodType'] as String,
+                style: tt.headlineSmall?.copyWith(
+                  color: cs.error,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _InfoCard(
+              title: 'Critical Allergies',
+              icon: Icons.error_outline,
+              iconBg: chipBg(cs.tertiary),
+              iconColor: cs.tertiary,
+              borderColor: borderFaint,
+              child: Column(
+                children: ( _medicalInfoFallback['allergies'] as List )
+                    .map((a) => Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: chipBg(cs.tertiary),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border(left: BorderSide(color: cs.tertiary, width: 3)),
+                          ),
+                          child: Text(a, style: tt.bodyMedium?.copyWith(color: cs.onSurface)),
+                        ))
+                    .toList(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _InfoCard(
+              title: 'Emergency Medications',
+              icon: Icons.medication_outlined,
+              iconBg: chipBg(cs.primary),
+              iconColor: cs.primary,
+              borderColor: borderFaint,
+              child: Column(
+                children: ( _medicalInfoFallback['medications'] as List )
+                    .map((m) => Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: chipBg(cs.primary),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(m, style: tt.bodyMedium?.copyWith(color: cs.onSurface)),
+                        ))
+                    .toList(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            _InfoCard(
+              title: 'Emergency Notes',
+              icon: Icons.report_gmailerrorred_outlined,
+              iconBg: chipBg(cs.error),
+              iconColor: cs.error,
+              borderColor: borderFaint,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: chipBg(cs.error),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border(left: BorderSide(color: cs.error, width: 3)),
+                ),
+                child: Text(
+                  _medicalInfoFallback['notes'] as String,
+                  style: tt.bodyMedium?.copyWith(color: cs.onSurface, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
           ],
         ),
       );
     }
-=======
-  Widget _buildMedical(ThemeData theme) {
-    final cs = theme.colorScheme;
-    final tt = theme.textTheme;
 
-    Color chipBg(Color base) => Color.alphaBlend(base.withOpacity(.18), cs.surface);
-    Color borderFaint = cs.outline.withOpacity(.25);
->>>>>>> fd94a0b679ee8aa361c2e0b43893871bde4d5311
+    // Con datos reales del usuario
+    List<Widget> allergyWidgets = [];
+    void addIfPresent(String? label, String kind) {
+      if (label != null && label.trim().isNotEmpty) {
+        allergyWidgets.add(_allergyItem('${kind}: $label', theme));
+      }
+    }
+
+    addIfPresent(user.foodAllergies, 'Food');
+    addIfPresent(user.drugAllergies, 'Drugs');
+    addIfPresent(user.environmentalAllergies, 'Environmental');
+    if (allergyWidgets.isEmpty) {
+      allergyWidgets.add(_allergyItem('No known allergies', theme));
+    }
 
     return Padding(
       padding: const EdgeInsets.all(12.0),
       child: ListView(
         children: [
-<<<<<<< HEAD
-          Expanded(
-            child: ListView(
-              children: [
-                _InfoCard(
-                  title: 'Blood Type',
-                  icon: Icons.favorite,
-                  iconColor: const Color(0xFFE63946),
-                  chipBg: _peach.withOpacity(.2),
-                  borderColor: _aqua.withOpacity(.3),
-                  titleColor: _ink,
-                  child: Text(
-                    user.bloodType,
-                    style: tt.headlineSmall?.copyWith(
-                      color: const Color(0xFFE63946),
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _InfoCard(
-                  title: 'Critical Allergies',
-                  icon: Icons.error_outline,
-                  iconColor: _peach,
-                  chipBg: _peach.withOpacity(.2),
-                  borderColor: _aqua.withOpacity(.3),
-                  titleColor: _ink,
-                  child: Column(
-                    children: _buildAllergyList(user, tt),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _InfoCard(
-                  title: 'Emergency Medications',
-                  icon: Icons.medication_outlined,
-                  iconColor: _teal,
-                  chipBg: _teal.withOpacity(.2),
-                  borderColor: _aqua.withOpacity(.3),
-                  titleColor: _ink,
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: _teal.withOpacity(.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      user.emergencyMedications ?? 'No emergency medications specified',
-                      style: tt.bodyMedium?.copyWith(color: _ink),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _InfoCard(
-                  title: 'Emergency Contact',
-                  icon: Icons.contact_phone,
-                  iconColor: _green,
-                  chipBg: _green.withOpacity(.2),
-                  borderColor: _aqua.withOpacity(.3),
-                  titleColor: _ink,
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: _green.withOpacity(.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${user.emergencyName1}: ${user.emergencyPhone1}',
-                          style: tt.bodyMedium?.copyWith(color: _ink, fontWeight: FontWeight.w600),
-                        ),
-                        if (user.emergencyName2 != null && user.emergencyPhone2 != null) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            '${user.emergencyName2}: ${user.emergencyPhone2}',
-                            style: tt.bodyMedium?.copyWith(color: _ink),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-                if (user.specialInstructions != null) ...[
-                  const SizedBox(height: 12),
-                  _InfoCard(
-                    title: 'Special Instructions',
-                    icon: Icons.report_gmailerrorred_outlined,
-                    iconColor: _red,
-                    chipBg: _red.withOpacity(.15),
-                    borderColor: _aqua.withOpacity(.3),
-                    titleColor: _ink,
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: _red.withOpacity(.12),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border(left: BorderSide(color: _red, width: 3)),
-                      ),
-                      child: Text(
-                        user.specialInstructions!,
-                        style: tt.bodyMedium?.copyWith(color: _ink, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-=======
           _InfoCard(
             title: 'Blood Type',
             icon: Icons.favorite,
@@ -519,7 +497,7 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
             iconColor: cs.error,
             borderColor: borderFaint,
             child: Text(
-              _medicalInfo['bloodType'] as String,
+              user.bloodType,
               style: tt.headlineSmall?.copyWith(
                 color: cs.error,
                 fontWeight: FontWeight.bold,
@@ -533,21 +511,7 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
             iconBg: chipBg(cs.tertiary),
             iconColor: cs.tertiary,
             borderColor: borderFaint,
-            child: Column(
-              children: ( _medicalInfo['allergies'] as List )
-                  .map((a) => Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: chipBg(cs.tertiary),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border(left: BorderSide(color: cs.tertiary, width: 3)),
-                ),
-                child: Text(a, style: tt.bodyMedium?.copyWith(color: cs.onSurface)),
-              ))
-                  .toList(),
-            ),
+            child: Column(children: allergyWidgets),
           ),
           const SizedBox(height: 12),
           _InfoCard(
@@ -556,83 +520,87 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
             iconBg: chipBg(cs.primary),
             iconColor: cs.primary,
             borderColor: borderFaint,
-            child: Column(
-              children: ( _medicalInfo['medications'] as List )
-                  .map((m) => Container(
-                width: double.infinity,
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: chipBg(cs.primary),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(m, style: tt.bodyMedium?.copyWith(color: cs.onSurface)),
-              ))
-                  .toList(),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: chipBg(cs.primary),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                user.emergencyMedications ?? 'No emergency medications specified',
+                style: tt.bodyMedium?.copyWith(color: cs.onSurface),
+              ),
             ),
           ),
           const SizedBox(height: 12),
           _InfoCard(
-            title: 'Emergency Notes',
-            icon: Icons.report_gmailerrorred_outlined,
-            iconBg: chipBg(cs.error),
-            iconColor: cs.error,
+            title: 'Emergency Contact',
+            icon: Icons.contact_phone,
+            iconBg: chipBg(cs.secondary),
+            iconColor: cs.secondary,
             borderColor: borderFaint,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: chipBg(cs.error),
-                borderRadius: BorderRadius.circular(10),
-                border: Border(left: BorderSide(color: cs.error, width: 3)),
-              ),
-              child: Text(
-                _medicalInfo['notes'] as String,
-                style: tt.bodyMedium?.copyWith(color: cs.onSurface, fontWeight: FontWeight.w600),
-              ),
->>>>>>> fd94a0b679ee8aa361c2e0b43893871bde4d5311
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('${user.emergencyName1}: ${user.emergencyPhone1}',
+                    style: tt.bodyMedium?.copyWith(
+                        color: cs.onSurface, fontWeight: FontWeight.w600)),
+                if ((user.emergencyName2 ?? '').isNotEmpty &&
+                    (user.emergencyPhone2 ?? '').isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4.0),
+                    child: Text('${user.emergencyName2}: ${user.emergencyPhone2}',
+                        style: tt.bodyMedium?.copyWith(color: cs.onSurface)),
+                  ),
+              ],
             ),
           ),
+          if ((user.specialInstructions ?? '').isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _InfoCard(
+              title: 'Special Instructions',
+              icon: Icons.report_gmailerrorred_outlined,
+              iconBg: chipBg(cs.error),
+              iconColor: cs.error,
+              borderColor: borderFaint,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: chipBg(cs.error),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border(left: BorderSide(color: cs.error, width: 3)),
+                ),
+                child: Text(
+                  user.specialInstructions!,
+                  style: tt.bodyMedium?.copyWith(
+                      color: cs.onSurface, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  List<Widget> _buildAllergyList(user, TextTheme tt) {
-    List<Widget> allergyWidgets = [];
-    
-    if (user.foodAllergies != null) {
-      allergyWidgets.add(_buildAllergyItem('Food: ${user.foodAllergies}', tt));
-    }
-    if (user.drugAllergies != null) {
-      allergyWidgets.add(_buildAllergyItem('Drugs: ${user.drugAllergies}', tt));
-    }
-    if (user.environmentalAllergies != null) {
-      allergyWidgets.add(_buildAllergyItem('Environmental: ${user.environmentalAllergies}', tt));
-    }
-    
-    if (allergyWidgets.isEmpty) {
-      allergyWidgets.add(_buildAllergyItem('No known allergies', tt));
-    }
-    
-    return allergyWidgets;
-  }
-
-  Widget _buildAllergyItem(String text, TextTheme tt) {
+  Widget _allergyItem(String text, ThemeData theme) {
+    final cs = theme.colorScheme;
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: _peach.withOpacity(.2),
+        color: Color.alphaBlend(cs.tertiary.withOpacity(.18), cs.surface),
         borderRadius: BorderRadius.circular(8),
-        border: Border(left: BorderSide(color: _peach, width: 3)),
+        border: Border(left: BorderSide(color: cs.tertiary, width: 3)),
       ),
-      child: Text(text, style: tt.bodyMedium?.copyWith(color: _ink)),
+      child: Text(text, style: TextStyle(color: cs.onSurface)),
     );
   }
 
-  /* ======================= ASSISTANT (CHATBOT) ======================= */
+  // ---------- ASSISTANT ----------
   Widget _buildAssistant(ThemeData theme) {
     final cs = theme.colorScheme;
     final tt = theme.textTheme;
@@ -642,27 +610,22 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
         Container(
           color: cs.primary.withOpacity(.15),
           padding: const EdgeInsets.all(12),
-          child: const Row(
+          child: Row(
             children: [
               CircleAvatar(
                 radius: 20,
                 backgroundColor: cs.primary,
                 child: Icon(Icons.support_agent, color: cs.onPrimary, size: 20),
               ),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('Brigade Assistant AI',
-<<<<<<< HEAD
-                      style: TextStyle(color: _ink, fontWeight: FontWeight.w600)),
-                  Text('Emergency support specialist',
-                      style: TextStyle(color: _teal)),
-=======
-                      style: tt.titleSmall?.copyWith(color: cs.onSurface, fontWeight: FontWeight.w600)),
+                      style: tt.titleSmall?.copyWith(
+                          color: cs.onSurface, fontWeight: FontWeight.w600)),
                   Text('Emergency support specialist',
                       style: tt.bodySmall?.copyWith(color: cs.primary)),
->>>>>>> fd94a0b679ee8aa361c2e0b43893871bde4d5311
                 ],
               ),
             ],
@@ -697,25 +660,19 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
     );
   }
 
-<<<<<<< HEAD
-  /* ======================= MAP / LOCATION ======================= */
-  Widget _buildMap(TextTheme tt) {
-    final userLocation = widget.orchestrator.currentUserLocation;
-    final assignedBrigadist = widget.orchestrator.assignedBrigadist;
-    final brigadistRoute = widget.orchestrator.brigadistRoute;
-    
-=======
-  /* ======================= MAP / LOCATION (placeholder) ======================= */
+  // ---------- MAPA / LOCATION ----------
   Widget _buildMap(ThemeData theme) {
     final cs = theme.colorScheme;
     final tt = theme.textTheme;
 
->>>>>>> fd94a0b679ee8aa361c2e0b43893871bde4d5311
+    final userLocation = widget.orchestrator.currentUserLocation;
+    final assigned = widget.orchestrator.assignedBrigadist;
+    final route = widget.orchestrator.brigadistRoute;
+
     return Padding(
       padding: const EdgeInsets.all(12.0),
       child: Column(
         children: [
-          // Header con info del brigadista real
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(12),
@@ -728,165 +685,150 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Brigadist Location',
-                    style: tt.titleMedium?.copyWith(color: cs.onSurface, fontWeight: FontWeight.w600)),
+                    style: tt.titleMedium
+                        ?.copyWith(color: cs.onSurface, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 6),
-<<<<<<< HEAD
                 if (_isLoadingBrigadist) ...[
-                  const Row(
+                  Row(
                     children: [
                       SizedBox(
-                        width: 16, height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: _green),
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: cs.secondary),
                       ),
-                      SizedBox(width: 8),
-                      Text('Finding nearest brigadist...'),
+                      const SizedBox(width: 8),
+                      Text('Finding nearest brigadist...',
+                          style: tt.bodyMedium?.copyWith(color: cs.onSurface)),
                     ],
                   ),
-                ] else if (assignedBrigadist != null) ...[
+                ] else if (assigned != null) ...[
                   Row(
                     children: [
                       Container(
-                        width: 8, height: 8,
-                        decoration: const BoxDecoration(color: _green, shape: BoxShape.circle),
+                        width: 8,
+                        height: 8,
+                        decoration:
+                            BoxDecoration(color: cs.secondary, shape: BoxShape.circle),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          '${assignedBrigadist.fullName} - ${assignedBrigadist.estimatedArrivalMinutes?.toInt() ?? 0} minutes away',
-                          style: tt.bodyMedium?.copyWith(color: _ink, fontWeight: FontWeight.w600)
+                          '${assigned.fullName} - ${assigned.estimatedArrivalMinutes?.toInt() ?? 0} minutes away',
+                          style: tt.bodyMedium?.copyWith(
+                              color: cs.onSurface, fontWeight: FontWeight.w600),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 4),
-                  Text('Status: ${assignedBrigadist.status}',
-                      style: tt.bodySmall?.copyWith(color: _green)),
+                  Text('Status: ${assigned.status}',
+                      style: tt.bodySmall?.copyWith(color: cs.secondary)),
                 ] else ...[
-                  const Text('No brigadist assigned', 
-                      style: TextStyle(color: Colors.orange)),
+                  Text('No brigadist assigned',
+                      style: tt.bodyMedium?.copyWith(color: cs.tertiary)),
                 ],
-=======
-                Row(
-                  children: [
-                    Container(
-                      width: 8, height: 8,
-                      decoration: BoxDecoration(color: cs.secondary, shape: BoxShape.circle),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text('Sarah Martinez - 2 minutes away',
-                          style: tt.bodyMedium?.copyWith(color: cs.onSurface, fontWeight: FontWeight.w600)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text('Moving towards your location',
-                    style: tt.bodySmall?.copyWith(color: cs.secondary)),
->>>>>>> fd94a0b679ee8aa361c2e0b43893871bde4d5311
               ],
             ),
           ),
           const SizedBox(height: 12),
-
-          // Mapa con ruta automática
           Expanded(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
-<<<<<<< HEAD
-              child: userLocation != null 
+              child: userLocation != null
                   ? FlutterMap(
                       mapController: _mapController,
                       options: MapOptions(
-                        initialCenter: LatLng(userLocation.latitude, userLocation.longitude),
+                        initialCenter:
+                            LatLng(userLocation.latitude, userLocation.longitude),
                         initialZoom: 16.0,
                         minZoom: 14.0,
                         maxZoom: 18.0,
                       ),
                       children: [
                         TileLayer(
-                          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                          userAgentPackageName: 'com.example.studentbrigade',
+                          urlTemplate:
+                              'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          userAgentPackageName:
+                              'com.example.studentbrigade',
                           maxZoom: 18,
                         ),
-                        // Agregar ruta
-                        if (brigadistRoute != null)
+                        if (route != null)
                           PolylineLayer(
                             polylines: [
                               Polyline(
-                                points: brigadistRoute
-                                    .map((point) => LatLng(point.latitude, point.longitude))
+                                points: route
+                                    .map((p) => LatLng(p.latitude, p.longitude))
                                     .toList(),
-                                color: _green, // Verde para ruta al brigadista
-                                strokeWidth: 4.0,
+                                color: cs.secondary,
+                                strokeWidth: 4,
                               ),
                             ],
                           ),
                         MarkerLayer(
                           markers: [
-                            // Tu ubicación (azul)
+                            // Usuario
                             Marker(
-                              point: LatLng(userLocation.latitude, userLocation.longitude),
+                              point: LatLng(
+                                  userLocation.latitude, userLocation.longitude),
                               width: 50,
                               height: 50,
                               child: Container(
                                 decoration: BoxDecoration(
-                                  color: Colors.blue,
+                                  color: cs.primary,
                                   shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white, width: 3),
+                                  border: Border.all(color: cs.onPrimary, width: 3),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.blue.withOpacity(0.3),
-                                      blurRadius: 8,
-                                      spreadRadius: 2,
-                                    ),
+                                        color: cs.primary.withOpacity(.25),
+                                        blurRadius: 8,
+                                        spreadRadius: 2),
                                   ],
                                 ),
-                                child: const Icon(
-                                  Icons.person_pin_circle,
-                                  color: Colors.white,
-                                  size: 25,
-                                ),
+                                child: Icon(Icons.person_pin_circle,
+                                    color: cs.onPrimary, size: 24),
                               ),
                             ),
-                            // Ubicación del brigadista real
-                            if (assignedBrigadist != null)
+                            // Brigadista
+                            if (assigned != null)
                               Marker(
-                                point: LatLng(assignedBrigadist.latitude, assignedBrigadist.longitude),
+                                point: LatLng(
+                                    assigned.latitude, assigned.longitude),
                                 width: 50,
                                 height: 70,
                                 child: Column(
                                   children: [
                                     Container(
                                       decoration: BoxDecoration(
-                                        color: _green,
+                                        color: cs.secondary,
                                         shape: BoxShape.circle,
-                                        border: Border.all(color: Colors.white, width: 3),
+                                        border:
+                                            Border.all(color: cs.onSecondary, width: 3),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: _green.withOpacity(0.3),
+                                            color:
+                                                cs.secondary.withOpacity(0.3),
                                             blurRadius: 8,
                                             spreadRadius: 2,
                                           ),
                                         ],
                                       ),
                                       padding: const EdgeInsets.all(8),
-                                      child: const Icon(
-                                        Icons.medical_services,
-                                        color: Colors.white,
-                                        size: 20,
-                                      ),
+                                      child: Icon(Icons.medical_services,
+                                          color: cs.onSecondary, size: 20),
                                     ),
                                     Container(
                                       margin: const EdgeInsets.only(top: 4),
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
                                       decoration: BoxDecoration(
-                                        color: _green,
+                                        color: cs.secondary,
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(
-                                        assignedBrigadist.fullName.split(' ').first, // Solo primer nombre
-                                        style: const TextStyle(
-                                          color: Colors.white,
+                                        assigned.fullName.split(' ').first,
+                                        style: TextStyle(
+                                          color: cs.onSecondary,
                                           fontSize: 10,
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -900,92 +842,52 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
                       ],
                     )
                   : Container(
-                      width: double.infinity,
-                      color: _aqua.withOpacity(.2),
+                      color: cs.primary.withOpacity(.06),
                       alignment: Alignment.center,
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const CircularProgressIndicator(color: _teal),
-                          const SizedBox(height: 16),
+                          CircularProgressIndicator(color: cs.primary),
+                          const SizedBox(height: 12),
                           Text('Getting your location...',
-                              style: tt.bodyMedium?.copyWith(color: _ink)),
+                              style:
+                                  tt.bodyMedium?.copyWith(color: cs.onSurface)),
                         ],
                       ),
                     ),
-=======
-              child: Container(
-                width: double.infinity,
-                color: cs.primary.withOpacity(.08),
-                alignment: Alignment.center,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.map, size: 48, color: cs.primary),
-                    const SizedBox(height: 8),
-                    Text('Map goes here',
-                        style: tt.bodyMedium?.copyWith(color: cs.onSurface)),
-                  ],
-                ),
-              ),
->>>>>>> fd94a0b679ee8aa361c2e0b43893871bde4d5311
             ),
           ),
-
           const SizedBox(height: 12),
-
-          // Botones de acción del mapa
           Row(
             children: [
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: userLocation != null
-                      ? () {
-                          _mapController.move(
-                            LatLng(userLocation.latitude, userLocation.longitude),
-                            17.0,
-                          );
-                        }
+                      ? () => _mapController.move(
+                            LatLng(
+                                userLocation.latitude, userLocation.longitude),
+                            17,
+                          )
                       : null,
                   icon: const Icon(Icons.my_location, size: 18),
                   label: const Text('My Location'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: assignedBrigadist != null
-                      ? () {
-                          _mapController.move(
-                            LatLng(assignedBrigadist.latitude, assignedBrigadist.longitude), 
-                            17.0
-                          );
-                        }
+                  onPressed: assigned != null
+                      ? () => _mapController.move(
+                            LatLng(assigned.latitude, assigned.longitude), 17,
+                          )
                       : null,
                   icon: const Icon(Icons.medical_services, size: 18),
                   label: const Text('Brigadist'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _green,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
                 ),
               ),
             ],
           ),
-
           const SizedBox(height: 12),
-
-          // ETA info card con datos reales
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(12),
@@ -998,22 +900,15 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
               children: [
                 Icon(Icons.access_time, size: 18, color: cs.onTertiaryContainer),
                 const SizedBox(width: 8),
-<<<<<<< HEAD
                 Text(
-                  assignedBrigadist != null 
-                      ? 'Estimated arrival: ${assignedBrigadist.estimatedArrivalMinutes?.toInt() ?? 0} minutes'
+                  assigned != null
+                      ? 'Estimated arrival: ${assigned.estimatedArrivalMinutes?.toInt() ?? 0} minutes'
                       : 'Calculating arrival time...',
                   style: tt.bodyMedium?.copyWith(
-                    color: _ink,
+                    color: cs.onTertiaryContainer,
                     fontWeight: FontWeight.w600,
-                  )),
-=======
-                Text('Estimated arrival: 2 minutes',
-                    style: tt.bodyMedium?.copyWith(
-                      color: cs.onTertiaryContainer,
-                      fontWeight: FontWeight.w600,
-                    )),
->>>>>>> fd94a0b679ee8aa361c2e0b43893871bde4d5311
+                  ),
+                ),
               ],
             ),
           ),
@@ -1023,7 +918,7 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen> {
   }
 }
 
-/* ======================= WIDGETS UI REUTILIZABLES ======================= */
+// ====================== Widgets reutilizables ======================
 
 class _TabBtn extends StatelessWidget {
   final String label;
@@ -1032,7 +927,6 @@ class _TabBtn extends StatelessWidget {
   final VoidCallback onTap;
 
   const _TabBtn({
-    super.key,
     required this.label,
     required this.icon,
     required this.active,
@@ -1041,22 +935,13 @@ class _TabBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-<<<<<<< HEAD
-    final base = active
+    final cs = Theme.of(context).colorScheme;
+    final deco = active
         ? BoxDecoration(
-            color: _teal.withOpacity(.1),
-            border: const Border(
-              bottom: BorderSide(color: _teal, width: 2),
-            ),
+            color: cs.primary.withOpacity(.08),
+            border: Border(bottom: BorderSide(color: cs.primary, width: 2)),
           )
         : const BoxDecoration();
-=======
-    final cs = Theme.of(context).colorScheme;
-    final activeStyle = BoxDecoration(
-      color: cs.primary.withOpacity(.08),
-      border: Border(bottom: BorderSide(color: cs.primary, width: 2)),
-    );
->>>>>>> fd94a0b679ee8aa361c2e0b43893871bde4d5311
 
     final labelStyle = TextStyle(
       color: active ? cs.primary : cs.onSurface.withOpacity(.6),
@@ -1068,7 +953,7 @@ class _TabBtn extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Container(
-          decoration: active ? activeStyle : const BoxDecoration(),
+          decoration: deco,
           padding: const EdgeInsets.symmetric(vertical: 10),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1110,7 +995,8 @@ class _Bubble extends StatelessWidget {
 
     final bubble = Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * .75),
+      constraints:
+          BoxConstraints(maxWidth: MediaQuery.of(context).size.width * .75),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.only(
@@ -1145,15 +1031,21 @@ class _Bubble extends StatelessWidget {
         mainAxisAlignment: fromMe ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: fromMe
             ? [
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [bubble, stamp])),
-          const SizedBox(width: 8),
-          avatar,
-        ]
+                Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [bubble, stamp])),
+                const SizedBox(width: 8),
+                avatar,
+              ]
             : [
-          avatar,
-          const SizedBox(width: 8),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [bubble, stamp])),
-        ],
+                avatar,
+                const SizedBox(width: 8),
+                Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [bubble, stamp])),
+              ],
       ),
     );
   }
@@ -1194,10 +1086,12 @@ class _InputBar extends StatelessWidget {
                 onSubmitted: (_) => onSend(),
                 decoration: InputDecoration(
                   hintText: hint,
-                  hintStyle: TextStyle(color: cs.onSurface.withOpacity(.6), fontSize: 14),
+                  hintStyle:
+                      TextStyle(color: cs.onSurface.withOpacity(.6), fontSize: 14),
                   filled: true,
                   fillColor: cs.surface,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(color: cs.outline.withOpacity(.25)),
@@ -1234,7 +1128,6 @@ class _InputBar extends StatelessWidget {
   }
 }
 
-/* ======================= Card genérica ======================= */
 class _InfoCard extends StatelessWidget {
   final String title;
   final IconData icon;
@@ -1297,4 +1190,3 @@ class _InfoCard extends StatelessWidget {
     );
   }
 }
-

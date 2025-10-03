@@ -153,17 +153,10 @@ class _MapPageState extends State<MapPage> {
                 PolylineLayer(
                   polylines: [
                     Polyline(
-<<<<<<< HEAD
                       points: widget.orchestrator.meetingPointRoute!
                         .map((point) => LatLng(point.latitude, point.longitude))
                         .toList(), // pasar de RoutePoint a LatLong
                       color: Colors.blue,
-=======
-                      points: widget.orchestrator.currentRoute!
-                          .map((p) => LatLng(p.latitude, p.longitude))
-                          .toList(),
-                      color: cs.primary,
->>>>>>> fd94a0b679ee8aa361c2e0b43893871bde4d5311
                       strokeWidth: 4.0,
                     ),
                   ],
