@@ -1,9 +1,11 @@
 // lib/widgets/sos_dialog.dart
 import 'package:flutter/material.dart';
+
 import '../../app_colors.dart';
 import '../../VM/Orchestrator.dart';
 import 'emergency_type_dialog.dart';
 import 'emergency_chat_screen.dart';
+import 'emergency_type_dialog.dart';
 
 class SosDialog {
   static void show(BuildContext context, Orchestrator orchestrator) {
@@ -29,7 +31,9 @@ class _SosDialogContent extends StatefulWidget {
 class _SosDialogContentState extends State<_SosDialogContent> {
   @override
   Widget build(BuildContext context) {
-    final tt = Theme.of(context).textTheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final tt = theme.textTheme;
 
     return Dialog(
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
@@ -174,7 +178,7 @@ class _ActionTile extends StatelessWidget {
   final IconData leading;
   final String title;
   final String subtitle;
-  final VoidCallback onTap;
+  final Future<void> Function() onTap; // async
 
   const _ActionTile({
     required this.leading,
@@ -193,7 +197,7 @@ class _ActionTile extends StatelessWidget {
       color: theme.cardColor,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
-        onTap: onTap,
+        onTap: () => onTap(),
         borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.all(14),
@@ -204,12 +208,8 @@ class _ActionTile extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: cs.surfaceVariant,
-                ),
+                width: 44, height: 44,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: cs.surfaceVariant),
                 child: Icon(leading, color: cs.onSurfaceVariant),
               ),
               const SizedBox(width: 14),
@@ -217,18 +217,11 @@ class _ActionTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: tt.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: cs.onSurface,
-                      ),
-                    ),
+                    Text(title, style: tt.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600, color: cs.onSurface)),
                     const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: tt.bodySmall?.copyWith(color: cs.onSurface.withOpacity(.7)),
-                    ),
+                    Text(subtitle, style: tt.bodySmall?.copyWith(
+                        color: cs.onSurface.withOpacity(.7))),
                   ],
                 ),
               ),
@@ -240,4 +233,5 @@ class _ActionTile extends StatelessWidget {
     );
   }
 }
+
 

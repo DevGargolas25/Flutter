@@ -256,12 +256,6 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen>
                   onTap: () => setState(() => _activeTab = _TabKey.medical),
                 ),
                 _TabBtn(
-                  label: 'Assistant',
-                  icon: Icons.support_agent_outlined,
-                  active: _activeTab == _TabKey.assistant,
-                  onTap: () => setState(() => _activeTab = _TabKey.assistant),
-                ),
-                _TabBtn(
                   label: 'Location',
                   icon: Icons.location_on_outlined,
                   active: _activeTab == _TabKey.map,
@@ -277,7 +271,7 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen>
         child: IndexedStack(
           index: _activeTab.index,
           children: [
-            _buildBrigadist(theme),
+
             _buildMedical(theme),
             _buildAssistant(theme),
             _buildMap(theme),
