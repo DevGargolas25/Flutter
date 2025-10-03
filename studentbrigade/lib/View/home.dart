@@ -133,6 +133,19 @@ class _HomePageState extends State<HomePage> {
                         size: 20, color: cs.onPrimary),
                   ),
                   IconButton(
+                    tooltip: 'Test Firebase',
+                    onPressed: () => Navigator.pushNamed(context, '/test-firebase'),
+                    icon: Icon(Icons.cloud_outlined,
+                        size: 20, color: cs.onPrimary),
+                  ),
+                  // ← NUEVO BOTÓN MIGRACIÓN
+                  IconButton(
+                    tooltip: 'Migrar a Firestore',
+                    onPressed: () => Navigator.pushNamed(context, '/migration'),
+                    icon: Icon(Icons.sync_alt,
+                        size: 20, color: cs.onPrimary),
+                  ),
+                  IconButton(
                     tooltip: 'Profile',
                     onPressed: () =>
                         showProfileMenuDialog(context, widget.onOpenProfile),

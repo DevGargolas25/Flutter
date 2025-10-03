@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "993666193997",
+    "firebase_url": "https://brigadist-29309-default-rtdb.firebaseio.com",
+    "project_id": "brigadist-29309",
+    "storage_bucket": "brigadist-29309.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:993666193997:android:d62747ae8f6c5545f89a04",
+        "android_client_info": {
+          "package_name": "com.example.brigadist"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCtJdobt0lrgxoEZXWGosRfkPfNZDOS7VM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:993666193997:android:e44c989286c3196bf89a04",
+        "android_client_info": {
+          "package_name": "com.example.studentbrigade"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCtJdobt0lrgxoEZXWGosRfkPfNZDOS7VM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

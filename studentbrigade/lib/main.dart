@@ -1,14 +1,25 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:google_fonts/google_fonts.dart';
 import 'app_theme.dart';          // buildLightTheme()
 import 'dark_theme.dart';        // buildDarkTheme()
 import 'View/nav_shell.dart';
 import 'View/chat_screen.dart';
 import 'View/Auth0/auth_gate.dart';
-import 'VM/Orchestrator.dart';   // 👈 importa el orquestador
+import 'VM/Orchestrator.dart';   // importa el orquestador
+// FireBase
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+import 'View/pruebaDB.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Inicializa Firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   runApp(const MyApp());
 }
 
@@ -22,7 +33,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   @override
   void dispose() {
-    Orchestrator().disposeOrchestrator(); // 👈 importante cerrar sensor
+    Orchestrator().disposeOrchestrator(); // cerrar sensor
     super.dispose();
   }
 
@@ -32,7 +43,7 @@ class _MyAppState extends State<MyApp> {
     final dark = buildDarkTheme();
 
     return ValueListenableBuilder<ThemeMode>(
-      valueListenable: Orchestrator().themeMode, // 👈 escucha cambios del sensor
+      valueListenable: Orchestrator().themeMode, // escucha cambios del sensor
       builder: (_, mode, __) {
         return MaterialApp(
           debugShowCheckedModeBanner: false,
@@ -42,13 +53,13 @@ class _MyAppState extends State<MyApp> {
           darkTheme: dark.copyWith(
             textTheme: GoogleFonts.robotoTextTheme(dark.textTheme),
           ),
-          themeMode: mode, // 👈 aquí aplica claro/oscuro automático
+          themeMode: mode, // aplica claro/oscuro automático
           home: const AuthGate(
             childWhenAuthed: NavShell(),
           ),
           routes: {
             ChatScreen.routeName: (_) => const ChatScreen(),
-          },
+            TestFirebasePage.routeName: (_) => TestFirebasePage(),          },
         );
       },
     );
