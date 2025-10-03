@@ -1,6 +1,8 @@
 // lib/Orchestrator/orchestrator.dart
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 
 // ===== VMs =====
 import 'ChatVM.dart';
@@ -14,6 +16,7 @@ import 'EmergencyVM.dart';
 import '../Models/mapMod.dart';
 import '../Models/videoMod.dart';
 import '../Models/userMod.dart';
+import '../Models/chatModel.dart';
 
 // ===== UI =====
 import 'package:studentbrigade/View/video_detail_sheet.dart';
@@ -33,6 +36,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   late final MapVM _mapVM;
   late final VideosVM _videoVM;
   late final UserVM _userVM;
+  late final ChatVM _chatVM;
   late final EmergencyVM _emergencyVM;
 
   // ---------- Navegación ----------
@@ -40,9 +44,9 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
 
   // ---------- Tema por sensor ----------
   final ThemeSensorService _themeSensor = ThemeSensorService(
-    darkEnterLux: 10,     // umbral para entrar a modo oscuro
-    lightEnterLux: 80,    // umbral para volver a claro
-    smoothWindow: 5,      // suavizado
+    darkEnterLux: 10, // umbral para entrar a modo oscuro
+    lightEnterLux: 80, // umbral para volver a claro
+    smoothWindow: 5, // suavizado
   );
 
   final ValueNotifier<ThemeMode> themeMode = ValueNotifier(ThemeMode.system);
@@ -53,6 +57,8 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     _mapVM = MapVM();
     _videoVM = VideosVM(VideosInfo());
     _userVM = UserVM();
+    _chatVM = ChatVM(baseUrl: 'http://127.0.0.1:8080'); // emulador Android
+    _chatVM.addListener(notifyListeners);
 
     // EmergencyVM con hooks hacia Analytics/DAO si los necesitas
     _emergencyVM = EmergencyVM(
@@ -74,6 +80,16 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     _themeSensor.addListener(_recomputeTheme);
     _themeSensor.start();
     _recomputeTheme();
+  }
+  List<ChatMessage> get chatMessages => _chatVM.messages;
+  bool get chatIsTyping => _chatVM.isTyping;
+  Future<void> sendChatMessage(String text) => _chatVM.sendUserMessage(text);
+  void setChatBackendBaseUrl(String url) {
+    _chatVM.baseUrl = url; // usa el setter de ChatVM
+  }
+
+  void refreshChatBackendBaseUrl() {
+    _chatVM.baseUrl = _resolveBaseUrl();
   }
 
   // ---------- Limpieza explícita ----------
@@ -121,7 +137,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // Sensor de luz
     if (state == AppLifecycleState.resumed) _themeSensor.start();
-    if (state == AppLifecycleState.paused)  _themeSensor.stop();
+    if (state == AppLifecycleState.paused) _themeSensor.stop();
 
     // Delegar a EmergencyVM (mide regreso tras llamada)
     _emergencyVM.didChangeAppLifecycleState(state);
@@ -141,20 +157,57 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  void navigateToMap()     => navigateToPage(2);
+  void navigateToChat() => navigateToPage(1);
+  void navigateToMap() => navigateToPage(2);
   void navigateToProfile() => navigateToPage(4);
-  void navigateToVideos()  => navigateToPage(3);
+  void navigateToVideos() => navigateToPage(3);
 
   // ---------- Exponer VMs (solo lectura si quieres encapsular más) ----------
   MapVM get mapVM => _mapVM;
   VideosVM get videoVM => _videoVM;
   UserVM get userVM => _userVM;
   EmergencyVM get emergencyVM => _emergencyVM;
+  ChatVM get chatVM => _chatVM;
+  //------CHAT---------
+  String _resolveBaseUrl() {
+    // Si corres en Flutter Web:
+    // - Si tu app web se sirve por http:// (flutter run -d chrome), puedes usar http://127.0.0.1:8080
+    // - Si tu app web se sirve por https:// (hosting), DEBES usar backend https (ngrok, cloudflared).
+    if (kIsWeb) {
+      return const String.fromEnvironment(
+        'BACKEND_URL',
+        defaultValue: 'http://127.0.0.1:8080',
+      );
+    }
+
+    // Plataformas nativas:
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        // Emulador Android
+        return 'http://10.0.2.2:8080';
+      case TargetPlatform.iOS:
+        // Simulator iOS
+        return 'http://localhost:8080';
+      default:
+        // Desktop (Windows/Mac/Linux)
+        return 'http://127.0.0.1:8080';
+    }
+  }
+
+  // Cambia dinámicamente cuando lo necesites:
+  void useAndroidEmulatorBackend() {
+    _chatVM.baseUrl = 'http://10.0.2.2:8080';
+  }
+
+  void useLanBackend(String pcLanIp) {
+    // Para dispositivo físico: usa la IP local de tu PC, ej. 192.168.1.50
+    _chatVM.baseUrl = 'http://$pcLanIp:8080';
+  }
 
   // ---------- MAP ----------
   Future<UserLocation?> getCurrentLocation() => _mapVM.getCurrentLocation();
   void startLocationTracking() => _mapVM.startLocationTracking();
-  void stopLocationTracking()  => _mapVM.stopLocationTracking();
+  void stopLocationTracking() => _mapVM.stopLocationTracking();
 
   List<MapLocation> getMeetingPoints() => _mapVM.getMeetingPoints();
 
@@ -164,7 +217,8 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     return _mapVM.getClosestMeetingPoint(userLocation);
   }
 
-  Future<List<RoutePoint>?> calculateRouteToClosestPoint() => _mapVM.calculateRouteToClosestPoint();
+  Future<List<RoutePoint>?> calculateRouteToClosestPoint() =>
+      _mapVM.calculateRouteToClosestPoint();
 
   List<RoutePoint>? get meetingPointRoute => _mapVM.meetingPointRoute;
   List<RoutePoint>? get brigadistRoute => _mapVM.brigadistRoute;
@@ -221,16 +275,19 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     );
   }
 
-    // Methods on UserVM to get Brigadist in map of emergency
+  // Methods on UserVM to get Brigadist in map of emergency
   Future<Brigadist?> getClosestBrigadist(double userLat, double userLon) async {
     return await _userVM.getClosestBrigadist(userLat, userLon);
   }
-  
+
   Future<Brigadist?> getAssignedBrigadist(String emergencyId) async {
     return await _userVM.getAssignedBrigadist(emergencyId);
   }
 
-  Future<void> calculateRouteToBrigadist(double brigadistLat, double brigadistLng) async {
+  Future<void> calculateRouteToBrigadist(
+    double brigadistLat,
+    double brigadistLng,
+  ) async {
     try {
       await _mapVM.calculateRouteToBrigadist(brigadistLat, brigadistLng);
       notifyListeners(); // Notificar cambios a las vistas
@@ -244,7 +301,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   Map<String, dynamic> getRouteAnalytics() {
     return _mapVM.getEmergencyRouteAnalytics();
   }
-  
+
   Brigadist? get assignedBrigadist => _userVM.assignedBrigadist;
 
   // VIDEO OPERATIONS
@@ -267,8 +324,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   bool get isCalling => _emergencyVM.isCalling;
   int? get lastCallDurationSeconds => _emergencyVM.lastCallDurationSeconds;
 
-  double? get lastLatitude  => _emergencyVM.lastLatitude;
+  double? get lastLatitude => _emergencyVM.lastLatitude;
   double? get lastLongitude => _emergencyVM.lastLongitude;
   DateTime? get lastLocationAt => _emergencyVM.lastLocationAt;
 }
-
