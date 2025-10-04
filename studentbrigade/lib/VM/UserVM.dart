@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 import '../Models/userMod.dart';
+import 'Adapter.dart';
 
 class UserVM extends ChangeNotifier {
+  final Adapter _adapter = Adapter();
   User? _currentUser;
   String? _errorMessage;
 
@@ -9,22 +11,8 @@ class UserVM extends ChangeNotifier {
   User? get currentUser => _currentUser;
   String? get errorMessage => _errorMessage;
 
-  //Upload data from DB
-  Future<User?> fetchUserData(String userId) async {
-    _errorMessage = null;
-    
-    try {
-      _currentUser = await UserData.fetchUserFromDatabase(userId);
-      notifyListeners();
-      return _currentUser;
-    } catch (e) {
-      _errorMessage = 'Error fetching user data: $e';
-      notifyListeners();
-      return null;
-    }
-  }
 
-  // Obtener datos actuales 
+  // Obtener datos actuales
   User? getUserData() {
     return _currentUser;
   }
@@ -43,7 +31,7 @@ class UserVM extends ChangeNotifier {
     if (_currentUser == null) return false;
 
     _errorMessage = null;
-    
+
     try {
       // Usar setters para actualizar campos específicos
       if (emergencyName1 != null) _currentUser!.emergencyName1 = emergencyName1;
@@ -79,13 +67,31 @@ class UserVM extends ChangeNotifier {
   // Methods for the map in emergency
   Brigadist? _assignedBrigadist;
   Brigadist? get assignedBrigadist => _assignedBrigadist;
-  
+
+  Future<User?> fetchUserByEmail(String email, {bool autocreateIfMissing = true}) async {
+    _errorMessage = null;
+    try {
+      final normalized = email.toLowerCase().trim();
+      User? u = await _adapter.getUserByEmail(normalized);
+
+      _currentUser = u;
+      print(_currentUser);
+      notifyListeners();
+      return u;
+    } catch (e) {
+      _errorMessage = 'Error fetching user by email: $e';
+      notifyListeners();
+      return null;
+    }
+  }
+
+
   // Obtener brigadista más cercano
   Future<Brigadist?> getClosestBrigadist(double userLat, double userLon) async {
     try {
       // Simular llamada a API
       await Future.delayed(const Duration(milliseconds: 500));
-      
+
       _assignedBrigadist = BrigadistData.getClosestAvailableBrigadist(userLat, userLon);
       notifyListeners();
       return _assignedBrigadist;
@@ -94,12 +100,12 @@ class UserVM extends ChangeNotifier {
       return null;
     }
   }
-  
+
   // Obtener brigadista asignado a emergencia activa
   Future<Brigadist?> getAssignedBrigadist(String emergencyId) async {
     try {
       await Future.delayed(const Duration(milliseconds: 300));
-      
+
       _assignedBrigadist = BrigadistData.getAssignedBrigadist(emergencyId);
       notifyListeners();
       return _assignedBrigadist;

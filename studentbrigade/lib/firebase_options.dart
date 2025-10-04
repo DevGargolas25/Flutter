@@ -19,14 +19,16 @@ class DefaultFirebaseOptions {
     }
   }
 
-  // TEMPORAL - después lo cambiaremos con tus datos reales
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'TEMP_KEY',
-    appId: 'TEMP_APP_ID',
-    messagingSenderId: 'TEMP_SENDER',
-    projectId: 'TEMP_PROJECT',
-    storageBucket: 'TEMP_PROJECT.appspot.com',
+    apiKey: 'AIzaSyCtJdobt0lrgxoEZXWGosRfkPfNZDOS7VM',
+    appId: '1:993666193997:android:5eeccd257eb81ebdf89a04',
+    messagingSenderId: '993666193997',
+    projectId: 'brigadist-29309',
+    databaseURL: 'https://brigadist-29309-default-rtdb.firebaseio.com',
+    storageBucket: 'brigadist-29309.firebasestorage.app',
   );
+
+  // TEMPORAL - después lo cambiaremos con tus datos reales
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'TEMP_KEY',

@@ -1,8 +1,7 @@
 // lib/Orchestrator/orchestrator.dart
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show ChangeNotifier, kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart'
-    show kIsWeb, defaultTargetPlatform, TargetPlatform;
+
 
 // ===== VMs =====
 import 'ChatVM.dart';
@@ -19,7 +18,10 @@ import '../Models/userMod.dart';
 import '../Models/chatModel.dart';
 
 // ===== UI =====
-import 'package:studentbrigade/View/video_detail_sheet.dart';
+import 'package:studentbrigade/View/video_detail_sheet.dart';//
+import 'package:studentbrigade/View/Auth0/auth_service.dart';
+
+
 
 // ===== Sensor de luz / tema =====
 import 'theme_sensor_service.dart';
@@ -145,8 +147,29 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
 
   // ---------- Sesión / bootstrap ----------
   Future<void> _loadInitialUser() async {
-    await _userVM.fetchUserData('current-user-id');
+    try {
+      final restored = await AuthService.instance.restore();
+      if (!restored) {
+        _userVM.clearError();
+        notifyListeners();
+        return;
+      }
+
+      final email = AuthService.instance.currentUserEmail;
+      if (email == null || email.isEmpty) {
+        _userVM.clearError();
+        debugPrint('Auth restaurado pero sin email (¿falta scope "email"?)');
+        notifyListeners();
+        return;
+      }
+
+      await _userVM.fetchUserByEmail(email, autocreateIfMissing: true);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Bootstrap user error: $e');
+    }
   }
+
 
   // ---------- Navegación ----------
   int get currentPageIndex => _currentPageIndex;

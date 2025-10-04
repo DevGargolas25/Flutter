@@ -361,38 +361,3 @@ class BrigadistData {
   }
 }
 
-class UserData {
-  // Simular obtener datos de BD
-  static Future<Student> fetchUserFromDatabase(String userId) async {
-    await Future.delayed(const Duration(milliseconds: 100));
-    
-    return Student(
-      fullName: 'John Smith',
-      studentId: 'SB2024001',
-      email: 'john.smith@uniandes.edu.co',
-      phone: '+57 300 123 4567',
-      emergencyName1: 'Maria Smith',
-      emergencyPhone1: '+57 300 987 6543',
-      emergencyName2: 'Carlos Smith',
-      emergencyPhone2: '+57 300 567 8901',
-      bloodType: 'O+',
-      doctorName: 'Dr. Ana Perez',
-      doctorPhone: '+57 300 111 2222',
-      insuranceProvider: 'Seguros ABC',
-      foodAllergies: 'Peanuts, Shellfish',
-      environmentalAllergies: 'Dust',
-      drugAllergies: 'Ibuprofen',
-      severityNotes: 'Mild',
-      dailyMedications: 'None',
-      emergencyMedications: 'Epinephrine Auto-Injector',
-      vitaminsSupplements: 'Vitamin C, Omega-3',
-      specialInstructions: 'Avoid strenuous exercise',
-    );
-  }
-  
-  // Simular guardar datos en BD
-  static Future<bool> saveUserToDatabase(User user) async {
-    await Future.delayed(const Duration(milliseconds: 200));
-    return true;
-  }
-}

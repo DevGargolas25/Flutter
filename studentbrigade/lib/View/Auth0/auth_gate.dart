@@ -30,7 +30,7 @@ class _AuthGateState extends State<AuthGate> {
 
   Future<void> _bootstrap() async {
 
-    if (kDebugMode) {
+    /*if (kDebugMode) {
       // En modo debug, saltar autenticación
       await Future.delayed(const Duration(seconds: 1));
       if (!mounted) return;
@@ -39,7 +39,7 @@ class _AuthGateState extends State<AuthGate> {
         _loggedIn = true;
       });
       return;
-    }
+    }*/
     // 1) Detectar red una vez
     final status = await _connectivity.checkConnectivity();
     _offline = (status == ConnectivityResult.none);

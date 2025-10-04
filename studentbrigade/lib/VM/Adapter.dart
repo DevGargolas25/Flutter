@@ -2,6 +2,7 @@
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../Models/videoMod.dart';
+import '../Models/userMod.dart';
 
 class Adapter {
   late FirebaseDatabase _database;
@@ -33,7 +34,118 @@ class Adapter {
     }
   }
 
-    // === BRIGADIER OPERATIONS ===
+  // Adapter
+  Future<User?> getUserByEmail(String email) async {
+    // helpers locales (como en VideoMod)
+    String s(dynamic v) => v?.toString() ?? '';
+    double d(dynamic v) {
+      if (v == null) return 0.0;
+      if (v is num) return v.toDouble();
+      return double.tryParse(v.toString()) ?? 0.0;
+    }
+
+    final q = await _database
+        .ref('User')
+        .orderByChild('email')
+        .equalTo(email.toLowerCase().trim())
+        .limitToFirst(1)
+        .get();
+
+    if (!q.exists) return null;
+
+    final data = q.value as Map<dynamic, dynamic>;
+    final first = data.entries.first;
+
+    final id = first.key.toString();
+    final m = Map<String, dynamic>.from(first.value as Map);
+
+    final type = (s(m['userType']).isEmpty ? 'student' : s(m['userType'])).toLowerCase();
+
+    switch (type) {
+      case 'brigadist':
+        return Brigadist(
+          fullName: s(m['fullName']),
+          studentId: s(m['studentId']),
+          email: s(m['email']).toLowerCase().trim(),
+          phone: s(m['phone']),
+          emergencyName1: s(m['emergencyName1']),
+          emergencyPhone1: s(m['emergencyPhone1']),
+          emergencyName2: m['emergencyName2'] as String?,
+          emergencyPhone2: m['emergencyPhone2'] as String?,
+          bloodType: s(m['bloodType']),
+          doctorName: m['doctorName'] as String?,
+          doctorPhone: m['doctorPhone'] as String?,
+          insuranceProvider: s(m['insuranceProvider']),
+          foodAllergies: m['foodAllergies'] as String?,
+          environmentalAllergies: m['environmentalAllergies'] as String?,
+          drugAllergies: m['drugAllergies'] as String?,
+          severityNotes: m['severityNotes'] as String?,
+          dailyMedications: m['dailyMedications'] as String?,
+          emergencyMedications: m['emergencyMedications'] as String?,
+          vitaminsSupplements: m['vitaminsSupplements'] as String?,
+          specialInstructions: m['specialInstructions'] as String?,
+          latitude: d(m['latitude']),
+          longitude: d(m['longitude']),
+          status: s(m['status']).isEmpty ? 'available' : s(m['status']),
+          estimatedArrivalMinutes: (m['estimatedArrivalMinutes'] as num?)?.toDouble(),
+        );
+
+      case 'analyst':
+        return Analyst(
+          fullName: s(m['fullName']),
+          studentId: s(m['studentId']),
+          email: s(m['email']).toLowerCase().trim(),
+          phone: s(m['phone']),
+          emergencyName1: s(m['emergencyName1']),
+          emergencyPhone1: s(m['emergencyPhone1']),
+          emergencyName2: m['emergencyName2'] as String?,
+          emergencyPhone2: m['emergencyPhone2'] as String?,
+          bloodType: s(m['bloodType']),
+          doctorName: m['doctorName'] as String?,
+          doctorPhone: m['doctorPhone'] as String?,
+          insuranceProvider: s(m['insuranceProvider']),
+          foodAllergies: m['foodAllergies'] as String?,
+          environmentalAllergies: m['environmentalAllergies'] as String?,
+          drugAllergies: m['drugAllergies'] as String?,
+          severityNotes: m['severityNotes'] as String?,
+          dailyMedications: m['dailyMedications'] as String?,
+          emergencyMedications: m['emergencyMedications'] as String?,
+          vitaminsSupplements: m['vitaminsSupplements'] as String?,
+          specialInstructions: m['specialInstructions'] as String?,
+        );
+
+      case 'student':
+      default:
+        return Student(
+          fullName: s(m['fullName']),
+          studentId: s(m['studentId']),
+          email: s(m['email']).toLowerCase().trim(),
+          phone: s(m['phone']),
+          emergencyName1: s(m['emergencyName1']),
+          emergencyPhone1: s(m['emergencyPhone1']),
+          emergencyName2: m['emergencyName2'] as String?,
+          emergencyPhone2: m['emergencyPhone2'] as String?,
+          bloodType: s(m['bloodType']),
+          doctorName: m['doctorName'] as String?,
+          doctorPhone: m['doctorPhone'] as String?,
+          insuranceProvider: s(m['insuranceProvider']),
+          foodAllergies: m['foodAllergies'] as String?,
+          environmentalAllergies: m['environmentalAllergies'] as String?,
+          drugAllergies: m['drugAllergies'] as String?,
+          severityNotes: m['severityNotes'] as String?,
+          dailyMedications: m['dailyMedications'] as String?,
+          emergencyMedications: m['emergencyMedications'] as String?,
+          vitaminsSupplements: m['vitaminsSupplements'] as String?,
+          specialInstructions: m['specialInstructions'] as String?,
+        );
+    }
+  }
+
+
+
+
+
+  // === BRIGADIER OPERATIONS ===
   Future<List<Map<String, dynamic>>> getAllBrigadiers() async {
     try {
       print('🚑 Cargando brigadistas (método alternativo)...'); // Debug
