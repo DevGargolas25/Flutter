@@ -10,50 +10,61 @@ class ProfilePage extends StatefulWidget {
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage> {
+class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   // MODES
+  bool _userLoading = true;
   bool _isEditing = false;
   bool _isSaving = false;
 
-  // Personal Information
-  late String _fullName;
-  late String _email;
-  late String _studentId;
-  late String _phone;
+  // Personal Information (default to empty to avoid late initialization errors)
+  String _fullName = '';
+  String _email = '';
+  String _studentId = '';
+  String _phone = '';
 
   // Emergency Contact
-  late String _emergencyName1;
-  late String _emergencyPhone1;
-  late String _emergencyName2;
-  late String _emergencyPhone2;
+  String _emergencyName1 = '';
+  String _emergencyPhone1 = '';
+  String _emergencyName2 = '';
+  String _emergencyPhone2 = '';
 
   // Medical Information
-  late String _bloodType;
-  late String _doctorName;
-  late String _doctorPhone;
-  late String _insuranceProvider;
+  String _bloodType = '';
+  String _doctorName = '';
+  String _doctorPhone = '';
+  String _insuranceProvider = '';
 
   // Allergies
-  late String _foodAllergies;
-  late String _environmentalAllergies;
-  late String _drugAllergies;
-  late String _severityNotes;
+  String _foodAllergies = '';
+  String _environmentalAllergies = '';
+  String _drugAllergies = '';
+  String _severityNotes = '';
 
   // Current Medications
-  late String _dailyMedications;
-  late String _emergencyMedications;
-  late String _vitaminsSupplements;
-  late String _specialInstructions;
+  String _dailyMedications = '';
+  String _emergencyMedications = '';
+  String _vitaminsSupplements = '';
+  String _specialInstructions = '';
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    widget.orchestrator.addListener(_orchestratorListener);
     _loadUserData();
   }
 
+  void _orchestratorListener() {
+    if (!mounted) return;
+    _loadUserData();
+    setState(() {});
+  }
+
   void _loadUserData() {
-    final user = widget.orchestrator.getUserData();
+    final user = widget.orchestrator.userVM.currentUser;
+
     if (user != null) {
+      _userLoading = false;
       _fullName = user.fullName;
       _email = user.email;
       _studentId = user.studentId;
@@ -78,7 +89,19 @@ class _ProfilePageState extends State<ProfilePage> {
       _emergencyMedications = user.emergencyMedications ?? '';
       _vitaminsSupplements = user.vitaminsSupplements ?? '';
       _specialInstructions = user.specialInstructions ?? '';
+    } else {
+      final err = widget.orchestrator.userVM.errorMessage;
+      if (err != null && err.isNotEmpty) _userLoading = false;
+
+      // keep defaults while loading or on error
     }
+  }
+
+  @override
+  void dispose() {
+    widget.orchestrator.removeListener(_orchestratorListener);
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Future<void> _saveChanges() async {
@@ -146,6 +169,31 @@ class _ProfilePageState extends State<ProfilePage> {
     final cs = theme.colorScheme;
     final tt = theme.textTheme;
 
+    final user = widget.orchestrator.userVM.currentUser;
+    final userError = widget.orchestrator.userVM.errorMessage;
+
+    if (user == null && _userLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (user == null && userError != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Profile')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              'No se encontraron datos de perfil para este usuario.\n\n${userError ?? ''}',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profile'),
@@ -166,7 +214,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               child: _isSaving
                   ? const SizedBox(
-                  width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                   : const Text('Save'),
             ),
             const SizedBox(width: 8),
@@ -496,7 +544,6 @@ class _EditableField extends StatelessWidget {
           decoration: InputDecoration(
             isCollapsed: false,
             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            // hereda de InputDecorationTheme de tu theme
           ),
           style: tt.bodyMedium?.copyWith(color: cs.onSurface),
         ),

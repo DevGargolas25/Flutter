@@ -83,16 +83,13 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     _themeSensor.start();
     _recomputeTheme();
   }
-  List<ChatMessage> get chatMessages => _chatVM.messages;
-  bool get chatIsTyping => _chatVM.isTyping;
-  Future<void> sendChatMessage(String text) => _chatVM.sendUserMessage(text);
-  void setChatBackendBaseUrl(String url) {
-    _chatVM.baseUrl = url; // usa el setter de ChatVM
-  }
 
-  void refreshChatBackendBaseUrl() {
-    _chatVM.baseUrl = _resolveBaseUrl();
-  }
+  // ---------- Exponer VMs ----------
+  MapVM get mapVM => _mapVM;
+  VideosVM get videoVM => _videoVM;
+  UserVM get userVM => _userVM;
+  EmergencyVM get emergencyVM => _emergencyVM;
+  ChatVM get chatVM => _chatVM;
 
   // ---------- Limpieza explícita ----------
   void disposeOrchestrator() {
@@ -145,7 +142,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     _emergencyVM.didChangeAppLifecycleState(state);
   }
 
-  // ---------- Sesión / bootstrap ----------
+  // ---------- Inicio sesión / bootstrap ----------
   Future<void> _loadInitialUser() async {
     try {
       final restored = await AuthService.instance.restore();
@@ -163,10 +160,34 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
         return;
       }
 
-      await _userVM.fetchUserByEmail(email, autocreateIfMissing: true);
+      final user = await _userVM.fetchUserByEmail(email);
+      if (user == null) {
+        debugPrint('Bootstrap: usuario no encontrado para email: $email');
+        // _userVM ya guarda el mensaje de error; UI puede leer userVM.errorMessage
+      } else {
+        debugPrint('Bootstrap: usuario cargado: ${user.email}');
+      }
+
       notifyListeners();
     } catch (e) {
       debugPrint('Bootstrap user error: $e');
+    }
+  }
+
+    // Public: cargar usuario por email (llamar desde AuthService tras login)
+  Future<User?> loadUserByEmail(String email) async {
+    try {
+      final u = await _userVM.fetchUserByEmail(email);
+      if (u == null) {
+        debugPrint('loadUserByEmail: usuario no encontrado ($email)');
+      } else {
+        debugPrint('loadUserByEmail: usuario cargado (${u.email})');
+      }
+      notifyListeners();
+      return u;
+    } catch (e) {
+      debugPrint('loadUserByEmail error: $e');
+      return null;
     }
   }
 
@@ -185,13 +206,18 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   void navigateToProfile() => navigateToPage(4);
   void navigateToVideos() => navigateToPage(3);
 
-  // ---------- Exponer VMs (solo lectura si quieres encapsular más) ----------
-  MapVM get mapVM => _mapVM;
-  VideosVM get videoVM => _videoVM;
-  UserVM get userVM => _userVM;
-  EmergencyVM get emergencyVM => _emergencyVM;
-  ChatVM get chatVM => _chatVM;
   //------CHAT---------
+    List<ChatMessage> get chatMessages => _chatVM.messages;
+  bool get chatIsTyping => _chatVM.isTyping;
+  Future<void> sendChatMessage(String text) => _chatVM.sendUserMessage(text);
+  void setChatBackendBaseUrl(String url) {
+    _chatVM.baseUrl = url; // usa el setter de ChatVM
+  }
+
+  void refreshChatBackendBaseUrl() {
+    _chatVM.baseUrl = _resolveBaseUrl();
+  }
+
   String _resolveBaseUrl() {
     // Si corres en Flutter Web:
     // - Si tu app web se sirve por http:// (flutter run -d chrome), puedes usar http://127.0.0.1:8080
@@ -259,6 +285,8 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
 
   // ---------- USER ----------
   User? getUserData() => _userVM.getUserData();
+  String? getUserErrorMessage() => _userVM.getErrorMessage();
+
 
   Future<bool> updateUserData({
     String? emergencyName1,

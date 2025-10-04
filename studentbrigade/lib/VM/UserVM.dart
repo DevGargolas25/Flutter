@@ -11,11 +11,9 @@ class UserVM extends ChangeNotifier {
   User? get currentUser => _currentUser;
   String? get errorMessage => _errorMessage;
 
-
   // Obtener datos actuales
-  User? getUserData() {
-    return _currentUser;
-  }
+  User? getUserData() => _currentUser;
+  String? getErrorMessage() => _errorMessage;
 
   // Actualizar datos del usuario
   Future<bool> updateUserData({
@@ -52,14 +50,13 @@ class UserVM extends ChangeNotifier {
       if (specialInstructions != null) _currentUser!.specialInstructions = specialInstructions.isEmpty ? null : specialInstructions;
 
       // Guardar en BD simulada
-      bool success = await UserData.saveUserToDatabase(_currentUser!);
-      if (success) {
-        notifyListeners();
-      }
-      return success;
-    } catch (e) {
-      _errorMessage = 'Error updating user data: $e';
+      final key = _currentUser!.studentId.isNotEmpty ? _currentUser!.studentId : _currentUser!.email;
+      await _adapter.updateUser(key, _currentUser!.toMap());
+
       notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
       return false;
     }
   }
@@ -68,18 +65,21 @@ class UserVM extends ChangeNotifier {
   Brigadist? _assignedBrigadist;
   Brigadist? get assignedBrigadist => _assignedBrigadist;
 
-  Future<User?> fetchUserByEmail(String email, {bool autocreateIfMissing = true}) async {
+  // Usuario por email para cargar desde el login 
+  Future<User?> fetchUserByEmail(String email) async {
     _errorMessage = null;
     try {
-      final normalized = email.toLowerCase().trim();
-      User? u = await _adapter.getUserByEmail(normalized);
-
+      final u = await _adapter.getUserByEmail(email);
+      if (u == null) {
+        _errorMessage = 'Usuario no encontrado para el email: $email';
+        notifyListeners();
+        return null;
+      }
       _currentUser = u;
-      print(_currentUser);
       notifyListeners();
-      return u;
+      return _currentUser;
     } catch (e) {
-      _errorMessage = 'Error fetching user by email: $e';
+      _errorMessage = e.toString();
       notifyListeners();
       return null;
     }

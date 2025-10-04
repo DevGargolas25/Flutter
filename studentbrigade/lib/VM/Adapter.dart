@@ -9,11 +9,9 @@ class Adapter {
 
   // Constructor para configurar la URL de la base de datos
   Adapter() {
-    // REEMPLAZA esta URL con la URL real de tu proyecto
     _database = FirebaseDatabase.instanceFor(
       app: Firebase.app(),
-      databaseURL: 'https://brigadist-29309-default-rtdb.firebaseio.com/' // ← TU URL AQUÍ
-    );
+      databaseURL: 'https://brigadist-29309-default-rtdb.firebaseio.com/');
   }
 
   
@@ -34,114 +32,33 @@ class Adapter {
     }
   }
 
-  // Adapter
+  // Función para poder buscar usuario que inicio sesión
   Future<User?> getUserByEmail(String email) async {
-    // helpers locales (como en VideoMod)
-    String s(dynamic v) => v?.toString() ?? '';
-    double d(dynamic v) {
-      if (v == null) return 0.0;
-      if (v is num) return v.toDouble();
-      return double.tryParse(v.toString()) ?? 0.0;
-    }
-
-    final q = await _database
-        .ref('User')
-        .orderByChild('email')
-        .equalTo(email.toLowerCase().trim())
-        .limitToFirst(1)
-        .get();
-
-    if (!q.exists) return null;
-
-    final data = q.value as Map<dynamic, dynamic>;
-    final first = data.entries.first;
-
-    final id = first.key.toString();
-    final m = Map<String, dynamic>.from(first.value as Map);
-
-    final type = (s(m['userType']).isEmpty ? 'student' : s(m['userType'])).toLowerCase();
-
-    switch (type) {
-      case 'brigadist':
-        return Brigadist(
-          fullName: s(m['fullName']),
-          studentId: s(m['studentId']),
-          email: s(m['email']).toLowerCase().trim(),
-          phone: s(m['phone']),
-          emergencyName1: s(m['emergencyName1']),
-          emergencyPhone1: s(m['emergencyPhone1']),
-          emergencyName2: m['emergencyName2'] as String?,
-          emergencyPhone2: m['emergencyPhone2'] as String?,
-          bloodType: s(m['bloodType']),
-          doctorName: m['doctorName'] as String?,
-          doctorPhone: m['doctorPhone'] as String?,
-          insuranceProvider: s(m['insuranceProvider']),
-          foodAllergies: m['foodAllergies'] as String?,
-          environmentalAllergies: m['environmentalAllergies'] as String?,
-          drugAllergies: m['drugAllergies'] as String?,
-          severityNotes: m['severityNotes'] as String?,
-          dailyMedications: m['dailyMedications'] as String?,
-          emergencyMedications: m['emergencyMedications'] as String?,
-          vitaminsSupplements: m['vitaminsSupplements'] as String?,
-          specialInstructions: m['specialInstructions'] as String?,
-          latitude: d(m['latitude']),
-          longitude: d(m['longitude']),
-          status: s(m['status']).isEmpty ? 'available' : s(m['status']),
-          estimatedArrivalMinutes: (m['estimatedArrivalMinutes'] as num?)?.toDouble(),
-        );
-
-      case 'analyst':
-        return Analyst(
-          fullName: s(m['fullName']),
-          studentId: s(m['studentId']),
-          email: s(m['email']).toLowerCase().trim(),
-          phone: s(m['phone']),
-          emergencyName1: s(m['emergencyName1']),
-          emergencyPhone1: s(m['emergencyPhone1']),
-          emergencyName2: m['emergencyName2'] as String?,
-          emergencyPhone2: m['emergencyPhone2'] as String?,
-          bloodType: s(m['bloodType']),
-          doctorName: m['doctorName'] as String?,
-          doctorPhone: m['doctorPhone'] as String?,
-          insuranceProvider: s(m['insuranceProvider']),
-          foodAllergies: m['foodAllergies'] as String?,
-          environmentalAllergies: m['environmentalAllergies'] as String?,
-          drugAllergies: m['drugAllergies'] as String?,
-          severityNotes: m['severityNotes'] as String?,
-          dailyMedications: m['dailyMedications'] as String?,
-          emergencyMedications: m['emergencyMedications'] as String?,
-          vitaminsSupplements: m['vitaminsSupplements'] as String?,
-          specialInstructions: m['specialInstructions'] as String?,
-        );
-
-      case 'student':
-      default:
-        return Student(
-          fullName: s(m['fullName']),
-          studentId: s(m['studentId']),
-          email: s(m['email']).toLowerCase().trim(),
-          phone: s(m['phone']),
-          emergencyName1: s(m['emergencyName1']),
-          emergencyPhone1: s(m['emergencyPhone1']),
-          emergencyName2: m['emergencyName2'] as String?,
-          emergencyPhone2: m['emergencyPhone2'] as String?,
-          bloodType: s(m['bloodType']),
-          doctorName: m['doctorName'] as String?,
-          doctorPhone: m['doctorPhone'] as String?,
-          insuranceProvider: s(m['insuranceProvider']),
-          foodAllergies: m['foodAllergies'] as String?,
-          environmentalAllergies: m['environmentalAllergies'] as String?,
-          drugAllergies: m['drugAllergies'] as String?,
-          severityNotes: m['severityNotes'] as String?,
-          dailyMedications: m['dailyMedications'] as String?,
-          emergencyMedications: m['emergencyMedications'] as String?,
-          vitaminsSupplements: m['vitaminsSupplements'] as String?,
-          specialInstructions: m['specialInstructions'] as String?,
-        );
+    try {
+      final ref = _database.ref('users');
+      final q = await ref.orderByChild('email').equalTo(email).get();
+      if (!q.exists) return null;
+      final val = q.value;
+      if (val is Map) {
+        // RTDB devuelve un map de maps: key -> object
+        final first = val.entries.first.value;
+        if (first is Map) {
+          final map = Map<String, dynamic>.from(first);
+          // si necesitas el id, puedes añadir map['id'] = val.entries.first.key;
+          return User.fromMap(map);
+        }
+      }
+      return null;
+    } catch (e) {
+      // log si quieres
+      return null;
     }
   }
 
-
+  // Para actualizar datos del usuario en profile_page
+  Future<void> updateUser(String userId, Map<String, dynamic> userData) async {
+    await _database.ref('users/$userId').update(userData);
+  }
 
 
 
@@ -190,18 +107,6 @@ class Adapter {
     } catch (e) {
       print('Error creating user: $e');
       throw Exception('Error al crear usuario: $e');
-    }
-  }
-  
-  Future<void> updateUser(String userId, Map<String, dynamic> userData) async {
-    try {
-      await _database.ref('User/$userId').update({
-        ...userData,
-        'updatedAt': ServerValue.timestamp,
-      });
-    } catch (e) {
-      print('Error updating user: $e');
-      throw Exception('Error al actualizar usuario: $e');
     }
   }
   
