@@ -70,6 +70,7 @@ class UserVM extends ChangeNotifier {
     _errorMessage = null;
     try {
       final u = await _adapter.getUserByEmail(email);
+
       if (u == null) {
         _errorMessage = 'Usuario no encontrado para el email: $email';
         notifyListeners();

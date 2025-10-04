@@ -3,6 +3,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../Models/videoMod.dart';
 import '../Models/userMod.dart';
+import 'package:flutter/foundation.dart';
 
 class Adapter {
   late FirebaseDatabase _database;
@@ -35,25 +36,36 @@ class Adapter {
   // Función para poder buscar usuario que inicio sesión
   Future<User?> getUserByEmail(String email) async {
     try {
-      final ref = _database.ref('users');
-      final q = await ref.orderByChild('email').equalTo(email).get();
-      if (!q.exists) return null;
-      final val = q.value;
-      if (val is Map) {
-        // RTDB devuelve un map de maps: key -> object
-        final first = val.entries.first.value;
-        if (first is Map) {
-          final map = Map<String, dynamic>.from(first);
-          // si necesitas el id, puedes añadir map['id'] = val.entries.first.key;
+      final emailNorm = email.trim().toLowerCase(); // normaliza
+      final ref = _database.ref('User');
+      final snap = await ref.orderByChild('email').equalTo(emailNorm).get();
+
+      if (!snap.exists) return null;
+
+      // snap.value es un Map<id, objeto>
+      if (snap.value is Map) {
+        final usersMap = Map<String, dynamic>.from(snap.value as Map);
+
+        // Tomar el primer resultado
+        final entry = usersMap.entries.first;
+        final userId = entry.key;
+        final data = entry.value;
+
+
+        if (data is Map) {
+          final map = Map<String, dynamic>.from(data);
+          map['id'] = userId; // añade el id al mapa
           return User.fromMap(map);
         }
       }
+
       return null;
-    } catch (e) {
-      // log si quieres
+    } catch (e, st) {
+      debugPrint('🔥 getUserByEmail error: $e\n$st');
       return null;
     }
   }
+
 
   // Para actualizar datos del usuario en profile_page
   Future<void> updateUser(String userId, Map<String, dynamic> userData) async {
