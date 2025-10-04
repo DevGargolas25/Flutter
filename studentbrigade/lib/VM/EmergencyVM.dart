@@ -86,7 +86,6 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
   /// y luego abre el dialer para realizar la llamada.
   Future<void> callBrigadistWithLocation(
       String phoneNumber, {
-        required Duration routeCalcTime, // 🔴 OBLIGATORIO: viene desde MapVM.calculateRouteToBrigadist
         String? userId,
       }) async {
     try {
