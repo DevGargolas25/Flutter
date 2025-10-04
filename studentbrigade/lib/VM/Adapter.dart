@@ -292,17 +292,11 @@ class Adapter {
     }
   }
 
-  Future<void> createEmergency(Map<String, dynamic> emergencyData) async {
-    try {
-      final newEmergencyRef = _database.ref('Emergency').push();
-      await newEmergencyRef.set({
-        ...emergencyData,
-        'createdAt': ServerValue.timestamp,
-      });
-    } catch (e) {
-      print('Error creating emergency: $e');
-      throw Exception('Error al crear emergencia: $e');
-    }
+  // Crea emergency
+  Future<String> createEmergency(Map<String, dynamic> data) async {
+    final ref = _database.ref('emergencies').push();
+    await ref.set(data);
+    return ref.key ?? '';
   }
   
   // === GENERIC OPERATIONS ===

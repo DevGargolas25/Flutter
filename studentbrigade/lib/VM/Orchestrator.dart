@@ -17,6 +17,7 @@ import '../Models/mapMod.dart';
 import '../Models/videoMod.dart';
 import '../Models/userMod.dart';
 import '../Models/chatModel.dart';
+import '../Models/emergencyMod.dart';
 
 // ===== UI =====
 import 'package:studentbrigade/View/video_detail_sheet.dart';
@@ -321,16 +322,116 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     );
   }
 
-  // ---------- EMERGENCY (llamada + ubicación) ----------
-  /// Llama al brigadista y captura lat/lng actuales antes de salir a la app de Teléfono.
-  Future<void> callBrigadistWithLocation(String phone) =>
-      _emergencyVM.callBrigadistWithLocation(phone);
+  // ---------- EMERGENCY (orquestador only: delega a VMs) ----------
+  /// Llama al brigadista: orquesta cálculo de ruta (MapVM) y luego delega a EmergencyVM para
+  /// abrir dialer / guardar info adicional. No contiene lógica de negocio.
+  Future<void> callBrigadistWithLocation(String phone) async {
+    try {
+      // 1) Intentar obtener brigadista asignado desde UserVM/EmergencyVM
+      Brigadist? assigned = _emergencyVM.lastEmergency != null && _emergencyVM.lastEmergency!.assignedBrigadistId.isNotEmpty
+          ? await _userVM.getAssignedBrigadist(_emergencyVM.lastEmergency!.assignedBrigadistId!)
+          : _userVM.assignedBrigadist;
 
-  /// Accesores útiles para UI/analytics
+      Duration routeCalcTime = Duration.zero;
+
+      // 2) Si hay brigadista con coords, calcular ruta (usar ubicación de la emergencia si existe)
+      if (assigned != null && assigned.latitude != null && assigned.longitude != null) {
+        final fromLat = _emergencyVM.lastLatitude ?? _mapVM.currentUserLocation?.latitude;
+        final fromLng = _emergencyVM.lastLongitude ?? _mapVM.currentUserLocation?.longitude;
+
+        final rt = await _mapVM.calculateRouteToBrigadist(
+          assigned.latitude!,
+          assigned.longitude!,
+          fromLat: fromLat,
+          fromLng: fromLng,
+        );
+        if (rt != null) routeCalcTime = rt;
+      }
+
+      // 3) Delegar a EmergencyVM para abrir dialer / persistir (EmergencyVM maneja guardar si hace falta)
+      await _emergencyVM.callBrigadistWithLocation(
+        phone,
+        routeCalcTime: routeCalcTime,
+        userId: _userVM.getUserData()?.studentId ?? _userVM.getUserData()?.email ?? 'unknown',
+      );
+    } catch (e) {
+      debugPrint('Orchestrator.callBrigadistWithLocation error: $e');
+      rethrow;
+    }
+  }
+
+  /// Reporta una emergencia: orquesta persistencia (EmergencyVM), búsqueda de brigadista (UserVM),
+  /// asignación (EmergencyVM) y cálculo de ruta (MapVM). Orchestrator NO persiste directamente.
+  Future<void> reportEmergency({
+    required EmergencyType type,
+    double? latitude,
+    double? longitude,
+    String? description,
+  }) async {
+    try {
+      final userId = _userVM.getUserData()?.studentId ?? _userVM.getUserData()?.email ?? 'unknown';
+
+      // 1) Persistir la emergencia vía EmergencyVM (EmergencyVM decide cómo inferir LocationEnum o usar currentLocation)
+      final em = await _emergencyVM.createEmergency(
+        userId: userId,
+        latitude: latitude,
+        longitude: longitude,
+        type: type,
+        description: description,
+      );
+
+      if (em == null) {
+        debugPrint('reportEmergency: failed to persist emergency');
+        return;
+      }
+
+      // 2) Pedir al UserVM el brigadista más cercano (orquestador decide el punto de consulta)
+      final queryLat = latitude ?? _emergencyVM.lastLatitude ?? _mapVM.currentUserLocation?.latitude;
+      final queryLng = longitude ?? _emergencyVM.lastLongitude ?? _mapVM.currentUserLocation?.longitude;
+
+      Brigadist? brig;
+      if (queryLat != null && queryLng != null) {
+        brig = await _userVM.getClosestBrigadist(queryLat, queryLng);
+      } else {
+        brig = await _userVM.getClosestBrigadist(0.0, 0.0);
+      }
+
+      if (brig == null) {
+        debugPrint('reportEmergency: no brigadist available');
+        return;
+      }
+
+      // 3) Asignar el brigadista en EmergencyVM (EmergencyVM actualiza su estado y DB si corresponde)
+      _emergencyVM.setAssignedBrigadist(brig);
+
+      // 4) Calcular ruta usando la ubicación de la emergencia como origen (si existe)
+      final fromLat = latitude ?? _emergencyVM.lastLatitude ?? _mapVM.currentUserLocation?.latitude;
+      final fromLng = longitude ?? _emergencyVM.lastLongitude ?? _mapVM.currentUserLocation?.longitude;
+
+      await _mapVM.calculateRouteToBrigadist(
+        brig.latitude ?? 0.0,
+        brig.longitude ?? 0.0,
+        fromLat: fromLat,
+        fromLng: fromLng,
+      );
+
+      // 5) Opcional: actualizar secondsResponse en EmergencyVM basándose en el tiempo de cálculo
+      if (_mapVM.routeCalculationTime != null) {
+        await _emergencyVM.updateSecondsResponse(_mapVM.routeCalculationTime!.inSeconds);
+      }
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('reportEmergency error: $e');
+    }
+  }
+
+  // Accesores para EmergencyVM (ya expone emergencyVM getter más arriba)
   bool get isCalling => _emergencyVM.isCalling;
   int? get lastCallDurationSeconds => _emergencyVM.lastCallDurationSeconds;
-
   double? get lastLatitude => _emergencyVM.lastLatitude;
   double? get lastLongitude => _emergencyVM.lastLongitude;
   DateTime? get lastLocationAt => _emergencyVM.lastLocationAt;
+
+
 }

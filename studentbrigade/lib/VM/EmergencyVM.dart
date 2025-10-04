@@ -1,4 +1,3 @@
-// lib/VM/EmergencyVM.dart
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
@@ -8,12 +7,13 @@ import 'package:geolocator/geolocator.dart';
 
 // Modelo Emergency
 import '../Models/emergencyMod.dart';
+import '../Models/userMod.dart';
 
 // Modelos del mapa (evitar colisiones de nombres)
 import '../Models/mapMod.dart' as map;
 
 // Adapter (Firebase RTDB)
-import 'Adapter.dart'; // ajusta si tu ruta real es otra
+import 'Adapter.dart';
 
 class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
   EmergencyVM({
@@ -60,7 +60,6 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
   DateTime? _callLaunchedAt;
 
   // --------- Puntos de encuentro conocidos ---------
-  // Quita `const` si tu map.MapLocation no tiene ctor const.
   static const map.MapLocation Boho = map.MapLocation(
     latitude: 4.6014,
     longitude: -74.0660,
@@ -81,14 +80,73 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
   );
   static const List<map.MapLocation> _poi = [Boho, ML_banderas, sd_cerca];
 
-  // ---------- API PRINCIPAL ----------
-  /// Crea y guarda Emergency usando la duración de cálculo de ruta (routeCalcTime) como secondsResponse
-  /// y luego abre el dialer para realizar la llamada.
+  // ---------- Public API ----------
+
+  /// Crea una emergencia en memoria y la persiste en la DB.
+  /// Devuelve la Emergency creada (con id en memoria) o null en fallo.
+  Future<Emergency?> createEmergencyAndPersist({
+    required String userId,
+    required LocationEnum location,
+    required int secondsResponse,
+    EmergencyType type = EmergencyType.Medical,
+    String? assignedBrigadistId,
+  }) async {
+    _isWorking = true;
+    notifyListeners();
+    try {
+      final em = _buildEmergency(
+        userId: userId,
+        location: location,
+        secondsResponse: secondsResponse,
+        type: type,
+        assignedBrigadistId: assignedBrigadistId,
+      );
+      lastEmergency = em;
+      // Persistir
+      final key = await _adapter.createEmergencyFromModel(em);
+      lastEmergencyDbKey = key;
+      onEmergencyCreated?.call(em);
+      notifyListeners();
+      return em;
+    } catch (e) {
+      debugPrint('❌ createEmergencyAndPersist error: $e');
+      return null;
+    } finally {
+      _isWorking = false;
+      notifyListeners();
+    }
+  }
+
+  /// Crea y persiste una emergency usando la ubicación actual del dispositivo.
+  /// No abre el dialer. Útil para reportes rápidos.
+  Future<Emergency?> createEmergencyAtCurrentLocation({
+    String? userId,
+    required EmergencyType type,
+    String? description,
+  }) async {
+    try {
+      final pos = await _getCurrentPosition();
+      final locationEnum = _inferLocationEnumFromLatLng(pos.latitude, pos.longitude);
+      final em = await createEmergencyAndPersist(
+        userId: userId ?? currentUserId ?? 'unknown',
+        location: locationEnum,
+        secondsResponse: 0,
+        type: type,
+      );
+      return em;
+    } catch (e) {
+      debugPrint('❌ createEmergencyAtCurrentLocation error: $e');
+      return null;
+    }
+  }
+
+  /// Lógica que combina: obtiene la posición actual, construye Emergency (usando routeCalcTime
+  /// provisto por MapVM), persiste y abre el dialer al brigadista.
   Future<void> callBrigadistWithLocation(
-      String phoneNumber, {
-        required Duration routeCalcTime, // 🔴 OBLIGATORIO: viene desde MapVM.calculateRouteToBrigadist
-        String? userId,
-      }) async {
+    String phoneNumber, {
+    required Duration routeCalcTime, // viene desde MapVM.calculateRouteToBrigadist
+    String? userId,
+  }) async {
     try {
       _isWorking = true;
       notifyListeners();
@@ -105,7 +163,7 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
 
       // 3) Inferir location y construir Emergency
       final locationEnum =
-      _inferLocationEnumFromLatLng(lastLatitude!, lastLongitude!);
+          _inferLocationEnumFromLatLng(lastLatitude!, lastLongitude!);
 
       lastEmergency = _buildEmergency(
         userId: userId ?? currentUserId ?? 'U000',
@@ -126,7 +184,42 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
     }
   }
 
-  // ---------- Guardado en Firebase ----------
+  /// Establece el brigadista asignado (por ejemplo, cuando Orchestrator decide)
+  void setAssignedBrigadist(Brigadist b) {
+    lastEmergency = lastEmergency?.copyWith(assignedBrigadistId: b.studentId) ?? lastEmergency;
+    notifyListeners();
+  }
+
+  /// Actualiza secondsResponse y persiste en DB si hay key
+  Future<void> updateSecondsResponse(int secs) async {
+    if (lastEmergency == null) return;
+    lastEmergency = lastEmergency!.copyWith(secondsResponse: secs);
+    onEmergencyUpdated?.call(lastEmergency!);
+    if (lastEmergencyDbKey != null && lastEmergencyDbKey!.isNotEmpty) {
+      try {
+        await _adapter.updateDocument(
+          'emergencies',
+          lastEmergencyDbKey!,
+          {
+            'secondsResponse': secs,
+            'updatedAt': DateTime.now().toUtc().toIso8601String(),
+          },
+        );
+      } catch (e) {
+        debugPrint('⚠️ updateSecondsResponse failed: $e');
+      }
+    }
+    notifyListeners();
+  }
+
+  /// Limpia la emergencia en memoria (no borra en DB)
+  void clearLastEmergency() {
+    lastEmergency = null;
+    lastEmergencyDbKey = null;
+    notifyListeners();
+  }
+
+  // ---------- Guardado en Firebase (interno) ----------
   Future<void> _saveEmergencyIfNeeded() async {
     if (lastEmergency == null) return;
     if (lastEmergencyDbKey != null && lastEmergencyDbKey!.isNotEmpty) return;
@@ -141,8 +234,8 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
   }
 
   // ---------- Llamada ----------
+
   Future<void> _callPhone(String phoneNumber) async {
-    // Fallback: por si llaman esto sin haber guardado
     if (lastEmergencyDbKey == null) {
       try {
         await _saveEmergencyIfNeeded();
@@ -166,8 +259,6 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
-  /// Si NO quieres sobrescribir `secondsResponse` (de la ruta) con la duración de la llamada,
-  /// deja comentado el bloque de copyWith + updateDocument.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) async {
     if (state == AppLifecycleState.resumed &&
@@ -181,29 +272,9 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
 
       onCallDurationSaved?.call(secs);
 
-      // ----- OPCIONAL: si quieres que secondsResponse pase a la duración de llamada, descomenta:
-      /*
-      if (lastEmergency != null) {
-        lastEmergency = lastEmergency!.copyWith(secondsResponse: secs);
-        onEmergencyUpdated?.call(lastEmergency!);
-      }
-      if (lastEmergencyDbKey != null) {
-        try {
-          await _adapter.updateDocument(
-            'Emergency',
-            lastEmergencyDbKey!,
-            {
-              // 👇 usa camelCase consistente con tu Emergency.toJson()
-              'secondsResponse': secs,
-              'updatedAt': DateTime.now().millisecondsSinceEpoch,
-            },
-          );
-        } catch (e) {
-          debugPrint('⚠️ No se pudo actualizar secondsResponse: $e');
-        }
-      }
-      */
-      // --------------------------------------------------
+      // Opcional: actualizar secondsResponse en memoria y DB si quieres
+      // lastEmergency = lastEmergency?.copyWith(secondsResponse: secs);
+      // if (lastEmergencyDbKey != null) { ... updateDocument ... }
 
       notifyListeners();
     }
@@ -265,17 +336,19 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
     required String userId,
     required LocationEnum location,
     required int secondsResponse,
+    EmergencyType type = EmergencyType.Medical,
+    String? assignedBrigadistId,
   }) {
     final now = DateTime.now();
     return Emergency(
       emergencyID: now.millisecondsSinceEpoch % 100000000,
       userId: userId,
-      assignedBrigadistId: 'U002',
+      assignedBrigadistId: assignedBrigadistId ?? '',
       dateTime: now,
       emerResquestTime: 0,
       secondsResponse: secondsResponse,
       location: location,
-      emerType: EmergencyType.Medical,
+      emerType: type,
       chatMessages: null,
     );
   }
@@ -302,4 +375,3 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
     super.dispose();
   }
 }
-

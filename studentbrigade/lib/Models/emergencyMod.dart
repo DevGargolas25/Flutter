@@ -7,20 +7,20 @@ enum EmergencyType { Medical, Psycological, Hazard }
 /// <<location>> según el diagrama: SD, ML, RGD
 enum LocationEnum { SD, ML, RGD }
 
-class ChatMessage {
+class ChatMessagee {
   final String id;
   final String text;
   final bool fromUser;
   final DateTime timestamp;
 
-  const ChatMessage({
+  const ChatMessagee({
     required this.id,
     required this.text,
     required this.fromUser,
     required this.timestamp,
   });
 
-  factory ChatMessage.fromJson(Map<String, dynamic> json) => ChatMessage(
+  factory ChatMessagee.fromJson(Map<String, dynamic> json) => ChatMessagee(
     id: json['id'] as String,
     text: json['text'] as String,
     fromUser: json['fromUser'] as bool,
@@ -44,7 +44,7 @@ class Emergency {
   final int secondsResponse;             // seconds_response
   final LocationEnum location;           // Enumeration (SD/ML/RGD)
   final EmergencyType emerType;          // Enumeration (Medical/...)
-  final List<ChatMessage>? chatMessages; // opcional
+  final List<ChatMessagee>? chatMessages; // opcional
 
   const Emergency({
     required this.emergencyID,
@@ -67,7 +67,7 @@ class Emergency {
     int? secondsResponse,
     LocationEnum? location,
     EmergencyType? emerType,
-    List<ChatMessage>? chatMessages,
+    List<ChatMessagee>? chatMessages,
   }) {
     return Emergency(
       emergencyID: emergencyID ?? this.emergencyID,
@@ -93,7 +93,7 @@ class Emergency {
     location: _locationFromWire(json['location'] as String),
     emerType: _emerTypeFromWire(json['emerType'] as String),
     chatMessages: (json['chatMessages'] as List?)
-        ?.map((e) => ChatMessage.fromJson(
+        ?.map((e) => ChatMessagee.fromJson(
       Map<String, dynamic>.from(e as Map),
     ))
         .toList(),

@@ -207,10 +207,19 @@ class MapVM extends ChangeNotifier {
   // ==================== MÉTODOS DEL MAPA DE EMERGENCIA ====================
 
 // Método principal para calcular ruta al brigadista (usado por Orchestrator)
-  Future<Duration?> calculateRouteToBrigadist(double brigadistLat, double brigadistLng) async {
-    if (_currentUserLocation == null) {
+    Future<Duration?> calculateRouteToBrigadist(
+    double brigadistLat,
+    double brigadistLng, {
+    double? fromLat,
+    double? fromLng,
+  }) async {
+    // Si no se proporciona una "from" usamos la ubicación actual del usuario
+    if ((fromLat == null || fromLng == null) && _currentUserLocation == null) {
       throw Exception('User location not available');
     }
+
+    final double startLat = fromLat ?? _currentUserLocation!.latitude;
+    final double startLng = fromLng ?? _currentUserLocation!.longitude;
 
     // Iniciar medición de tiempo
     _routeCalculationStartTime = DateTime.now();
@@ -223,17 +232,16 @@ class MapVM extends ChangeNotifier {
 
     try {
       print('🚨 Calculando ruta de emergencia al brigadista');
-      print('   Desde: (${_currentUserLocation!.latitude}, ${_currentUserLocation!.longitude})');
+      print('   Desde: ($startLat, $startLng)');
       print('   Hasta: ($brigadistLat, $brigadistLng)');
 
-      // Calcular ruta usando API
+      // Calcular ruta usando API (método ya existente que acepta from/to)
       await _calculateEmergencyRouteWithAPI(
-        _currentUserLocation!.latitude,
-        _currentUserLocation!.longitude,
+        startLat,
+        startLng,
         brigadistLat,
         brigadistLng,
       );
-
     } catch (e) {
       _emergencyRouteError = e.toString();
       print('❌ Error calculando ruta de emergencia: $e');
