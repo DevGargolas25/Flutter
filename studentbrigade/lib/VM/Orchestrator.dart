@@ -284,13 +284,19 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     return await _userVM.getAssignedBrigadist(emergencyId);
   }
 
-  Future<void> calculateRouteToBrigadist(
-    double brigadistLat,
-    double brigadistLng,
-  ) async {
+  Future<Duration?> calculateRouteToBrigadist(
+      double brigadistLat,
+      double brigadistLng,
+      ) async {
     try {
-      await _mapVM.calculateRouteToBrigadist(brigadistLat, brigadistLng);
+      // Llama al MapVM y espera el resultado
+      final routeTime = await _mapVM.calculateRouteToBrigadist(
+        brigadistLat,
+        brigadistLng,
+      );
+
       notifyListeners(); // Notificar cambios a las vistas
+      return routeTime;  // 🔹 Devolver el tiempo de cálculo
     } catch (e) {
       print('Error en Orchestrator calculando ruta: $e');
       rethrow;

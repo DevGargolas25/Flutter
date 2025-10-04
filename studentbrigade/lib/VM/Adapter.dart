@@ -2,6 +2,7 @@
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../Models/videoMod.dart';
+import '../Models/emergencyMod.dart';
 
 class Adapter {
   late FirebaseDatabase _database;
@@ -14,6 +15,25 @@ class Adapter {
       databaseURL: 'https://brigadist-29309-default-rtdb.firebaseio.com/' // ← TU URL AQUÍ
     );
   }
+
+  // === Emergency Operation ==
+  Future<String> createEmergencyFromModel(Emergency emergency) async {
+    try {
+      final ref = _database.ref('Emergency').push();
+
+      final data = emergency.toJson(); // usa el toJson de tu modelo
+
+      await ref.set({
+        ...data,
+        'createdAt': ServerValue.timestamp,
+      });
+      return ref.key!;
+    } catch (e) {
+      print('Error creating emergency from model: $e');
+      throw Exception('Error al crear emergencia: $e');
+    }
+  }
+
 
   
   // === USER OPERATIONS ===

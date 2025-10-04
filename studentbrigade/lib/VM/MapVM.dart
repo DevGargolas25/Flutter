@@ -205,13 +205,13 @@ class MapVM extends ChangeNotifier {
   }
 
   // ==================== MÉTODOS DEL MAPA DE EMERGENCIA ====================
-  
-  // Método principal para calcular ruta al brigadista (usado por Orchestrator)
-  Future<void> calculateRouteToBrigadist(double brigadistLat, double brigadistLng) async {
+
+// Método principal para calcular ruta al brigadista (usado por Orchestrator)
+  Future<Duration?> calculateRouteToBrigadist(double brigadistLat, double brigadistLng) async {
     if (_currentUserLocation == null) {
       throw Exception('User location not available');
     }
-    
+
     // Iniciar medición de tiempo
     _routeCalculationStartTime = DateTime.now();
     _isCalculatingEmergencyRoute = true;
@@ -222,10 +222,10 @@ class MapVM extends ChangeNotifier {
     notifyListeners();
 
     try {
-      print('� Calculando ruta de emergencia al brigadista');
+      print('🚨 Calculando ruta de emergencia al brigadista');
       print('   Desde: (${_currentUserLocation!.latitude}, ${_currentUserLocation!.longitude})');
       print('   Hasta: ($brigadistLat, $brigadistLng)');
-      
+
       // Calcular ruta usando API
       await _calculateEmergencyRouteWithAPI(
         _currentUserLocation!.latitude,
@@ -233,7 +233,7 @@ class MapVM extends ChangeNotifier {
         brigadistLat,
         brigadistLng,
       );
-      
+
     } catch (e) {
       _emergencyRouteError = e.toString();
       print('❌ Error calculando ruta de emergencia: $e');
@@ -243,11 +243,15 @@ class MapVM extends ChangeNotifier {
         _routeCalculationTime = DateTime.now().difference(_routeCalculationStartTime!);
         print('⏱️ Ruta de emergencia calculada en: ${_routeCalculationTime!.inMilliseconds}ms');
       }
-      
+
       _isCalculatingEmergencyRoute = false;
       notifyListeners();
     }
+
+    // 🔹 Retornar el valor para que Orchestrator o EmergencyVM lo usen
+    return _routeCalculationTime;
   }
+
 
   Future<void> _calculateEmergencyRouteWithAPI(double fromLat, double fromLng, double toLat, double toLng) async {
     try {
