@@ -51,7 +51,7 @@ class _HomePageState extends State<HomePage> {
     return DateTime.now().hour % len;
   }
 
-  late int featuredIndex;
+  late int featuredIndex = 0;
 
   Timer? _notifTimer;
   Timer? _hourTimer;

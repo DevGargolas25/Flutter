@@ -91,9 +91,6 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen>
       widget.orchestrator.getCurrentLocation();
       widget.orchestrator.startLocationTracking();
     }
-    if (widget.orchestrator.userVM.currentUser == null) {
-      widget.orchestrator.userVM.fetchUserData('current_user_id');
-    }
 
     _loadAssignedBrigadist();
   }
@@ -128,7 +125,7 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen>
     void calc() {
       if (assigned != null) {
         widget.orchestrator
-            .calculateRouteToBrigadist(assigned.latitude, assigned.longitude);
+            .calculateRouteToBrigadist(assigned.latitude ?? 0.0, assigned.longitude ?? 0.0);
       }
     }
 
@@ -141,7 +138,7 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen>
         if (loc != null && br != null) {
           timer.cancel();
           widget.orchestrator
-              .calculateRouteToBrigadist(br.latitude, br.longitude);
+              .calculateRouteToBrigadist(br.latitude ?? 0.0, br.longitude ?? 0.0);
         }
       });
     }
@@ -746,7 +743,7 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen>
                             if (assigned != null)
                               Marker(
                                 point: LatLng(
-                                    assigned.latitude, assigned.longitude),
+                                    assigned.latitude ?? 0.0, assigned.longitude ?? 0.0),
                                 width: 50,
                                 height: 70,
                                 child: Column(
@@ -831,7 +828,7 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen>
                 child: ElevatedButton.icon(
                   onPressed: assigned != null
                       ? () => _mapController.move(
-                            LatLng(assigned.latitude, assigned.longitude), 17,
+                            LatLng(assigned.latitude ?? 0.0, assigned.longitude ?? 0.0), 17,
                           )
                       : null,
                   icon: const Icon(Icons.medical_services, size: 18),

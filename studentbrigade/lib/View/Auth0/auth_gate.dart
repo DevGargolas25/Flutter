@@ -5,6 +5,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'auth_service.dart';
 import 'welcome_screen.dart';
 import 'package:flutter/foundation.dart'; 
+import 'package:studentbrigade/VM/Orchestrator.dart';
 
 // Si necesitas navegar a tu Home/NavShell, lo pasas como childWhenAuthed
 class AuthGate extends StatefulWidget {
@@ -30,7 +31,7 @@ class _AuthGateState extends State<AuthGate> {
 
   Future<void> _bootstrap() async {
 
-    if (kDebugMode) {
+    /*if (kDebugMode) {
       // En modo debug, saltar autenticación
       await Future.delayed(const Duration(seconds: 1));
       if (!mounted) return;
@@ -39,7 +40,7 @@ class _AuthGateState extends State<AuthGate> {
         _loggedIn = true;
       });
       return;
-    }
+    }*/
     // 1) Detectar red una vez
     final status = await _connectivity.checkConnectivity();
     _offline = (status == ConnectivityResult.none);
@@ -48,6 +49,12 @@ class _AuthGateState extends State<AuthGate> {
     bool restored = false;
     if (!_offline) {
       restored = await AuthService.instance.restore();
+      if (restored) {
+        final email = AuthService.instance.currentUserEmail;
+        if (email != null && email.isNotEmpty) {
+          await Orchestrator().loadUserByEmail(email);
+        }
+      }
     }
 
     // 3) Si no restauró, pero hubo sesión antes y está offline → permitir Home (modo offline)

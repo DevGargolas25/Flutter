@@ -1,13 +1,18 @@
+// android/build.gradle.kts
+
+import org.gradle.api.file.Directory
+
+// 👈 defínela ANTES del buildscript
+val kotlinVersion = "1.7.10"
+
 buildscript {
-    ext.set("kotlin_version", "1.7.10")
     repositories {
         google()
         mavenCentral()
     }
-
     dependencies {
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.7.10")
-        classpath("com.google.gms:google-services:4.4.0") // ← ESTA ES LA LÍNEA NUEVA
+        classpath("com.google.gms:google-services:4.4.0")
     }
 }
 
@@ -25,6 +30,7 @@ subprojects {
     val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
     project.layout.buildDirectory.value(newSubprojectBuildDir)
 }
+
 subprojects {
     project.evaluationDependsOn(":app")
 }

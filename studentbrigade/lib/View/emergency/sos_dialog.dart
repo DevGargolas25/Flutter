@@ -85,16 +85,6 @@ class SosDialog {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    _ActionTile(
-                      leading: Icons.campaign_rounded,
-                      title: 'Send Emergency Alert',
-                      subtitle: 'Alert campus security and brigade members',
-                      onTap: () {
-                        // Cierra el diálogo y abre el selector de tipo
-                        Navigator.of(context).pop();
-                        Future.microtask(() => EmergencyTypeDialog.show(context));
-                      },
-                    ),
                     const SizedBox(height: 12),
 
                     _ActionTile(
