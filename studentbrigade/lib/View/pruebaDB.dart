@@ -1,3 +1,6 @@
+// TODO: este archivo se creo para hacer pruebas de conexión a la BD
+// No pertenece al proyecto, actualmente está desconectado de la app
+
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import '../VM/Adapter.dart';

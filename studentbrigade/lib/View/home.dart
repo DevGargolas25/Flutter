@@ -133,19 +133,6 @@ class _HomePageState extends State<HomePage> {
                         size: 20, color: cs.onPrimary),
                   ),
                   IconButton(
-                    tooltip: 'Test Firebase',
-                    onPressed: () => Navigator.pushNamed(context, '/test-firebase'),
-                    icon: Icon(Icons.cloud_outlined,
-                        size: 20, color: cs.onPrimary),
-                  ),
-                  // ← NUEVO BOTÓN MIGRACIÓN
-                  IconButton(
-                    tooltip: 'Migrar a Firestore',
-                    onPressed: () => Navigator.pushNamed(context, '/migration'),
-                    icon: Icon(Icons.sync_alt,
-                        size: 20, color: cs.onPrimary),
-                  ),
-                  IconButton(
                     tooltip: 'Profile',
                     onPressed: () =>
                         showProfileMenuDialog(context, widget.onOpenProfile),
@@ -356,25 +343,33 @@ class _HomePageState extends State<HomePage> {
                           height: 280,
                           child: items.isEmpty
                               ? const Center(child: CircularProgressIndicator())
-                              : ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            padding:
-                            const EdgeInsets.symmetric(horizontal: 4),
-                            itemCount: items.length,
-                            separatorBuilder: (_, __) =>
-                            const SizedBox(width: 16),
-                            itemBuilder: (context, i) {
-                              final v = items[i];
-                              final isFeatured =
-                                  i == (featuredIndex % vm.videos.length);
-                              return VideoCard(
-                                video: v,
-                                isFeatured: isFeatured,
-                                onTap: () => widget.orchestrator
-                                    .openVideoDetails(context, v),
-                              );
-                            },
-                          ),
+                              : Builder(
+                                  builder: (context) {
+                                    // Crear lista ordenada por likes (mayor primero)
+                                    final sortedItems = [...items];
+                                    sortedItems.sort((a, b) {
+                                      final aViews = (a.views ?? 0);
+                                      final bViews = (b.views ?? 0);
+                                      return bViews.compareTo(aViews);
+                                    });
+                                    
+                                    return ListView.separated(
+                                      scrollDirection: Axis.horizontal,
+                                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                                      itemCount: sortedItems.length,
+                                      separatorBuilder: (_, __) => const SizedBox(width: 16),
+                                      itemBuilder: (context, i) {
+                                        final v = sortedItems[i];
+                                        final isFeatured = i == (featuredIndex % sortedItems.length);
+                                        return VideoCard(
+                                          video: v,
+                                          isFeatured: isFeatured,
+                                          onTap: () => widget.orchestrator.openVideoDetails(context, v),
+                                        );
+                                      },
+                                    );
+                                  },
+                                ),
                         ),
 
                         const SizedBox(height: 8),
