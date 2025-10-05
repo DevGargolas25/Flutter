@@ -17,9 +17,20 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Inicializa Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
   final analytics = FirebaseAnalytics.instance;
   await analytics.setAnalyticsCollectionEnabled(true);
   await analytics.logAppOpen();
+
+  await analytics.logEvent(
+    name: 'app_started',
+    parameters: {
+      'timestamp': DateTime.now().toIso8601String(),
+      'platform': 'web',
+    },
+  );
+  print('📊 Analytics: Test event sent on app start');
+
   runApp(const MyApp());
 }
 

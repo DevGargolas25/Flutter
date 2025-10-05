@@ -31,6 +31,24 @@
 
   <title>studentbrigade</title>
   <link rel="manifest" href="manifest.json">
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics-compat.js"></script>
+  <script>
+    // Tu configuración de Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyAQs2XnKNPhKRzDD6-ZlIU_OCESILQYjf0",
+      authDomain: "brigadist-29309.firebaseapp.com",
+      databaseURL: "https://brigadist-29309-default-rtdb.firebaseio.com",
+      projectId: "brigadist-29309",
+      storageBucket: "brigadist-29309.firebasestorage.app",
+      messagingSenderId: "993666193997",
+      appId: "1:993666193997:web:c12a2383cb871810f89a04",
+      measurementId: "G-SV10R168R4"
+    };
+    firebase.initializeApp(firebaseConfig);
+    firebase.analytics(); // ← ACTIVAR Analytics
+  </script>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>

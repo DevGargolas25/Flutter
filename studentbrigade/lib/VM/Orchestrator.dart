@@ -40,6 +40,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   late final UserVM _userVM;
   late final ChatVM _chatVM;
   late final EmergencyVM _emergencyVM;
+  late final AnalyticsVM _analyticsVM;
 
   // ---------- Navegación ----------
   int _currentPageIndex = 0;
@@ -61,6 +62,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     _userVM = UserVM();
     _chatVM = ChatVM(baseUrl: 'http://127.0.0.1:8080'); // emulador Android
     _chatVM.addListener(notifyListeners);
+    _analyticsVM = AnalyticsVM();
 
     // EmergencyVM con hooks hacia Analytics/DAO si los necesitas
     _emergencyVM = EmergencyVM(
@@ -90,6 +92,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   UserVM get userVM => _userVM;
   EmergencyVM get emergencyVM => _emergencyVM;
   ChatVM get chatVM => _chatVM;
+  AnalyticsVM get analyticsVM => _analyticsVM;
 
   // ---------- Limpieza explícita ----------
   void disposeOrchestrator() {

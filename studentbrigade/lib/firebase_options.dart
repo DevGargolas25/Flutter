@@ -40,11 +40,13 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'TEMP_KEY',
-    appId: 'TEMP_APP_ID',
-    messagingSenderId: 'TEMP_SENDER',
-    projectId: 'TEMP_PROJECT',
-    authDomain: 'TEMP_PROJECT.firebaseapp.com',
-    storageBucket: 'TEMP_PROJECT.appspot.com',
+    apiKey: 'AIzaSyAQs2XnKNPhKRzDD6-ZlIU_OCESILQYjf0',
+    appId: '1:993666193997:web:c12a2383cb871810f89a04',
+    messagingSenderId: '993666193997',
+    projectId: 'brigadist-29309',
+    authDomain: 'brigadist-29309.firebaseapp.com',
+    databaseURL: 'https://brigadist-29309-default-rtdb.firebaseio.com',
+    storageBucket: 'brigadist-29309.firebasestorage.app',
+    measurementId: 'G-SV10R168R4',
   );
 }
