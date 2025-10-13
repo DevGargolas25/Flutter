@@ -1,111 +1,151 @@
-/*
-enum EmerType {
-  medical,
-  psychological,
-  hazard,
-}
+// models/emergency.dart
+import 'dart:convert';
 
-enum Location {
-  SD,
-  ML,
-  RGD,
+/// <<emerType>> según el diagrama: Medical, Psycological, Hazard
+enum EmergencyType { Medical, Psycological, Hazard }
+
+/// <<location>> según el diagrama: SD, ML, RGD
+enum LocationEnum { SD, ML, RGD }
+
+class ChatMessagee {
+  final String id;
+  final String text;
+  final bool fromUser;
+  final DateTime timestamp;
+
+  const ChatMessagee({
+    required this.id,
+    required this.text,
+    required this.fromUser,
+    required this.timestamp,
+  });
+
+  factory ChatMessagee.fromJson(Map<String, dynamic> json) => ChatMessagee(
+    id: json['id'] as String,
+    text: json['text'] as String,
+    fromUser: json['fromUser'] as bool,
+    timestamp: DateTime.parse(json['timestamp'] as String),
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'text': text,
+    'fromUser': fromUser,
+    'timestamp': timestamp.toIso8601String(),
+  };
 }
 
 class Emergency {
-  final int emergencyID;
-  final int userId;                // FK hacia User
-  final int? assignedBrigadistId;  // FK hacia Brigadist
-  final DateTime dateTime;
-  final int emerRequestTime;       // tiempo en ms o seg desde request
-  final int secondsResponse;       // cuánto tardó en responder
-  final Location location;
-  final EmerType emerType;
-  final List<String> chatMessages; // mensajes asociados
+  final int emergencyID;                 // Int
+  final String userId;                   // FK
+  final String? assignedBrigadistId;     // FK (nullable)
+  final DateTime dateTime;               // date_time
+  final int emerResquestTime;            // EmerResquestTime (según diagrama)
+  final int secondsResponse;             // seconds_response
+  final LocationEnum location;           // Enumeration (SD/ML/RGD)
+  final EmergencyType emerType;          // Enumeration (Medical/...)
+  final List<ChatMessagee>? chatMessages; // opcional
 
-  Emergency({
+  const Emergency({
     required this.emergencyID,
     required this.userId,
     this.assignedBrigadistId,
     required this.dateTime,
-    required this.emerRequestTime,
+    required this.emerResquestTime,
     required this.secondsResponse,
     required this.location,
     required this.emerType,
-    this.chatMessages = const [],
+    this.chatMessages,
   });
 
-}
-=======
-
-
-class Emergency {
-  final String id;
-  final String userId;
-  final String? assignedBrigadistId;
-  final DateTime requestTime;
-  final DateTime? responseTime;
-  final DateTime? resolvedTime;
-  final double requestLatitude;
-  final double requestLongitude;
-  final String building;
-  final EmergencyStatus status;
-  final EmergencyType type;
-  final String? description;
-  final int? rating;
-  final String? feedback;
-
-  const Emergency({
-    required this.id,
-    required this.userId,
-    this.assignedBrigadistId,
-    required this.requestTime,
-    this.responseTime,
-    this.resolvedTime,
-    required this.requestLatitude,
-    required this.requestLongitude,
-    required this.building,
-    required this.status,
-    required this.type,
-    this.description,
-    this.rating,
-    this.feedback,
-  });
-
-  // Getters calculados para analíticas
-  Duration? get responseTimeRsolution => responseTime != null 
-      ? responseTime!.difference(requestTime) : null;
-      
-  Duration? get totalResolutionTime => resolvedTime != null 
-      ? resolvedTime!.difference(requestTime) : null;
-
-  bool get isResolved => status == EmergencyStatus.resolved;
-  bool get isActive => status == EmergencyStatus.in_progress;
-  
-  // Determinar edificio automáticamente
-  factory Emergency.create({
-    required String userId,
-    required double latitude,
-    required double longitude,
-    required EmergencyType type,
-    String? description,
+  Emergency copyWith({
+    int? emergencyID,
+    String? userId,
+    String? assignedBrigadistId,
+    DateTime? dateTime,
+    int? emerResquestTime,
+    int? secondsResponse,
+    LocationEnum? location,
+    EmergencyType? emerType,
+    List<ChatMessagee>? chatMessages,
   }) {
-    final building = Building.getBuildingFromCoordinates(latitude, longitude) ?? 'Unknown';
-    
     return Emergency(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      userId: userId,
-      requestTime: DateTime.now(),
-      requestLatitude: latitude,
-      requestLongitude: longitude,
-      building: building,
-      status: EmergencyStatus.pending,
-      type: type,
-      description: description,
+      emergencyID: emergencyID ?? this.emergencyID,
+      userId: userId ?? this.userId,
+      assignedBrigadistId: assignedBrigadistId ?? this.assignedBrigadistId,
+      dateTime: dateTime ?? this.dateTime,
+      emerResquestTime: emerResquestTime ?? this.emerResquestTime,
+      secondsResponse: secondsResponse ?? this.secondsResponse,
+      location: location ?? this.location,
+      emerType: emerType ?? this.emerType,
+      chatMessages: chatMessages ?? this.chatMessages,
     );
   }
+
+  // ---- JSON ----
+  factory Emergency.fromJson(Map<String, dynamic> json) => Emergency(
+    emergencyID: (json['emergencyID'] as num).toInt(),
+    userId: json['userId'] as String,
+    assignedBrigadistId: json['assignedBrigadistId'] as String?,
+    dateTime: DateTime.parse(json['date_time'] as String),
+    emerResquestTime: (json['EmerResquestTime'] as num).toInt(),
+    secondsResponse: (json['seconds_response'] as num).toInt(),
+    location: _locationFromWire(json['location'] as String),
+    emerType: _emerTypeFromWire(json['emerType'] as String),
+    chatMessages: (json['chatMessages'] as List?)
+        ?.map((e) => ChatMessagee.fromJson(
+      Map<String, dynamic>.from(e as Map),
+    ))
+        .toList(),
+  );
+
+  Map<String, dynamic> toJson() => {
+    'emergencyID': emergencyID,
+    'userId': userId,
+    'assignedBrigadistId': assignedBrigadistId,
+    'date_time': dateTime.toIso8601String(),
+    'EmerResquestTime': emerResquestTime,
+    'seconds_response': secondsResponse,
+    'location': _locationToWire(location),   // SD/ML/RGD
+    'emerType': _emerTypeToWire(emerType),   // Medical/Psycological/Hazard
+    'chatMessages': chatMessages?.map((m) => m.toJson()).toList(),
+  };
+
+  // ---- Enum <-> wire helpers (respetan EXACTAMENTE el texto del diagrama) ----
+  static LocationEnum _locationFromWire(String v) {
+    switch (v) {
+      case 'SD':
+        return LocationEnum.SD;
+      case 'ML':
+        return LocationEnum.ML;
+      case 'RGD':
+        return LocationEnum.RGD;
+      default:
+      // fallback sensato
+        return LocationEnum.SD;
+    }
+  }
+
+  static String _locationToWire(LocationEnum e) => e.name; // SD/ML/RGD
+
+  static EmergencyType _emerTypeFromWire(String v) {
+    switch (v) {
+      case 'Medical':
+        return EmergencyType.Medical;
+      case 'Psycological': // tal cual en el diagrama
+        return EmergencyType.Psycological;
+      case 'Hazard':
+        return EmergencyType.Hazard;
+      default:
+        return EmergencyType.Medical;
+    }
+  }
+
+  static String _emerTypeToWire(EmergencyType e) => e.name;
+
+  // utilidades si manejas JSON plano
+  static Emergency fromJsonString(String s) =>
+      Emergency.fromJson(json.decode(s) as Map<String, dynamic>);
+  String toJsonString() => json.encode(toJson());
 }
 
-enum EmergencyStatus { pending, in_progress, resolved, cancelled }
-enum EmergencyType { medical, fire, security, evacuation, other }
-
-*/

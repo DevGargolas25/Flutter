@@ -8,14 +8,18 @@ import 'package:ambient_light/ambient_light.dart';
 /// (iOS requiere NSCameraUsageDescription en Info.plist; ver nota al final.)
 class ThemeSensorService extends ChangeNotifier {
   ThemeSensorService({
-    this.darkEnterLux = 10,   // entra a oscuro cuando el promedio <= 10
-    this.lightEnterLux = 80,  // vuelve a claro cuando el promedio >= 80
-    this.smoothWindow = 5,    // tamaño de ventana para la media móvil
+    this.darkEnterLux = 10,
+    this.lightEnterLux = 80,
+    this.smoothWindow = 5,
+    this.onResponseMeasured,
   }) : assert(darkEnterLux < lightEnterLux, 'darkEnterLux debe ser < lightEnterLux');
 
   final double darkEnterLux;
   final double lightEnterLux;
   final int smoothWindow;
+
+  /// Callback opcional: tiempo que tardó en cambiar de modo
+  void Function(Duration duration, ThemeMode newMode)? onResponseMeasured;
 
   StreamSubscription<double>? _sub;
   final _buf = <double>[];
@@ -26,12 +30,20 @@ class ThemeSensorService extends ChangeNotifier {
   double? _lastAvgLux;
   double? get lastAvgLux => _lastAvgLux;
 
+  // Métrica de respuesta
+  Duration? _lastResponse;
+  Duration? get lastResponse => _lastResponse;
+
+  // Estado para medir transición con histeresis
+  DateTime? _pendingStart;
+  ThemeMode? _pendingTarget; // ThemeMode.dark o ThemeMode.light
+
   /// Comienza a escuchar el sensor
   void start() {
     _sub?.cancel();
-    final sensor = AmbientLight(); // instancia del plugin
+    final sensor = AmbientLight();
     _sub = sensor.ambientLightStream.listen(
-          (double lux) => _onLux(lux),
+      (double lux) => _onLux(lux),
       onError: (_) => _emit(ThemeMode.system),
       cancelOnError: false,
     );
@@ -49,11 +61,45 @@ class ThemeSensorService extends ChangeNotifier {
     final avg = _buf.reduce((a, b) => a + b) / _buf.length;
     _lastAvgLux = avg;
 
-    // Histeresis: solo cambia cuando cruza umbrales separados
-    if (_mode != ThemeMode.dark && avg <= darkEnterLux) {
-      _emit(ThemeMode.dark);
-    } else if (_mode != ThemeMode.light && avg >= lightEnterLux) {
-      _emit(ThemeMode.light);
+    final now = DateTime.now();
+
+    // Detectar dirección y medir tiempo dentro de la banda de histeresis
+    if (_mode != ThemeMode.dark) {
+      // Entrando hacia oscuro: cuando baja de lightEnterLux empezamos a medir
+      if (avg < lightEnterLux && _pendingTarget != ThemeMode.dark) {
+        _pendingTarget = ThemeMode.dark;
+        _pendingStart = now;
+      }
+      // Cambio efectivo a oscuro al cruzar darkEnterLux
+      if (avg <= darkEnterLux) {
+        if (_pendingTarget == ThemeMode.dark && _pendingStart != null) {
+          _lastResponse = now.difference(_pendingStart!);
+          onResponseMeasured?.call(_lastResponse!, ThemeMode.dark);
+        }
+        _pendingTarget = null;
+        _pendingStart = null;
+        _emit(ThemeMode.dark);
+        return;
+      }
+    }
+
+    if (_mode != ThemeMode.light) {
+      // Entrando hacia claro: cuando sube de darkEnterLux empezamos a medir
+      if (avg > darkEnterLux && _pendingTarget != ThemeMode.light) {
+        _pendingTarget = ThemeMode.light;
+        _pendingStart = now;
+      }
+      // Cambio efectivo a claro al cruzar lightEnterLux
+      if (avg >= lightEnterLux) {
+        if (_pendingTarget == ThemeMode.light && _pendingStart != null) {
+          _lastResponse = now.difference(_pendingStart!);
+          onResponseMeasured?.call(_lastResponse!, ThemeMode.light);
+        }
+        _pendingTarget = null;
+        _pendingStart = null;
+        _emit(ThemeMode.light);
+        return;
+      }
     }
   }
 
@@ -72,5 +118,3 @@ class ThemeSensorService extends ChangeNotifier {
     super.dispose();
   }
 }
-
-
