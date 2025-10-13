@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 import '../Models/userMod.dart';
+import 'Adapter.dart';
 
 class UserVM extends ChangeNotifier {
+  final Adapter _adapter = Adapter();
   User? _currentUser;
   String? _errorMessage;
 
@@ -9,25 +11,9 @@ class UserVM extends ChangeNotifier {
   User? get currentUser => _currentUser;
   String? get errorMessage => _errorMessage;
 
-  //Upload data from DB
-  Future<User?> fetchUserData(String userId) async {
-    _errorMessage = null;
-    
-    try {
-      _currentUser = await UserData.fetchUserFromDatabase(userId);
-      notifyListeners();
-      return _currentUser;
-    } catch (e) {
-      _errorMessage = 'Error fetching user data: $e';
-      notifyListeners();
-      return null;
-    }
-  }
-
-  // Obtener datos actuales 
-  User? getUserData() {
-    return _currentUser;
-  }
+  // Obtener datos actuales
+  User? getUserData() => _currentUser;
+  String? getErrorMessage() => _errorMessage;
 
   // Actualizar datos del usuario
   Future<bool> updateUserData({
@@ -43,7 +29,7 @@ class UserVM extends ChangeNotifier {
     if (_currentUser == null) return false;
 
     _errorMessage = null;
-    
+
     try {
       // Usar setters para actualizar campos específicos
       if (emergencyName1 != null) _currentUser!.emergencyName1 = emergencyName1;
@@ -64,14 +50,13 @@ class UserVM extends ChangeNotifier {
       if (specialInstructions != null) _currentUser!.specialInstructions = specialInstructions.isEmpty ? null : specialInstructions;
 
       // Guardar en BD simulada
-      bool success = await UserData.saveUserToDatabase(_currentUser!);
-      if (success) {
-        notifyListeners();
-      }
-      return success;
-    } catch (e) {
-      _errorMessage = 'Error updating user data: $e';
+      final key = _currentUser!.studentId.isNotEmpty ? _currentUser!.studentId : _currentUser!.email;
+      await _adapter.updateUser(key, _currentUser!.toMap());
+
       notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
       return false;
     }
   }
@@ -79,13 +64,35 @@ class UserVM extends ChangeNotifier {
   // Methods for the map in emergency
   Brigadist? _assignedBrigadist;
   Brigadist? get assignedBrigadist => _assignedBrigadist;
-  
+
+  // Usuario por email para cargar desde el login 
+  Future<User?> fetchUserByEmail(String email) async {
+    _errorMessage = null;
+    try {
+      final u = await _adapter.getUserByEmail(email);
+
+      if (u == null) {
+        _errorMessage = 'Usuario no encontrado para el email: $email';
+        notifyListeners();
+        return null;
+      }
+      _currentUser = u;
+      notifyListeners();
+      return _currentUser;
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      return null;
+    }
+  }
+
+
   // Obtener brigadista más cercano
   Future<Brigadist?> getClosestBrigadist(double userLat, double userLon) async {
     try {
       // Simular llamada a API
       await Future.delayed(const Duration(milliseconds: 500));
-      
+
       _assignedBrigadist = BrigadistData.getClosestAvailableBrigadist(userLat, userLon);
       notifyListeners();
       return _assignedBrigadist;
@@ -94,12 +101,12 @@ class UserVM extends ChangeNotifier {
       return null;
     }
   }
-  
+
   // Obtener brigadista asignado a emergencia activa
   Future<Brigadist?> getAssignedBrigadist(String emergencyId) async {
     try {
       await Future.delayed(const Duration(milliseconds: 300));
-      
+
       _assignedBrigadist = BrigadistData.getAssignedBrigadist(emergencyId);
       notifyListeners();
       return _assignedBrigadist;

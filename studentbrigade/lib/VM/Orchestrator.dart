@@ -1,7 +1,7 @@
 // lib/Orchestrator/orchestrator.dart
+import 'package:flutter/foundation.dart' show ChangeNotifier, kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
-// FIX: unifica el import de foundation para NO duplicar
-import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
+
 
 // ===== VMs =====
 import 'ChatVM.dart';
@@ -18,7 +18,10 @@ import '../Models/chatModel.dart';
 import '../Models/emergencyMod.dart';
 
 // ===== UI =====
-import 'package:studentbrigade/View/video_detail_sheet.dart';
+import 'package:studentbrigade/View/video_detail_sheet.dart';//
+import 'package:studentbrigade/View/Auth0/auth_service.dart';
+
+
 
 // ===== Sensor de luz / tema =====
 import 'theme_sensor_service.dart';
@@ -37,6 +40,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   late final UserVM _userVM;
   late final ChatVM _chatVM;
   late final EmergencyVM _emergencyVM;
+  late final AnalyticsVM _analyticsVM;
 
   // ---------- Navegación ----------
   int _currentPageIndex = 0;
@@ -64,6 +68,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     // Centraliza el baseUrl con _resolveBaseUrl
     _chatVM = ChatVM(baseUrl: _resolveBaseUrl()); // FIX: usar resolver
     _chatVM.addListener(notifyListeners);
+    _analyticsVM = AnalyticsVM();
 
     // EmergencyVM con hooks hacia Analytics/DAO si los necesitas
     _emergencyVM = EmergencyVM(
@@ -108,19 +113,13 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  // ------ CHAT (expuestos) -------
-  List<ChatMessage> get chatMessages => _chatVM.messages;
-  bool get chatIsTyping => _chatVM.isTyping;
-
-  Future<void> sendChatMessage(String text) => _chatVM.sendUserMessage(text);
-
-  void setChatBackendBaseUrl(String url) {
-    _chatVM.baseUrl = url;
-  }
-
-  void refreshChatBackendBaseUrl() {
-    _chatVM.baseUrl = _resolveBaseUrl();
-  }
+  // ---------- Exponer VMs ----------
+  MapVM get mapVM => _mapVM;
+  VideosVM get videoVM => _videoVM;
+  UserVM get userVM => _userVM;
+  EmergencyVM get emergencyVM => _emergencyVM;
+  ChatVM get chatVM => _chatVM;
+  AnalyticsVM get analyticsVM => _analyticsVM;
 
   // ---------- Limpieza explícita ----------
   void disposeOrchestrator() {
@@ -176,10 +175,55 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     _emergencyVM.didChangeAppLifecycleState(state);
   }
 
-  // ---------- Sesión / bootstrap ----------
+  // ---------- Inicio sesión / bootstrap ----------
   Future<void> _loadInitialUser() async {
-    await _userVM.fetchUserData('current-user-id');
+    try {
+      final restored = await AuthService.instance.restore();
+      if (!restored) {
+        _userVM.clearError();
+        notifyListeners();
+        return;
+      }
+
+      final email = AuthService.instance.currentUserEmail;
+      if (email == null || email.isEmpty) {
+        _userVM.clearError();
+        debugPrint('Auth restaurado pero sin email (¿falta scope "email"?)');
+        notifyListeners();
+        return;
+      }
+
+      final user = await _userVM.fetchUserByEmail(email);
+      if (user == null) {
+        debugPrint('Bootstrap: usuario no encontrado para email: $email');
+        // _userVM ya guarda el mensaje de error; UI puede leer userVM.errorMessage
+      } else {
+        debugPrint('Bootstrap: usuario cargado: ${user.email}');
+      }
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Bootstrap user error: $e');
+    }
   }
+
+    // Public: cargar usuario por email (llamar desde AuthService tras login)
+  Future<User?> loadUserByEmail(String email) async {
+    try {
+      final u = await _userVM.fetchUserByEmail(email);
+      if (u == null) {
+        debugPrint('loadUserByEmail: usuario no encontrado ($email)');
+      } else {
+        debugPrint('loadUserByEmail: usuario cargado (${u.email})');
+      }
+      notifyListeners();
+      return u;
+    } catch (e) {
+      debugPrint('loadUserByEmail error: $e');
+      return null;
+    }
+  }
+
 
   // ---------- Navegación ----------
   int get currentPageIndex => _currentPageIndex;
@@ -203,6 +247,18 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   ChatVM get chatVM => _chatVM;
 
   // ------ CHAT: resolver baseUrl según plataforma ---------
+  //------CHAT---------
+    List<ChatMessage> get chatMessages => _chatVM.messages;
+  bool get chatIsTyping => _chatVM.isTyping;
+  Future<void> sendChatMessage(String text) => _chatVM.sendUserMessage(text);
+  void setChatBackendBaseUrl(String url) {
+    _chatVM.baseUrl = url; // usa el setter de ChatVM
+  }
+
+  void refreshChatBackendBaseUrl() {
+    _chatVM.baseUrl = _resolveBaseUrl();
+  }
+
   String _resolveBaseUrl() {
     if (kIsWeb) {
       // Si sirves por https, tu backend debe ser https (usa ngrok/cloudflared)
@@ -269,6 +325,8 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
 
   // ---------- USER ----------
   User? getUserData() => _userVM.getUserData();
+  String? getUserErrorMessage() => _userVM.getErrorMessage();
+
 
   Future<bool> updateUserData({
     String? emergencyName1,

@@ -1,139 +1,185 @@
-// Enum para tipos de usuario
-enum UserType {
-  student,
-  brigadist,
-  analyst
-}
+// ...existing code...
+enum UserType { student, brigadist, analyst }
 
-// Clase base User (abstracta) - Solo atributos comunes
 abstract class User {
-  // Información personal base (TODOS los usuarios)
-  String _fullName;
-  String _studentId;
-  String _email;
-  String _phone;
+  String fullName;
+  String studentId;
+  String email;
+  String phone;
 
-  // Contacto de emergencia (TODOS los usuarios)
-  String _emergencyName1;
-  String _emergencyPhone1;
-  String? _emergencyName2;
-  String? _emergencyPhone2;
+  String emergencyName1;
+  String emergencyPhone1;
+  String? emergencyName2;
+  String? emergencyPhone2;
 
-  // Información médica (TODOS los usuarios)
-  String _bloodType;
-  String? _doctorName;
-  String? _doctorPhone;
-  String _insuranceProvider;
+  String bloodType;
+  String? doctorName;
+  String? doctorPhone;
+  String insuranceProvider;
 
-  // Alergias (TODOS los usuarios)
-  String? _foodAllergies;
-  String? _environmentalAllergies;
-  String? _drugAllergies;
-  String? _severityNotes;
+  String? foodAllergies;
+  String? environmentalAllergies;
+  String? drugAllergies;
+  String? severityNotes;
 
-  // Medicamentos (TODOS los usuarios)
-  String? _dailyMedications;
-  String? _emergencyMedications;
-  String? _vitaminsSupplements;
-  String? _specialInstructions;
+  String? dailyMedications;
+  String? emergencyMedications;
+  String? vitaminsSupplements;
+  String? specialInstructions;
 
-  // Constructor base para todas las clases hijas
   User({
-    required String fullName,
-    required String studentId,
-    required String email,
-    required String phone,
-    required String emergencyName1,
-    required String emergencyPhone1,
-    String? emergencyName2,
-    String? emergencyPhone2,
-    required String bloodType,
-    String? doctorName,
-    String? doctorPhone,
-    required String insuranceProvider,
-    String? foodAllergies,
-    String? environmentalAllergies,
-    String? drugAllergies,
-    String? severityNotes,
-    String? dailyMedications,
-    String? emergencyMedications,
-    String? vitaminsSupplements,
-    String? specialInstructions,
-  }) : _fullName = fullName,
-       _studentId = studentId,
-       _email = email,
-       _phone = phone,
-       _emergencyName1 = emergencyName1,
-       _emergencyPhone1 = emergencyPhone1,
-       _emergencyName2 = emergencyName2,
-       _emergencyPhone2 = emergencyPhone2,
-       _bloodType = bloodType,
-       _doctorName = doctorName,
-       _doctorPhone = doctorPhone,
-       _insuranceProvider = insuranceProvider,
-       _foodAllergies = foodAllergies,
-       _environmentalAllergies = environmentalAllergies,
-       _drugAllergies = drugAllergies,
-       _severityNotes = severityNotes,
-       _dailyMedications = dailyMedications,
-       _emergencyMedications = emergencyMedications,
-       _vitaminsSupplements = vitaminsSupplements,
-       _specialInstructions = specialInstructions;
+    required this.fullName,
+    required this.studentId,
+    required this.email,
+    required this.phone,
+    required this.emergencyName1,
+    required this.emergencyPhone1,
+    this.emergencyName2,
+    this.emergencyPhone2,
+    required this.bloodType,
+    this.doctorName,
+    this.doctorPhone,
+    required this.insuranceProvider,
+    this.foodAllergies,
+    this.environmentalAllergies,
+    this.drugAllergies,
+    this.severityNotes,
+    this.dailyMedications,
+    this.emergencyMedications,
+    this.vitaminsSupplements,
+    this.specialInstructions,
+  });
 
-  // Getters base (TODOS los usuarios)
-  String get fullName => _fullName;
-  String get studentId => _studentId;
-  String get email => _email;
-  String get phone => _phone;
-  String get emergencyName1 => _emergencyName1;
-  String get emergencyPhone1 => _emergencyPhone1;
-  String? get emergencyName2 => _emergencyName2;
-  String? get emergencyPhone2 => _emergencyPhone2;
-  String get bloodType => _bloodType;
-  String? get doctorName => _doctorName;
-  String? get doctorPhone => _doctorPhone;
-  String get insuranceProvider => _insuranceProvider;
-  String? get foodAllergies => _foodAllergies;
-  String? get environmentalAllergies => _environmentalAllergies;
-  String? get drugAllergies => _drugAllergies;
-  String? get severityNotes => _severityNotes;
-  String? get dailyMedications => _dailyMedications;
-  String? get emergencyMedications => _emergencyMedications;
-  String? get vitaminsSupplements => _vitaminsSupplements;
-  String? get specialInstructions => _specialInstructions;
+  Map<String, dynamic> toMap() {
+    return {
+      'fullName': fullName,
+      'studentId': studentId,
+      'email': email,
+      'phone': phone,
+      'emergencyName1': emergencyName1,
+      'emergencyPhone1': emergencyPhone1,
+      'emergencyName2': emergencyName2,
+      'emergencyPhone2': emergencyPhone2,
+      'bloodType': bloodType,
+      'doctorName': doctorName,
+      'doctorPhone': doctorPhone,
+      'insuranceProvider': insuranceProvider,
+      'foodAllergies': foodAllergies,
+      'environmentalAllergies': environmentalAllergies,
+      'drugAllergies': drugAllergies,
+      'severityNotes': severityNotes,
+      'dailyMedications': dailyMedications,
+      'emergencyMedications': emergencyMedications,
+      'vitaminsSupplements': vitaminsSupplements,
+      'specialInstructions': specialInstructions,
+    };
+  }
 
-  // Getter abstracto para tipo (cada clase hija lo implementa)
-  UserType get userType;
+  static User? fromMap(Map<String, dynamic> m) {
+    final typeStr = (m['type'] ?? 'student').toString().toLowerCase();
+    final common = {
+      'fullName': m['fullName'] ?? '',
+      'studentId': m['studentId'] ?? '',
+      'email': m['email'] ?? '',
+      'phone': m['phone'] ?? '',
+      'emergencyName1': m['emergencyName1'] ?? '',
+      'emergencyPhone1': m['emergencyPhone1'] ?? '',
+      'emergencyName2': m['emergencyName2'],
+      'emergencyPhone2': m['emergencyPhone2'],
+      'bloodType': m['bloodType'] ?? '',
+      'doctorName': m['doctorName'],
+      'doctorPhone': m['doctorPhone'],
+      'insuranceProvider': m['insuranceProvider'] ?? '',
+      'foodAllergies': m['foodAllergies'],
+      'environmentalAllergies': m['environmentalAllergies'],
+      'drugAllergies': m['drugAllergies'],
+      'severityNotes': m['severityNotes'],
+      'dailyMedications': m['dailyMedications'],
+      'emergencyMedications': m['emergencyMedications'],
+      'vitaminsSupplements': m['vitaminsSupplements'],
+      'specialInstructions': m['specialInstructions'],
+    };
 
-  // Métodos de conveniencia para verificar tipo
-  bool get isStudent => userType == UserType.student;
-  bool get isBrigadist => userType == UserType.brigadist;
-  bool get isAnalyst => userType == UserType.analyst;
-
-  // Setters base
-  set fullName(String value) => _fullName = value;
-  set studentId(String value) => _studentId = value;
-  set email(String value) => _email = value;
-  set phone(String value) => _phone = value;
-  set emergencyName1(String value) => _emergencyName1 = value;
-  set emergencyPhone1(String value) => _emergencyPhone1 = value;
-  set emergencyName2(String? value) => _emergencyName2 = value;
-  set emergencyPhone2(String? value) => _emergencyPhone2 = value;
-  set bloodType(String value) => _bloodType = value;
-  set doctorName(String? value) => _doctorName = value;
-  set doctorPhone(String? value) => _doctorPhone = value;
-  set insuranceProvider(String value) => _insuranceProvider = value;
-  set foodAllergies(String? value) => _foodAllergies = value;
-  set environmentalAllergies(String? value) => _environmentalAllergies = value;
-  set drugAllergies(String? value) => _drugAllergies = value;
-  set severityNotes(String? value) => _severityNotes = value;
-  set dailyMedications(String? value) => _dailyMedications = value;
-  set emergencyMedications(String? value) => _emergencyMedications = value;
-  set vitaminsSupplements(String? value) => _vitaminsSupplements = value;
-  set specialInstructions(String? value) => _specialInstructions = value;
+    if (typeStr == 'brigadist') {
+      return Brigadist(
+        fullName: common['fullName'],
+        studentId: common['studentId'],
+        email: common['email'],
+        phone: common['phone'],
+        emergencyName1: common['emergencyName1'],
+        emergencyPhone1: common['emergencyPhone1'],
+        emergencyName2: common['emergencyName2'],
+        emergencyPhone2: common['emergencyPhone2'],
+        bloodType: common['bloodType'],
+        doctorName: common['doctorName'],
+        doctorPhone: common['doctorPhone'],
+        insuranceProvider: common['insuranceProvider'],
+        foodAllergies: common['foodAllergies'],
+        environmentalAllergies: common['environmentalAllergies'],
+        drugAllergies: common['drugAllergies'],
+        severityNotes: common['severityNotes'],
+        dailyMedications: common['dailyMedications'],
+        emergencyMedications: common['emergencyMedications'],
+        vitaminsSupplements: common['vitaminsSupplements'],
+        specialInstructions: common['specialInstructions'],
+        // fields specific to brigadist:
+        latitude: (m['latitude'] is num) ? (m['latitude'] as num).toDouble() : null,
+        longitude: (m['longitude'] is num) ? (m['longitude'] as num).toDouble() : null,
+        status: (m['status'] ?? 'available').toString(),
+        estimatedArrivalMinutes: (m['estimatedArrivalMinutes'] is num) ? (m['estimatedArrivalMinutes'] as num).toDouble() : null,
+      );
+    } else if (typeStr == 'analyst') {
+      return Analyst(
+        fullName: common['fullName'],
+        studentId: common['studentId'],
+        email: common['email'],
+        phone: common['phone'],
+        emergencyName1: common['emergencyName1'],
+        emergencyPhone1: common['emergencyPhone1'],
+        emergencyName2: common['emergencyName2'],
+        emergencyPhone2: common['emergencyPhone2'],
+        bloodType: common['bloodType'],
+        doctorName: common['doctorName'],
+        doctorPhone: common['doctorPhone'],
+        insuranceProvider: common['insuranceProvider'],
+        foodAllergies: common['foodAllergies'],
+        environmentalAllergies: common['environmentalAllergies'],
+        drugAllergies: common['drugAllergies'],
+        severityNotes: common['severityNotes'],
+        dailyMedications: common['dailyMedications'],
+        emergencyMedications: common['emergencyMedications'],
+        vitaminsSupplements: common['vitaminsSupplements'],
+        specialInstructions: common['specialInstructions'],
+      );
+    } else {
+      // default: student
+      return Student(
+        fullName: common['fullName'],
+        studentId: common['studentId'],
+        email: common['email'],
+        phone: common['phone'],
+        emergencyName1: common['emergencyName1'],
+        emergencyPhone1: common['emergencyPhone1'],
+        emergencyName2: common['emergencyName2'],
+        emergencyPhone2: common['emergencyPhone2'],
+        bloodType: common['bloodType'],
+        doctorName: common['doctorName'],
+        doctorPhone: common['doctorPhone'],
+        insuranceProvider: common['insuranceProvider'],
+        foodAllergies: common['foodAllergies'],
+        environmentalAllergies: common['environmentalAllergies'],
+        drugAllergies: common['drugAllergies'],
+        severityNotes: common['severityNotes'],
+        dailyMedications: common['dailyMedications'],
+        emergencyMedications: common['emergencyMedications'],
+        vitaminsSupplements: common['vitaminsSupplements'],
+        specialInstructions: common['specialInstructions'],
+      );
+    }
+  }
 }
 
-// ========= CLASE STUDENT - Solo atributos básicos =========
+// ========= CLASE STUDENT =========
 class Student extends User {
   Student({
     required String fullName,
@@ -157,42 +203,37 @@ class Student extends User {
     String? vitaminsSupplements,
     String? specialInstructions,
   }) : super(
-         fullName: fullName,
-         studentId: studentId,
-         email: email,
-         phone: phone,
-         emergencyName1: emergencyName1,
-         emergencyPhone1: emergencyPhone1,
-         emergencyName2: emergencyName2,
-         emergencyPhone2: emergencyPhone2,
-         bloodType: bloodType,
-         doctorName: doctorName,
-         doctorPhone: doctorPhone,
-         insuranceProvider: insuranceProvider,
-         foodAllergies: foodAllergies,
-         environmentalAllergies: environmentalAllergies,
-         drugAllergies: drugAllergies,
-         severityNotes: severityNotes,
-         dailyMedications: dailyMedications,
-         emergencyMedications: emergencyMedications,
-         vitaminsSupplements: vitaminsSupplements,
-         specialInstructions: specialInstructions,
-       );
-
-  @override
-  UserType get userType => UserType.student;
+          fullName: fullName,
+          studentId: studentId,
+          email: email,
+          phone: phone,
+          emergencyName1: emergencyName1,
+          emergencyPhone1: emergencyPhone1,
+          emergencyName2: emergencyName2,
+          emergencyPhone2: emergencyPhone2,
+          bloodType: bloodType,
+          doctorName: doctorName,
+          doctorPhone: doctorPhone,
+          insuranceProvider: insuranceProvider,
+          foodAllergies: foodAllergies,
+          environmentalAllergies: environmentalAllergies,
+          drugAllergies: drugAllergies,
+          severityNotes: severityNotes,
+          dailyMedications: dailyMedications,
+          emergencyMedications: emergencyMedications,
+          vitaminsSupplements: vitaminsSupplements,
+          specialInstructions: specialInstructions,
+        );
 }
 
-// ========= CLASE BRIGADIST - Hereda de User + atributos específicos =========
+// ========= CLASE BRIGADIST =========
 class Brigadist extends User {
-  // ATRIBUTOS EXCLUSIVOS de brigadista
-  double _latitude;
-  double _longitude;
-  String _status; // "available", "busy", "en_route"
-  double? _estimatedArrivalMinutes;
+  double? latitude;
+  double? longitude;
+  String status;
+  double? estimatedArrivalMinutes;
 
   Brigadist({
-    // Atributos base heredados
     required String fullName,
     required String studentId,
     required String email,
@@ -213,55 +254,35 @@ class Brigadist extends User {
     String? emergencyMedications,
     String? vitaminsSupplements,
     String? specialInstructions,
-    // ATRIBUTOS EXCLUSIVOS de brigadista
-    required double latitude,
-    required double longitude,
-    required String status,
-    double? estimatedArrivalMinutes,
-  }) : _latitude = latitude,
-       _longitude = longitude,
-       _status = status,
-       _estimatedArrivalMinutes = estimatedArrivalMinutes,
-       super(
-         fullName: fullName,
-         studentId: studentId,
-         email: email,
-         phone: phone,
-         emergencyName1: emergencyName1,
-         emergencyPhone1: emergencyPhone1,
-         emergencyName2: emergencyName2,
-         emergencyPhone2: emergencyPhone2,
-         bloodType: bloodType,
-         doctorName: doctorName,
-         doctorPhone: doctorPhone,
-         insuranceProvider: insuranceProvider,
-         foodAllergies: foodAllergies,
-         environmentalAllergies: environmentalAllergies,
-         drugAllergies: drugAllergies,
-         severityNotes: severityNotes,
-         dailyMedications: dailyMedications,
-         emergencyMedications: emergencyMedications,
-         vitaminsSupplements: vitaminsSupplements,
-         specialInstructions: specialInstructions,
-       );
-
-  @override
-  UserType get userType => UserType.brigadist;
-
-  // Getters específicos de brigadista
-  double get latitude => _latitude;
-  double get longitude => _longitude;
-  String get status => _status;
-  double? get estimatedArrivalMinutes => _estimatedArrivalMinutes;
-
-  // Setters específicos de brigadista
-  set latitude(double value) => _latitude = value;
-  set longitude(double value) => _longitude = value;
-  set status(String value) => _status = value;
-  set estimatedArrivalMinutes(double? value) => _estimatedArrivalMinutes = value;
+    this.latitude,
+    this.longitude,
+    this.status = 'available',
+    this.estimatedArrivalMinutes,
+  }) : super(
+          fullName: fullName,
+          studentId: studentId,
+          email: email,
+          phone: phone,
+          emergencyName1: emergencyName1,
+          emergencyPhone1: emergencyPhone1,
+          emergencyName2: emergencyName2,
+          emergencyPhone2: emergencyPhone2,
+          bloodType: bloodType,
+          doctorName: doctorName,
+          doctorPhone: doctorPhone,
+          insuranceProvider: insuranceProvider,
+          foodAllergies: foodAllergies,
+          environmentalAllergies: environmentalAllergies,
+          drugAllergies: drugAllergies,
+          severityNotes: severityNotes,
+          dailyMedications: dailyMedications,
+          emergencyMedications: emergencyMedications,
+          vitaminsSupplements: vitaminsSupplements,
+          specialInstructions: specialInstructions,
+        );
 }
 
-// ========= CLASE ANALYST - Solo atributos básicos =========
+// ========= CLASE ANALYST =========
 class Analyst extends User {
   Analyst({
     required String fullName,
@@ -285,31 +306,29 @@ class Analyst extends User {
     String? vitaminsSupplements,
     String? specialInstructions,
   }) : super(
-         fullName: fullName,
-         studentId: studentId,
-         email: email,
-         phone: phone,
-         emergencyName1: emergencyName1,
-         emergencyPhone1: emergencyPhone1,
-         emergencyName2: emergencyName2,
-         emergencyPhone2: emergencyPhone2,
-         bloodType: bloodType,
-         doctorName: doctorName,
-         doctorPhone: doctorPhone,
-         insuranceProvider: insuranceProvider,
-         foodAllergies: foodAllergies,
-         environmentalAllergies: environmentalAllergies,
-         drugAllergies: drugAllergies,
-         severityNotes: severityNotes,
-         dailyMedications: dailyMedications,
-         emergencyMedications: emergencyMedications,
-         vitaminsSupplements: vitaminsSupplements,
-         specialInstructions: specialInstructions,
-       );
-
-  @override
-  UserType get userType => UserType.analyst;
+          fullName: fullName,
+          studentId: studentId,
+          email: email,
+          phone: phone,
+          emergencyName1: emergencyName1,
+          emergencyPhone1: emergencyPhone1,
+          emergencyName2: emergencyName2,
+          emergencyPhone2: emergencyPhone2,
+          bloodType: bloodType,
+          doctorName: doctorName,
+          doctorPhone: doctorPhone,
+          insuranceProvider: insuranceProvider,
+          foodAllergies: foodAllergies,
+          environmentalAllergies: environmentalAllergies,
+          drugAllergies: drugAllergies,
+          severityNotes: severityNotes,
+          dailyMedications: dailyMedications,
+          emergencyMedications: emergencyMedications,
+          vitaminsSupplements: vitaminsSupplements,
+          specialInstructions: specialInstructions,
+        );
 }
+
 
 // ========= DATOS SIMULADOS =========
 class BrigadistData {
@@ -361,38 +380,3 @@ class BrigadistData {
   }
 }
 
-class UserData {
-  // Simular obtener datos de BD
-  static Future<Student> fetchUserFromDatabase(String userId) async {
-    await Future.delayed(const Duration(milliseconds: 100));
-    
-    return Student(
-      fullName: 'John Smith',
-      studentId: 'SB2024001',
-      email: 'john.smith@uniandes.edu.co',
-      phone: '+57 300 123 4567',
-      emergencyName1: 'Maria Smith',
-      emergencyPhone1: '+57 300 987 6543',
-      emergencyName2: 'Carlos Smith',
-      emergencyPhone2: '+57 300 567 8901',
-      bloodType: 'O+',
-      doctorName: 'Dr. Ana Perez',
-      doctorPhone: '+57 300 111 2222',
-      insuranceProvider: 'Seguros ABC',
-      foodAllergies: 'Peanuts, Shellfish',
-      environmentalAllergies: 'Dust',
-      drugAllergies: 'Ibuprofen',
-      severityNotes: 'Mild',
-      dailyMedications: 'None',
-      emergencyMedications: 'Epinephrine Auto-Injector',
-      vitaminsSupplements: 'Vitamin C, Omega-3',
-      specialInstructions: 'Avoid strenuous exercise',
-    );
-  }
-  
-  // Simular guardar datos en BD
-  static Future<bool> saveUserToDatabase(User user) async {
-    await Future.delayed(const Duration(milliseconds: 200));
-    return true;
-  }
-}

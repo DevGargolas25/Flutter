@@ -1,18 +1,17 @@
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../Models/videoMod.dart';
-import '../Models/emergencyMod.dart';
+import '../Models/userMod.dart';
+import 'package:flutter/foundation.dart';
 
 class Adapter {
   late FirebaseDatabase _database;
 
   // Constructor para configurar la URL de la base de datos
   Adapter() {
-    // REEMPLAZA esta URL con la URL real de tu proyecto
     _database = FirebaseDatabase.instanceFor(
       app: Firebase.app(),
-      databaseURL: 'https://brigadist-29309-default-rtdb.firebaseio.com/' // ← TU URL AQUÍ
-    );
+      databaseURL: 'https://brigadist-29309-default-rtdb.firebaseio.com/');
   }
 
   // === Emergency Operation ==
@@ -52,7 +51,48 @@ class Adapter {
     }
   }
 
-    // === BRIGADIER OPERATIONS ===
+  // Función para poder buscar usuario que inicio sesión
+  Future<User?> getUserByEmail(String email) async {
+    try {
+      final emailNorm = email.trim().toLowerCase(); // normaliza
+      final ref = _database.ref('User');
+      final snap = await ref.orderByChild('email').equalTo(emailNorm).get();
+
+      if (!snap.exists) return null;
+
+      // snap.value es un Map<id, objeto>
+      if (snap.value is Map) {
+        final usersMap = Map<String, dynamic>.from(snap.value as Map);
+
+        // Tomar el primer resultado
+        final entry = usersMap.entries.first;
+        final userId = entry.key;
+        final data = entry.value;
+
+
+        if (data is Map) {
+          final map = Map<String, dynamic>.from(data);
+          map['id'] = userId; // añade el id al mapa
+          return User.fromMap(map);
+        }
+      }
+
+      return null;
+    } catch (e, st) {
+      debugPrint('🔥 getUserByEmail error: $e\n$st');
+      return null;
+    }
+  }
+
+
+  // Para actualizar datos del usuario en profile_page
+  Future<void> updateUser(String userId, Map<String, dynamic> userData) async {
+    await _database.ref('users/$userId').update(userData);
+  }
+
+
+
+  // === BRIGADIER OPERATIONS ===
   Future<List<Map<String, dynamic>>> getAllBrigadiers() async {
     try {
       print('🚑 Cargando brigadistas (método alternativo)...'); // Debug
@@ -97,18 +137,6 @@ class Adapter {
     } catch (e) {
       print('Error creating user: $e');
       throw Exception('Error al crear usuario: $e');
-    }
-  }
-  
-  Future<void> updateUser(String userId, Map<String, dynamic> userData) async {
-    try {
-      await _database.ref('User/$userId').update({
-        ...userData,
-        'updatedAt': ServerValue.timestamp,
-      });
-    } catch (e) {
-      print('Error updating user: $e');
-      throw Exception('Error al actualizar usuario: $e');
     }
   }
   

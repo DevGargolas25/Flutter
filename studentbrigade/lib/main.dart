@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app_theme.dart'; // buildLightTheme()
 import 'dark_theme.dart'; // buildDarkTheme()
 import 'View/nav_shell.dart';
 import 'View/Auth0/auth_gate.dart';
 import 'VM/Orchestrator.dart'; // importa el orquestador
+import 'VM/AnalyticsVM.dart'; // importa el VM de Analytics
 // FireBase
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
@@ -13,9 +15,21 @@ import 'View/pruebaDB.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   // Inicializa Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  final analytics = FirebaseAnalytics.instance;
+  await analytics.setAnalyticsCollectionEnabled(true);
+  await analytics.logAppOpen();
+
+  await analytics.logEvent(
+    name: 'app_started',
+    parameters: {
+      'timestamp': DateTime.now().toIso8601String(),
+      'platform': 'web',
+    },
+  );
+  print('📊 Analytics: Test event sent on app start');
 
   runApp(const MyApp());
 }
@@ -43,6 +57,7 @@ class _MyAppState extends State<MyApp> {
       valueListenable: Orchestrator().themeMode, // escucha cambios del sensor
       builder: (_, mode, __) {
         return MaterialApp(
+          navigatorObservers: [AnalyticsNavObserver()],
           debugShowCheckedModeBanner: false,
           theme: light.copyWith(
             textTheme: GoogleFonts.robotoTextTheme(light.textTheme),
