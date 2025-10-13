@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:studentbrigade/Models/videoMod.dart';
+import 'package:studentbrigade/VM/Adapter.dart';
 
 class VideosVM extends ChangeNotifier {
   final VideosInfo _repo;
-  
+  final Adapter adapter;
+
   // Estado base
   List<VideoMod> _all = [];
   List<VideoMod> _visible = [];
@@ -14,7 +16,7 @@ class VideosVM extends ChangeNotifier {
   // Reproducción
   VideoMod? _currentPlaying;
 
-  VideosVM(this._repo);
+  VideosVM(this._repo, this.adapter);
 
   // Getters
   List<VideoMod> get videos => _visible;
@@ -35,9 +37,10 @@ class VideosVM extends ChangeNotifier {
   Future<void> init() async {
     _isLoading = true;
     notifyListeners();
-    
+
     try {
-      _all = await _repo.fetchAll(); // ← Esto ahora viene de Firebase vía Adapter
+      _all = await _repo
+          .fetchAll(); // ← Esto ahora viene de Firebase vía Adapter
       _applyFilters();
     } catch (e) {
       print('❌ Error inicializando videos: $e');
@@ -87,6 +90,12 @@ class VideosVM extends ChangeNotifier {
   // "Play": solo fija el actual; la vista decide navegar al reproductor
   void play(VideoMod v) {
     _currentPlaying = v;
+    notifyListeners();
+  }
+
+  void updateVideo(VideoMod updatedVideo) {
+    _all = _all.map((v) => v.id == updatedVideo.id ? updatedVideo : v).toList();
+    _applyFilters();
     notifyListeners();
   }
 }

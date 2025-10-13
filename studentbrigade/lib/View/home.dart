@@ -5,6 +5,7 @@ import 'profile_page.dart';
 import 'widgets/video_card.dart';
 import 'widgets/rotating_image_box.dart';
 import 'analytics.dart';
+import 'emergency_analytics.dart';
 import 'Auth0/auth_service.dart';
 import 'Auth0/auth_gate.dart';
 import 'nav_shell.dart';
@@ -129,15 +130,35 @@ class _HomePageState extends State<HomePage> {
                     tooltip: 'All notifications',
                     onPressed: () =>
                         showAllNotificationsDialog(context, notifications),
-                    icon: Icon(Icons.notifications_none_rounded,
-                        size: 20, color: cs.onPrimary),
+                    icon: Icon(
+                      Icons.notifications_none_rounded,
+                      size: 20,
+                      color: cs.onPrimary,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Emergency Stats',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => EmergencyAnalyticsPage(
+                            orchestrator: widget.orchestrator,
+                          ),
+                        ),
+                      );
+                    },
+                    icon: Icon(Icons.bar_chart, size: 20, color: cs.onPrimary),
                   ),
                   IconButton(
                     tooltip: 'Profile',
                     onPressed: () =>
                         showProfileMenuDialog(context, widget.onOpenProfile),
-                    icon: Icon(Icons.account_circle,
-                        size: 20, color: cs.onPrimary),
+                    icon: Icon(
+                      Icons.account_circle,
+                      size: 20,
+                      color: cs.onPrimary,
+                    ),
                   ),
                   if (roles.contains('analytics'))
                     IconButton(
@@ -150,8 +171,11 @@ class _HomePageState extends State<HomePage> {
                           ),
                         );
                       },
-                      icon: Icon(Icons.analytics_outlined,
-                          size: 20, color: cs.onPrimary),
+                      icon: Icon(
+                        Icons.analytics_outlined,
+                        size: 20,
+                        color: cs.onPrimary,
+                      ),
                     ),
                 ],
               ),
@@ -257,21 +281,24 @@ class _HomePageState extends State<HomePage> {
                                   child: FilledButton(
                                     onPressed: () async {
                                       final url = Uri.parse(
-                                          'https://www.instagram.com/beuniandes/');
+                                        'https://www.instagram.com/beuniandes/',
+                                      );
                                       if (await canLaunchUrl(url)) {
-                                        await launchUrl(url,
-                                            mode: LaunchMode
-                                                .externalApplication);
+                                        await launchUrl(
+                                          url,
+                                          mode: LaunchMode.externalApplication,
+                                        );
                                       } else {
                                         if (!context.mounted) return;
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
                                           SnackBar(
                                             content: const Text(
-                                                'Could not open Instagram link'),
+                                              'Could not open Instagram link',
+                                            ),
                                             backgroundColor: cs.error,
-                                            behavior:
-                                            SnackBarBehavior.floating,
+                                            behavior: SnackBarBehavior.floating,
                                           ),
                                         );
                                       }
@@ -333,9 +360,7 @@ class _HomePageState extends State<HomePage> {
                         const SizedBox(height: 6),
                         Text(
                           'Watch training videos and safety guides at your own pace.',
-                          style: tt.bodySmall?.copyWith(
-                            color: cs.onSurface,
-                          ),
+                          style: tt.bodySmall?.copyWith(color: cs.onSurface),
                         ),
                         const SizedBox(height: 12),
 
@@ -348,23 +373,30 @@ class _HomePageState extends State<HomePage> {
                                     // Crear lista ordenada por likes (mayor primero)
                                     final sortedItems = [...items];
                                     sortedItems.sort((a, b) {
-                                      final aViews = (a.views ?? 0);
-                                      final bViews = (b.views ?? 0);
+                                      final aViews = a.views;
+                                      final bViews = b.views;
                                       return bViews.compareTo(aViews);
                                     });
-                                    
+
                                     return ListView.separated(
                                       scrollDirection: Axis.horizontal,
-                                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 4,
+                                      ),
                                       itemCount: sortedItems.length,
-                                      separatorBuilder: (_, __) => const SizedBox(width: 16),
+                                      separatorBuilder: (_, __) =>
+                                          const SizedBox(width: 16),
                                       itemBuilder: (context, i) {
                                         final v = sortedItems[i];
-                                        final isFeatured = i == (featuredIndex % sortedItems.length);
+                                        final isFeatured =
+                                            i ==
+                                            (featuredIndex %
+                                                sortedItems.length);
                                         return VideoCard(
                                           video: v,
                                           isFeatured: isFeatured,
-                                          onTap: () => widget.orchestrator.openVideoDetails(context, v),
+                                          onTap: () => widget.orchestrator
+                                              .openVideoDetails(context, v),
                                         );
                                       },
                                     );
@@ -396,9 +428,9 @@ class _HomePageState extends State<HomePage> {
 /* =================== Modales reutilizables =================== */
 
 Future<void> showProfileMenuDialog(
-    BuildContext context,
-    VoidCallback? onOpenProfile,
-    ) {
+  BuildContext context,
+  VoidCallback? onOpenProfile,
+) {
   final theme = Theme.of(context);
   final cs = theme.colorScheme;
   final tt = theme.textTheme;
@@ -419,23 +451,27 @@ Future<void> showProfileMenuDialog(
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
               decoration: BoxDecoration(
                 color: cs.primary,
-                borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(16)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(16),
+                ),
               ),
               child: Column(
                 children: [
                   CircleAvatar(
                     radius: 28,
                     backgroundColor: cs.onPrimary.withOpacity(.2),
-                    child:
-                    Icon(Icons.person, color: cs.onPrimary, size: 28),
+                    child: Icon(Icons.person, color: cs.onPrimary, size: 28),
                   ),
                   const SizedBox(height: 8),
-                  Text('Profile & Settings',
-                      style: tt.titleMedium?.copyWith(color: cs.onPrimary)),
+                  Text(
+                    'Profile & Settings',
+                    style: tt.titleMedium?.copyWith(color: cs.onPrimary),
+                  ),
                   const SizedBox(height: 4),
-                  Text('Manage your account and preferences',
-                      style: tt.bodySmall?.copyWith(color: cs.onPrimary)),
+                  Text(
+                    'Manage your account and preferences',
+                    style: tt.bodySmall?.copyWith(color: cs.onPrimary),
+                  ),
                 ],
               ),
             ),
@@ -451,8 +487,10 @@ Future<void> showProfileMenuDialog(
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
                   width: double.infinity,
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
                   decoration: BoxDecoration(
                     color: theme.cardColor,
                     borderRadius: BorderRadius.circular(12),
@@ -463,8 +501,10 @@ Future<void> showProfileMenuDialog(
                       CircleAvatar(
                         radius: 16,
                         backgroundColor: cs.primaryContainer,
-                        child: Icon(Icons.person_outline,
-                            color: cs.onPrimaryContainer),
+                        child: Icon(
+                          Icons.person_outline,
+                          color: cs.onPrimaryContainer,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -493,16 +533,19 @@ Future<void> showProfileMenuDialog(
                   if (!context.mounted) return;
                   Navigator.of(context).pushAndRemoveUntil(
                     MaterialPageRoute(
-                      builder: (_) => const AuthGate(childWhenAuthed: NavShell()),
+                      builder: (_) =>
+                          const AuthGate(childWhenAuthed: NavShell()),
                     ),
-                        (_) => false,
+                    (_) => false,
                   );
                 },
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
                   width: double.infinity,
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
                   decoration: BoxDecoration(
                     color: theme.cardColor,
                     borderRadius: BorderRadius.circular(12),
@@ -540,9 +583,9 @@ Future<void> showProfileMenuDialog(
 }
 
 Future<void> showAllNotificationsDialog(
-    BuildContext context,
-    List<String> notifications,
-    ) {
+  BuildContext context,
+  List<String> notifications,
+) {
   final theme = Theme.of(context);
   final cs = theme.colorScheme;
   final tt = theme.textTheme;
@@ -553,9 +596,7 @@ Future<void> showAllNotificationsDialog(
     builder: (ctx) {
       return Dialog(
         insetPadding: const EdgeInsets.symmetric(horizontal: 16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: SizedBox(
           width: 420,
           child: Column(
@@ -567,17 +608,18 @@ Future<void> showAllNotificationsDialog(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: theme.cardColor,
-                  border: Border(
-                    bottom: BorderSide(color: theme.dividerColor),
-                  ),
+                  border: Border(bottom: BorderSide(color: theme.dividerColor)),
                 ),
                 child: Row(
                   children: [
                     CircleAvatar(
                       radius: 16,
                       backgroundColor: cs.primary,
-                      child:
-                      Icon(Icons.notifications_none_rounded, color: cs.onPrimary, size: 18),
+                      child: Icon(
+                        Icons.notifications_none_rounded,
+                        color: cs.onPrimary,
+                        size: 18,
+                      ),
                     ),
                     const SizedBox(width: 10),
                     Text(
@@ -597,46 +639,49 @@ Future<void> showAllNotificationsDialog(
                     children: notifications
                         .map(
                           (n) => Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: theme.cardColor,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: theme.dividerColor),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(
-                                theme.brightness == Brightness.light
-                                    ? .03
-                                    : .2,
-                              ),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            CircleAvatar(
-                              radius: 14,
-                              backgroundColor: cs.primary,
-                              child: Icon(Icons.notifications,
-                                  size: 14, color: cs.onPrimary),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                n,
-                                style: tt.bodyMedium?.copyWith(
-                                  color: cs.onSurface,
+                            margin: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: theme.cardColor,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: theme.dividerColor),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(
+                                    theme.brightness == Brightness.light
+                                        ? .03
+                                        : .2,
+                                  ),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
                                 ),
-                              ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                    )
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                CircleAvatar(
+                                  radius: 14,
+                                  backgroundColor: cs.primary,
+                                  child: Icon(
+                                    Icons.notifications,
+                                    size: 14,
+                                    color: cs.onPrimary,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    n,
+                                    style: tt.bodyMedium?.copyWith(
+                                      color: cs.onSurface,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
                         .toList(),
                   ),
                 ),
