@@ -6,19 +6,38 @@ import 'package:http/http.dart' as http;
 class ChatVM extends ChangeNotifier {
   final List<ChatMessage> _chat = [];
   bool _isTyping = false;
-  String _baseUrl;
+  String _systemPrompt;
 
-  ChatVM({required String baseUrl}) : _baseUrl = baseUrl.trim() {
+  // Llave para chatbot
+  static const String _openAIKey = String.fromEnvironment('OPENAI_API_KEY', defaultValue: '');
+
+  ChatVM({String? systemPrompt})
+      : _systemPrompt = (systemPrompt ?? 'Eres un asistente útil para una brigada estudiantil de emergencias.').trim() {
     _chat.add(ChatMessage(
       id: 'system_init',
       sender: Sender.system,
-      text: 'Eres un asistente útil para una brigada estudiantil de emergencias.',
+      text: _systemPrompt,
       time: DateTime.now(),
     ));
   }
 
   List<ChatMessage> get messages => List.unmodifiable(_chat);
   bool get isTyping => _isTyping;
+  String get systemPrompt => _systemPrompt;
+
+  /// Reinicia la conversación con un prompt de sistema personalizado
+  void resetWithSystemPrompt(String prompt) {
+    _systemPrompt = prompt.trim();
+    _chat
+      ..clear()
+      ..add(ChatMessage(
+        id: 'system_init',
+        sender: Sender.system,
+        text: _systemPrompt,
+        time: DateTime.now(),
+      ));
+    notifyListeners();
+  }
 
   Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty) return;
@@ -36,90 +55,73 @@ class ChatVM extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _sendToHuggingFace();
+      // 1) Intentar con ChatGPT directo
+      await _sendToChatGPT();
     } catch (e) {
-      debugPrint('ChatVM Error: $e');
-      _addErrorMessage('Sorry, I encountered an error. Please try again.');
+      debugPrint('ChatVM Error (ChatGPT): $e');
+      // 2) Fallback respuestas básicas si falla
+      final reply = _getSmartFallbackResponse(text);
+      _chat.add(ChatMessage(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        sender: Sender.assistant,
+        text: reply,
+        time: DateTime.now(),
+      ));
     } finally {
       _isTyping = false;
       notifyListeners();
     }
   }
 
-    Future<void> _sendToHuggingFace() async {
-    try {
-      // Usar un modelo más confiable y gratuito
-      const apiUrl = 'https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium';
-      
-      final response = await http.post(
-        Uri.parse(apiUrl),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'inputs': _chat.last.text,
-          'parameters': {
-            'max_new_tokens': 50,
-            'temperature': 0.8,
-            'return_full_text': false,  // Solo devolver texto nuevo
-          }
-        }),
-      );
+  Future<void> _sendToChatGPT() async {
+    if (_openAIKey.isEmpty) {
+      // Sin clave → lanzar para que active fallback
+      throw Exception('OPENAI_API_KEY no configurada (usa --dart-define).');
+    }
 
-      print('🌐 HuggingFace Response Status: ${response.statusCode}');
-      print('📝 HuggingFace Response Body: ${response.body}');
+    final response = await http.post(
+      Uri.parse('https://api.openai.com/v1/chat/completions'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $_openAIKey',
+      },
+      body: jsonEncode({
+        'model': 'gpt-3.5-turbo', // puedes usar 'gpt-4o-mini' si tienes acceso
+        'messages': _chat.map((m) => m.toOpenAIMessage()).toList(),
+        'max_tokens': 500,
+        'temperature': 0.7,
+        'presence_penalty': 0.1,
+        'frequency_penalty': 0.1,
+      }),
+    );
 
-      if (response.statusCode == 200) {
-        final dynamic data = jsonDecode(response.body);
-        String botReply = '';
-        
-        // Manejar diferentes formatos de respuesta
-        if (data is List && data.isNotEmpty) {
-          if (data[0]['generated_text'] != null) {
-            String fullText = data[0]['generated_text'];
-            // Extraer solo la parte nueva (después del input)
-            botReply = fullText.replaceFirst(_chat.last.text, '').trim();
-          }
-        } else if (data is Map && data['generated_text'] != null) {
-          botReply = data['generated_text'];
-        }
-        
-        // Si no hay respuesta válida o está vacía, usar fallback
-        if (botReply.isEmpty || botReply == _chat.last.text) {
-          botReply = _getSmartFallbackResponse(_chat.last.text);
-        }
-        
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final replyText = data['choices']?[0]?['message']?['content']?.toString().trim();
+      if (replyText == null || replyText.isEmpty) {
+        // Si vino vacío, usamos fallback
+        final fallback = _getSmartFallbackResponse(_chat.last.text);
         _chat.add(ChatMessage(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           sender: Sender.assistant,
-          text: botReply,
+          text: fallback,
           time: DateTime.now(),
         ));
-      } else if (response.statusCode == 503) {
-        // Modelo loading - usar fallback
-        print('⏳ Model is loading, using fallback response');
-        final fallbackReply = _getSmartFallbackResponse(_chat.last.text);
-        _chat.add(ChatMessage(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          sender: Sender.assistant,
-          text: fallbackReply,
-          time: DateTime.now(),
-        ));
-      } else {
-        throw Exception('Hugging Face API error: ${response.statusCode}');
+        return;
       }
-    } catch (e) {
-      print('❌ HuggingFace Error: $e');
-      // En caso de error, usar respuesta fallback
-      final fallbackReply = _getSmartFallbackResponse(_chat.last.text);
+
       _chat.add(ChatMessage(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         sender: Sender.assistant,
-        text: fallbackReply,
+        text: replyText,
         time: DateTime.now(),
       ));
+    } else {
+      final body = response.body.isNotEmpty ? response.body : '';
+      throw Exception('OpenAI API error ${response.statusCode}: $body');
     }
   }
+
 
   // Método fallback con respuestas inteligentes para emergencias
   String _getSmartFallbackResponse(String userText) {
@@ -140,23 +142,9 @@ class ChatVM extends ChangeNotifier {
     }
   }
 
-  void _addErrorMessage(String error) {
-    _chat.add(ChatMessage(
-      id: 'error_${DateTime.now().millisecondsSinceEpoch}',
-      sender: Sender.assistant,
-      text: '❌ $error',
-      time: DateTime.now(),
-    ));
-  }
+  // _addErrorMessage helper removed (unused)
 
   void clearChat() {
-    _chat.clear();
-    _chat.add(ChatMessage(
-      id: 'system_init',
-      sender: Sender.system,
-      text: 'Eres un asistente útil para una brigada estudiantil de emergencias.',
-      time: DateTime.now(),
-    ));
-    notifyListeners();
+    resetWithSystemPrompt(_systemPrompt);
   }
 }

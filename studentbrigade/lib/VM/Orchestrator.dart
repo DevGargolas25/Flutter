@@ -1,5 +1,5 @@
 // lib/Orchestrator/orchestrator.dart
-import 'package:flutter/foundation.dart' show ChangeNotifier, kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart' show ChangeNotifier;
 import 'package:flutter/material.dart';
 
 
@@ -60,7 +60,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     _mapVM = MapVM();
     _videoVM = VideosVM(VideosInfo());
     _userVM = UserVM();
-    _chatVM = ChatVM(baseUrl: ''); // emulador Android
+  _chatVM = ChatVM();
     _chatVM.addListener(notifyListeners);
     _analyticsVM = AnalyticsVM();
 
@@ -100,9 +100,6 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
 
     _themeSensor.removeListener(_recomputeTheme);
     _themeSensor.dispose();
-
-    // Si tus VMs necesitan limpieza, hazlo aquí
-    // _mapVM.dispose(); etc.
   }
 
   // ---------- Theme / sensor ----------
@@ -225,6 +222,20 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   /// Limpia el historial del chat
   void clearChat() {
     _chatVM.clearChat();
+    notifyListeners();
+  }
+
+  /// Inicializa el chat con un prompt especializado para emergencias en tiempo real
+  void startEmergencyChat({String? customPrompt}) {
+    final defaultPrompt =
+        'Eres un asistente de emergencias en tiempo real para una brigada estudiantil. '
+        'Responde de forma breve, clara y priorizando la seguridad. '
+        'Proporciona pasos accionables inmediatos y confirma si la persona está a salvo. '
+        'Si detectas riesgo vital, sugiere llamar al 911 e informar la ubicación. '
+        'Adapta tus indicaciones al contexto (incendio, sismo, herida, desmayo, etc.).';
+    _chatVM.resetWithSystemPrompt(customPrompt?.trim().isNotEmpty == true
+        ? customPrompt!.trim()
+        : defaultPrompt);
     notifyListeners();
   }
 
