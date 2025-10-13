@@ -1,4 +1,3 @@
-
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../Models/videoMod.dart';
@@ -14,6 +13,25 @@ class Adapter {
       app: Firebase.app(),
       databaseURL: 'https://brigadist-29309-default-rtdb.firebaseio.com/');
   }
+
+  // === Emergency Operation ==
+  Future<String> createEmergencyFromModel(Emergency emergency) async {
+    try {
+      final ref = _database.ref('Emergency').push();
+      final data = emergency.toJson();
+      print('🆕 Creando Emergency en: ${ref.path}, payload: ' + data.toString());
+      await ref.set({
+        ...data,
+        'createdAt': ServerValue.timestamp,
+      });
+      print('✅ Emergency creada con key: ${ref.key}');
+      return ref.key!;
+    } catch (e) {
+      print('Error creating emergency from model: $e');
+      throw Exception('Error al crear emergencia: $e');
+    }
+  }
+
 
   
   // === USER OPERATIONS ===
@@ -301,17 +319,11 @@ class Adapter {
     }
   }
 
-  Future<void> createEmergency(Map<String, dynamic> emergencyData) async {
-    try {
-      final newEmergencyRef = _database.ref('Emergency').push();
-      await newEmergencyRef.set({
-        ...emergencyData,
-        'createdAt': ServerValue.timestamp,
-      });
-    } catch (e) {
-      print('Error creating emergency: $e');
-      throw Exception('Error al crear emergencia: $e');
-    }
+  // Crea emergency
+  Future<String> createEmergency(Map<String, dynamic> data) async {
+    final ref = _database.ref('emergencies').push();
+    await ref.set(data);
+    return ref.key ?? '';
   }
   
   // === GENERIC OPERATIONS ===
@@ -348,10 +360,12 @@ class Adapter {
   
   Future<void> updateDocument(String collectionName, String docId, Map<String, dynamic> data) async {
     try {
+      print('✏️ Update en $collectionName/$docId con: ' + data.toString());
       await _database.ref('$collectionName/$docId').update({
         ...data,
         'updatedAt': ServerValue.timestamp,
       });
+      print('✅ Update OK en $collectionName/$docId');
     } catch (e) {
       print('Error updating document: $e');
       throw Exception('Error al actualizar documento: $e');

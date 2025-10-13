@@ -205,13 +205,22 @@ class MapVM extends ChangeNotifier {
   }
 
   // ==================== MÉTODOS DEL MAPA DE EMERGENCIA ====================
-  
-  // Método principal para calcular ruta al brigadista (usado por Orchestrator)
-  Future<void> calculateRouteToBrigadist(double brigadistLat, double brigadistLng) async {
-    if (_currentUserLocation == null) {
+
+// Método principal para calcular ruta al brigadista (usado por Orchestrator)
+    Future<Duration?> calculateRouteToBrigadist(
+    double brigadistLat,
+    double brigadistLng, {
+    double? fromLat,
+    double? fromLng,
+  }) async {
+    // Si no se proporciona una "from" usamos la ubicación actual del usuario
+    if ((fromLat == null || fromLng == null) && _currentUserLocation == null) {
       throw Exception('User location not available');
     }
-    
+
+    final double startLat = fromLat ?? _currentUserLocation!.latitude;
+    final double startLng = fromLng ?? _currentUserLocation!.longitude;
+
     // Iniciar medición de tiempo
     _routeCalculationStartTime = DateTime.now();
     _isCalculatingEmergencyRoute = true;
@@ -222,18 +231,17 @@ class MapVM extends ChangeNotifier {
     notifyListeners();
 
     try {
-      print('� Calculando ruta de emergencia al brigadista');
-      print('   Desde: (${_currentUserLocation!.latitude}, ${_currentUserLocation!.longitude})');
+      print('🚨 Calculando ruta de emergencia al brigadista');
+      print('   Desde: ($startLat, $startLng)');
       print('   Hasta: ($brigadistLat, $brigadistLng)');
-      
-      // Calcular ruta usando API
+
+      // Calcular ruta usando API (método ya existente que acepta from/to)
       await _calculateEmergencyRouteWithAPI(
-        _currentUserLocation!.latitude,
-        _currentUserLocation!.longitude,
+        startLat,
+        startLng,
         brigadistLat,
         brigadistLng,
       );
-      
     } catch (e) {
       _emergencyRouteError = e.toString();
       print('❌ Error calculando ruta de emergencia: $e');
@@ -243,11 +251,15 @@ class MapVM extends ChangeNotifier {
         _routeCalculationTime = DateTime.now().difference(_routeCalculationStartTime!);
         print('⏱️ Ruta de emergencia calculada en: ${_routeCalculationTime!.inMilliseconds}ms');
       }
-      
+
       _isCalculatingEmergencyRoute = false;
       notifyListeners();
     }
+
+    // 🔹 Retornar el valor para que Orchestrator o EmergencyVM lo usen
+    return _routeCalculationTime;
   }
+
 
   Future<void> _calculateEmergencyRouteWithAPI(double fromLat, double fromLng, double toLat, double toLng) async {
     try {
