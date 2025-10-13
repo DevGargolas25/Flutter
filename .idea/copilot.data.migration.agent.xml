@@ -23,6 +23,9 @@
               <option value="bb0204d6-3109-4b68-b59c-049557f33a3d" />
               <option value="b024d1a3-f15e-4c21-92e4-9bbd640320e4" />
               <option value="4a602c56-5575-4af6-9f60-6209e1b01d01" />
+              <option value="553717e8-b3a8-49fb-a395-73e8d2630b40" />
+              <option value="e1c43728-6136-4b4c-85e5-d7183ad8f50f" />
+              <option value="3e6aff6d-e4f3-412e-b8f5-0d6ec7e1f40b" />
             </set>
           </value>
         </entry>
@@ -33,6 +36,8 @@
         <set>
           <option value="file://$PROJECT_DIR$/studentbrigade/lib/VM/Orchestrator.dart" />
           <option value="file://$PROJECT_DIR$/studentbrigade/lib/VM/EmergencyVM.dart" />
+          <option value="file://$PROJECT_DIR$/studentbrigade/lib/VM/theme_sensor_service.dart" />
+          <option value="file://$PROJECT_DIR$/studentbrigade/lib/VM/Orchestrator.dart" />
         </set>
       </entry>
     </pendingWorkingSetItems>
