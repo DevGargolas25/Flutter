@@ -55,24 +55,24 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   final ValueNotifier<ThemeMode> themeMode = ValueNotifier(ThemeMode.system);
   ThemeOverride _override = ThemeOverride.autoByLight;
 
+  // Última notificación del sensor de luz (para mostrar en UI)
+  String? _lastLightSensorNotification;
+  String? get lastLightSensorNotification => _lastLightSensorNotification;
+
   Orchestrator._internal() {
     // Instancias de VMs
     _mapVM = MapVM();
     _videoVM = VideosVM(VideosInfo());
     _userVM = UserVM();
-    _chatVM = ChatVM(baseUrl: 'http://127.0.0.1:8080'); // emulador Android
+
+    // Centraliza el baseUrl con _resolveBaseUrl
+    _chatVM = ChatVM(baseUrl: _resolveBaseUrl()); // FIX: usar resolver
     _chatVM.addListener(notifyListeners);
-    _analyticsVM = AnalyticsVM();
 
     // EmergencyVM con hooks hacia Analytics/DAO si los necesitas
     _emergencyVM = EmergencyVM(
-      onLocationSaved: (lat, lng, ts) {
-        // Envía a Analytics/DAO si aplica
-        // _analyticsVM.logEmergencyLocation(lat, lng, ts);
-      },
-      onCallDurationSaved: (secs) {
-        // _analyticsVM.logCallDuration(secs);
-      },
+      onLocationSaved: (lat, lng, ts) {},
+      onCallDurationSaved: (secs) {},
     );
 
     _loadInitialUser(); // TODO: reemplazar por el usuario autenticado
@@ -82,6 +82,15 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
 
     // Sensor de luz → recomputar tema
     _themeSensor.addListener(_recomputeTheme);
+    // Conectar callback de respuesta del sensor para notificaciones
+    _themeSensor.onResponseMeasured = (duration, newMode) {
+      final ms = duration.inMilliseconds;
+      final modeName = newMode == ThemeMode.dark ? 'modo oscuro' : 'modo claro';
+      _lastLightSensorNotification = 'Sensor de luz: respuesta ${ms}ms → $modeName';
+      debugPrint(_lastLightSensorNotification);
+      notifyListeners();
+    };
+
     _themeSensor.start();
     _recomputeTheme();
   }

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AgentMigrationStateService">
+    <option name="pendingSessionIds">
+      <option value="f19d2181-865a-45d7-89f0-d7789f09f086" />
+    </option>
+    <option name="pendingTurns">
+      <map>
+        <entry key="f19d2181-865a-45d7-89f0-d7789f09f086">
+          <value>
+            <set>
+              <option value="553717e8-b3a8-49fb-a395-73e8d2630b40" />
+              <option value="e1c43728-6136-4b4c-85e5-d7183ad8f50f" />
+              <option value="3e6aff6d-e4f3-412e-b8f5-0d6ec7e1f40b" />
+            </set>
+          </value>
+        </entry>
+      </map>
+    </option>
+    <pendingWorkingSetItems>
+      <entry key="f19d2181-865a-45d7-89f0-d7789f09f086">
+        <set>
+          <option value="file://$PROJECT_DIR$/studentbrigade/lib/VM/theme_sensor_service.dart" />
+          <option value="file://$PROJECT_DIR$/studentbrigade/lib/VM/Orchestrator.dart" />
+        </set>
+      </entry>
+    </pendingWorkingSetItems>
+  </component>
+</project>
