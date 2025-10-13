@@ -60,7 +60,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     _mapVM = MapVM();
     _videoVM = VideosVM(VideosInfo());
     _userVM = UserVM();
-    _chatVM = ChatVM(baseUrl: 'http://127.0.0.1:8080'); // emulador Android
+    _chatVM = ChatVM(baseUrl: ''); // emulador Android
     _chatVM.addListener(notifyListeners);
     _analyticsVM = AnalyticsVM();
 
@@ -212,48 +212,20 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   //------CHAT---------
     List<ChatMessage> get chatMessages => _chatVM.messages;
   bool get chatIsTyping => _chatVM.isTyping;
-  Future<void> sendChatMessage(String text) => _chatVM.sendUserMessage(text);
-  void setChatBackendBaseUrl(String url) {
-    _chatVM.baseUrl = url; // usa el setter de ChatVM
-  }
 
-  void refreshChatBackendBaseUrl() {
-    _chatVM.baseUrl = _resolveBaseUrl();
-  }
-
-  String _resolveBaseUrl() {
-    // Si corres en Flutter Web:
-    // - Si tu app web se sirve por http:// (flutter run -d chrome), puedes usar http://127.0.0.1:8080
-    // - Si tu app web se sirve por https:// (hosting), DEBES usar backend https (ngrok, cloudflared).
-    if (kIsWeb) {
-      return const String.fromEnvironment(
-        'BACKEND_URL',
-        defaultValue: 'http://127.0.0.1:8080',
-      );
-    }
-
-    // Plataformas nativas:
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.android:
-        // Emulador Android
-        return 'http://10.0.2.2:8080';
-      case TargetPlatform.iOS:
-        // Simulator iOS
-        return 'http://localhost:8080';
-      default:
-        // Desktop (Windows/Mac/Linux)
-        return 'http://127.0.0.1:8080';
+  /// Envía un mensaje del usuario al chat y dispara la respuesta de IA
+  Future<void> sendChatMessage(String text) async {
+    try {
+      await _chatVM.sendMessage(text);
+    } catch (e) {
+      debugPrint('Orchestrator.sendChatMessage error: $e');
     }
   }
 
-  // Cambia dinámicamente cuando lo necesites:
-  void useAndroidEmulatorBackend() {
-    _chatVM.baseUrl = 'http://10.0.2.2:8080';
-  }
-
-  void useLanBackend(String pcLanIp) {
-    // Para dispositivo físico: usa la IP local de tu PC, ej. 192.168.1.50
-    _chatVM.baseUrl = 'http://$pcLanIp:8080';
+  /// Limpia el historial del chat
+  void clearChat() {
+    _chatVM.clearChat();
+    notifyListeners();
   }
 
   // ---------- MAP ----------
