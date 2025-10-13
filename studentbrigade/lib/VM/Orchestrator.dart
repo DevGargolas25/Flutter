@@ -261,43 +261,34 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   //------CHAT---------
   List<ChatMessage> get chatMessages => _chatVM.messages;
   bool get chatIsTyping => _chatVM.isTyping;
-  Future<void> sendChatMessage(String text) => _chatVM.sendUserMessage(text);
-  void setChatBackendBaseUrl(String url) {
-    _chatVM.baseUrl = url; // usa el setter de ChatVM
-  }
 
-  void refreshChatBackendBaseUrl() {
-    _chatVM.baseUrl = _resolveBaseUrl();
-  }
-
-  String _resolveBaseUrl() {
-    if (kIsWeb) {
-      // Si sirves por https, tu backend debe ser https (usa ngrok/cloudflared)
-      return const String.fromEnvironment(
-        'BACKEND_URL',
-        defaultValue: 'http://127.0.0.1:8080',
-      );
-    }
-
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.android:
-      // Emulador Android
-        return 'http://10.0.2.2:8080';
-      case TargetPlatform.iOS:
-      // Simulator iOS
-        return 'http://localhost:8080';
-      default:
-      // Desktop (Windows/Mac/Linux)
-        return 'http://127.0.0.1:8080';
+  /// Envía un mensaje del usuario al chat y dispara la respuesta de IA
+  Future<void> sendChatMessage(String text) async {
+    try {
+      await _chatVM.sendMessage(text);
+    } catch (e) {
+      debugPrint('Orchestrator.sendChatMessage error: $e');
     }
   }
 
-  void useAndroidEmulatorBackend() {
-    _chatVM.baseUrl = 'http://10.0.2.2:8080';
+  /// Limpia el historial del chat
+  void clearChat() {
+    _chatVM.clearChat();
+    notifyListeners();
   }
 
-  void useLanBackend(String pcLanIp) {
-    _chatVM.baseUrl = 'http://$pcLanIp:8080';
+  /// Inicializa el chat con un prompt especializado para emergencias en tiempo real
+  void startEmergencyChat({String? customPrompt}) {
+    final defaultPrompt =
+        'Eres un asistente de emergencias en tiempo real para una brigada estudiantil. '
+        'Responde de forma breve, clara y priorizando la seguridad. '
+        'Proporciona pasos accionables inmediatos y confirma si la persona está a salvo. '
+        'Si detectas riesgo vital, sugiere llamar al 911 e informar la ubicación. '
+        'Adapta tus indicaciones al contexto (incendio, sismo, herida, desmayo, etc.).';
+    _chatVM.resetWithSystemPrompt(customPrompt?.trim().isNotEmpty == true
+        ? customPrompt!.trim()
+        : defaultPrompt);
+    notifyListeners();
   }
 
   // ---------- MAP ----------
