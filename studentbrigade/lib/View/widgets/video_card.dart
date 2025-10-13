@@ -186,6 +186,20 @@ class VideoCard extends StatelessWidget {
                 ),
               ),
             ],
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('${video.views} views'),
+                IconButton(
+                  icon: const Icon(Icons.thumb_up),
+                  onPressed: () {
+                    // Aquí puedes manejar la acción de "me gusta"
+                  },
+                ),
+                Text('${video.likes} likes'),
+              ],
+            ),
           ],
         ),
       ),

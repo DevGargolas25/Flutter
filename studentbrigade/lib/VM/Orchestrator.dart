@@ -1,7 +1,7 @@
 // lib/Orchestrator/orchestrator.dart
-import 'package:flutter/foundation.dart' show ChangeNotifier, kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show ChangeNotifier, kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
-
 
 // ===== VMs =====
 import 'ChatVM.dart';
@@ -18,10 +18,9 @@ import '../Models/userMod.dart';
 import '../Models/chatModel.dart';
 
 // ===== UI =====
-import 'package:studentbrigade/View/video_detail_sheet.dart';//
+import 'package:studentbrigade/View/video_detail_sheet.dart'; //
 import 'package:studentbrigade/View/Auth0/auth_service.dart';
-
-
+import 'package:studentbrigade/VM/Adapter.dart';
 
 // ===== Sensor de luz / tema =====
 import 'theme_sensor_service.dart';
@@ -55,10 +54,13 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   final ValueNotifier<ThemeMode> themeMode = ValueNotifier(ThemeMode.system);
   ThemeOverride _override = ThemeOverride.autoByLight;
 
+  // Instancia de Adapter
+  final Adapter adapter = Adapter();
+
   Orchestrator._internal() {
     // Instancias de VMs
     _mapVM = MapVM();
-    _videoVM = VideosVM(VideosInfo());
+    _videoVM = VideosVM(VideosInfo(), adapter);
     _userVM = UserVM();
     _chatVM = ChatVM(baseUrl: 'http://127.0.0.1:8080'); // emulador Android
     _chatVM.addListener(notifyListeners);
@@ -177,7 +179,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-    // Public: cargar usuario por email (llamar desde AuthService tras login)
+  // Public: cargar usuario por email (llamar desde AuthService tras login)
   Future<User?> loadUserByEmail(String email) async {
     try {
       final u = await _userVM.fetchUserByEmail(email);
@@ -194,7 +196,6 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-
   // ---------- Navegación ----------
   int get currentPageIndex => _currentPageIndex;
   void navigateToPage(int index) {
@@ -210,7 +211,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   void navigateToVideos() => navigateToPage(3);
 
   //------CHAT---------
-    List<ChatMessage> get chatMessages => _chatVM.messages;
+  List<ChatMessage> get chatMessages => _chatVM.messages;
   bool get chatIsTyping => _chatVM.isTyping;
   Future<void> sendChatMessage(String text) => _chatVM.sendUserMessage(text);
   void setChatBackendBaseUrl(String url) {
@@ -289,7 +290,6 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   // ---------- USER ----------
   User? getUserData() => _userVM.getUserData();
   String? getUserErrorMessage() => _userVM.getErrorMessage();
-
 
   Future<bool> updateUserData({
     String? emergencyName1,

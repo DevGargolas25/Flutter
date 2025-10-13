@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../Models/videoMod.dart'; // VideoMod, VideosInfo
-import '../../VM/VideosVM.dart';     // VideosVM
+import '../../VM/VideosVM.dart'; // VideosVM
 import 'video_detail_sheet.dart';
-import '../VM/Orchestrator.dart';    // Orchestrator
+import '../VM/Orchestrator.dart'; // Orchestrator
 
 class VideosPage extends StatefulWidget {
   final Orchestrator orchestrator;
@@ -50,6 +50,48 @@ class _VideosPageState extends State<VideosPage> {
     super.dispose();
   }
 
+  void _handleLike(VideoMod video) async {
+    final newLikes = video.likes + 1;
+    await _orch.adapter.updateLikes(video.id, newLikes);
+    setState(() {
+      final updatedVideo = VideoMod(
+        id: video.id,
+        title: video.title,
+        author: video.author,
+        tags: video.tags,
+        url: video.url,
+        duration: video.duration,
+        views: video.views,
+        publishedAt: video.publishedAt,
+        thumbnail: video.thumbnail,
+        description: video.description,
+        likes: newLikes,
+      );
+      _orch.videoVM.updateVideo(updatedVideo);
+    });
+  }
+
+  void _handleView(VideoMod video) async {
+    final newViews = video.views + 1;
+    await _orch.adapter.updateViews(video.id, newViews);
+    setState(() {
+      final updatedVideo = VideoMod(
+        id: video.id,
+        title: video.title,
+        author: video.author,
+        tags: video.tags,
+        url: video.url,
+        duration: video.duration,
+        views: newViews,
+        publishedAt: video.publishedAt,
+        thumbnail: video.thumbnail,
+        description: video.description,
+        likes: video.likes,
+      );
+      _orch.videoVM.updateVideo(updatedVideo);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final vm = _orch.videoVM;
@@ -60,7 +102,10 @@ class _VideosPageState extends State<VideosPage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: cs.primary,
-        title: Text('Training Videos', style: tt.titleLarge?.copyWith(color: cs.onPrimary)),
+        title: Text(
+          'Training Videos',
+          style: tt.titleLarge?.copyWith(color: cs.onPrimary),
+        ),
         iconTheme: IconThemeData(color: cs.onPrimary),
       ),
       body: Column(
@@ -75,12 +120,15 @@ class _VideosPageState extends State<VideosPage> {
                 hintText: 'Search videos...',
                 prefixIcon: Icon(Icons.search, color: cs.primary),
                 filled: true,
-                fillColor: theme.inputDecorationTheme.fillColor ?? cs.surfaceVariant,
+                fillColor:
+                    theme.inputDecorationTheme.fillColor ?? cs.surfaceVariant,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none,
                 ),
-                hintStyle: tt.bodyMedium?.copyWith(color: cs.onSurface.withOpacity(.6)),
+                hintStyle: tt.bodyMedium?.copyWith(
+                  color: cs.onSurface.withOpacity(.6),
+                ),
               ),
               style: tt.bodyMedium?.copyWith(color: cs.onSurface),
             ),
@@ -119,21 +167,26 @@ class _VideosPageState extends State<VideosPage> {
           Expanded(
             child: vm.videos.isEmpty
                 ? Center(
-              child: Text('No videos found', style: tt.bodyLarge?.copyWith(color: cs.onSurface)),
-            )
+                    child: Text(
+                      'No videos found',
+                      style: tt.bodyLarge?.copyWith(color: cs.onSurface),
+                    ),
+                  )
                 : ListView.separated(
-              controller: _scrollCtrl,
-              padding: const EdgeInsets.all(16),
-              itemCount: vm.videos.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 16),
-              itemBuilder: (_, i) {
-                final v = vm.videos[i];
-                return _VideoCard(
-                  video: v,
-                  onPlay: () => _orch.openVideoDetails(context, v),
-                );
-              },
-            ),
+                    controller: _scrollCtrl,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: vm.videos.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 16),
+                    itemBuilder: (_, i) {
+                      final v = vm.videos[i];
+                      return _VideoCard(
+                        video: v,
+                        onPlay: () => _orch.openVideoDetails(context, v),
+                        onLike: () => _handleLike(v),
+                        onView: () => _handleView(v),
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -145,13 +198,21 @@ class _VideosPageState extends State<VideosPage> {
 class _VideoCard extends StatelessWidget {
   final VideoMod video;
   final VoidCallback onPlay;
-  const _VideoCard({required this.video, required this.onPlay});
+  final VoidCallback onLike;
+  final VoidCallback onView;
+
+  const _VideoCard({
+    required this.video,
+    required this.onPlay,
+    required this.onLike,
+    required this.onView,
+  });
 
   String _timeAgo(DateTime dt) {
     final d = DateTime.now().difference(dt);
     if (d.inDays >= 30) return '${(d.inDays / 30).floor()} months ago';
-    if (d.inDays >= 7)  return '${(d.inDays / 7).floor()} weeks ago';
-    if (d.inDays >= 1)  return '${d.inDays} days ago';
+    if (d.inDays >= 7) return '${(d.inDays / 7).floor()} weeks ago';
+    if (d.inDays >= 1) return '${d.inDays} days ago';
     if (d.inHours >= 1) return '${d.inHours} hours ago';
     return 'just now';
   }
@@ -176,7 +237,10 @@ class _VideoCard extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: onPlay,
+        onTap: () {
+          onView(); // Incrementar views al tocar la tarjeta
+          onPlay(); // Abrir el video
+        },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -187,9 +251,14 @@ class _VideoCard extends StatelessWidget {
                   height: 160,
                   decoration: BoxDecoration(
                     color: cs.surfaceVariant,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16),
+                    ),
                     image: video.thumbnail.isNotEmpty
-                        ? DecorationImage(image: NetworkImage(video.thumbnail), fit: BoxFit.cover)
+                        ? DecorationImage(
+                            image: NetworkImage(video.thumbnail),
+                            fit: BoxFit.cover,
+                          )
                         : null,
                   ),
                 ),
@@ -201,7 +270,11 @@ class _VideoCard extends StatelessWidget {
                         shape: BoxShape.circle,
                       ),
                       padding: const EdgeInsets.all(12),
-                      child: Icon(Icons.play_arrow_rounded, size: 36, color: cs.primary),
+                      child: Icon(
+                        Icons.play_arrow_rounded,
+                        size: 36,
+                        color: cs.primary,
+                      ),
                     ),
                   ),
                 ),
@@ -209,14 +282,20 @@ class _VideoCard extends StatelessWidget {
                   right: 12,
                   bottom: 12,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: cs.primaryContainer,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       _durationText(video.duration),
-                      style: tt.labelLarge?.copyWith(color: cs.onPrimaryContainer, fontWeight: FontWeight.w700),
+                      style: tt.labelLarge?.copyWith(
+                        color: cs.onPrimaryContainer,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ),
@@ -229,7 +308,13 @@ class _VideoCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(video.title, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.w600, color: cs.onSurface)),
+                  Text(
+                    video.title,
+                    style: tt.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: cs.onSurface,
+                    ),
+                  ),
                   const SizedBox(height: 8),
 
                   // Tags/chips
@@ -239,20 +324,67 @@ class _VideoCard extends StatelessWidget {
                     children: video.tags
                         .map(
                           (t) => Chip(
-                        label: Text(t),
-                        backgroundColor: cs.surfaceVariant,
-                        labelStyle: tt.labelMedium?.copyWith(color: cs.onSurface),
-                        padding: EdgeInsets.zero,
-                        side: BorderSide(color: cs.outlineVariant),
-                      ),
-                    )
+                            label: Text(t),
+                            backgroundColor: cs.surfaceVariant,
+                            labelStyle: tt.labelMedium?.copyWith(
+                              color: cs.onSurface,
+                            ),
+                            padding: EdgeInsets.zero,
+                            side: BorderSide(color: cs.outlineVariant),
+                          ),
+                        )
                         .toList(),
                   ),
 
                   const SizedBox(height: 8),
-                  Text(
-                    '${video.author}   •   ${nf.format(video.views)} views   •   ${_timeAgo(video.publishedAt)}',
-                    style: tt.bodySmall?.copyWith(color: cs.onSurface.withOpacity(.7)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '${video.author}   •   ${_timeAgo(video.publishedAt)}',
+                        style: tt.bodySmall?.copyWith(
+                          color: cs.onSurface.withOpacity(.7),
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          // Views (ojo)
+                          Icon(
+                            Icons.remove_red_eye,
+                            size: 16,
+                            color: cs.primary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${nf.format(video.views)}',
+                            style: tt.bodySmall?.copyWith(
+                              color: cs.onSurface.withOpacity(.7),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          // Like button (mano)
+                          GestureDetector(
+                            onTap: onLike,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.thumb_up,
+                                  size: 16,
+                                  color: cs.primary,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${video.likes}',
+                                  style: tt.bodySmall?.copyWith(
+                                    color: cs.onSurface.withOpacity(.7),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -263,4 +395,3 @@ class _VideoCard extends StatelessWidget {
     );
   }
 }
-
