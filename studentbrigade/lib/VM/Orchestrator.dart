@@ -1,7 +1,7 @@
 // lib/Orchestrator/orchestrator.dart
-import 'package:flutter/foundation.dart' show ChangeNotifier, kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show ChangeNotifier, kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
-
 
 // ===== VMs =====
 import 'ChatVM.dart';
@@ -18,10 +18,9 @@ import '../Models/chatModel.dart';
 import '../Models/emergencyMod.dart';
 
 // ===== UI =====
-import 'package:studentbrigade/View/video_detail_sheet.dart';//
+import 'package:studentbrigade/View/video_detail_sheet.dart'; //
 import 'package:studentbrigade/View/Auth0/auth_service.dart';
-
-
+import 'package:studentbrigade/VM/Adapter.dart';
 
 // ===== Sensor de luz / tema =====
 import 'theme_sensor_service.dart';
@@ -55,6 +54,8 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   final ValueNotifier<ThemeMode> themeMode = ValueNotifier(ThemeMode.system);
   ThemeOverride _override = ThemeOverride.autoByLight;
 
+  // Instancia de Adapter
+  final Adapter adapter = Adapter();
   // NUEVO: para persistir ETA automáticamente
   String? _lastEtaPersistedForEmergencyKey;
   bool _etaPersistInFlight = false;
@@ -65,7 +66,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   Orchestrator._internal() {
     // Instancias de VMs
     _mapVM = MapVM();
-    _videoVM = VideosVM(VideosInfo());
+    _videoVM = VideosVM(VideosInfo(), adapter);
     _userVM = UserVM();
 
     // Centraliza el baseUrl con _resolveBaseUrl
@@ -218,7 +219,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-    // Public: cargar usuario por email (llamar desde AuthService tras login)
+  // Public: cargar usuario por email (llamar desde AuthService tras login)
   Future<User?> loadUserByEmail(String email) async {
     try {
       final u = await _userVM.fetchUserByEmail(email);
@@ -234,7 +235,6 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
       return null;
     }
   }
-
 
   // ---------- Navegación ----------
   int get currentPageIndex => _currentPageIndex;
@@ -259,7 +259,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
 
   // ------ CHAT: resolver baseUrl según plataforma ---------
   //------CHAT---------
-    List<ChatMessage> get chatMessages => _chatVM.messages;
+  List<ChatMessage> get chatMessages => _chatVM.messages;
   bool get chatIsTyping => _chatVM.isTyping;
   Future<void> sendChatMessage(String text) => _chatVM.sendUserMessage(text);
   void setChatBackendBaseUrl(String url) {
@@ -337,7 +337,6 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   // ---------- USER ----------
   User? getUserData() => _userVM.getUserData();
   String? getUserErrorMessage() => _userVM.getErrorMessage();
-
 
   Future<bool> updateUserData({
     String? emergencyName1,
