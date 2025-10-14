@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../VM/Orchestrator.dart';
-import '../VM/Adapter.dart';
 
 class EmergencyAnalyticsPage extends StatefulWidget {
   final Orchestrator orchestrator;
@@ -12,8 +11,6 @@ class EmergencyAnalyticsPage extends StatefulWidget {
 }
 
 class _EmergencyAnalyticsPageState extends State<EmergencyAnalyticsPage> {
-  final Adapter _adapter = Adapter();
-
   Map<String, int> _locationStats = {};
   Map<String, int> _emergencyTypeStats = {};
   double _avgResponseTime = 0.0;
@@ -29,42 +26,26 @@ class _EmergencyAnalyticsPageState extends State<EmergencyAnalyticsPage> {
     setState(() => _isLoading = true);
 
     try {
-      // Obtener datos de emergencias desde Firebase
-      final emergencies = await _adapter.getEmergencyAnalytics();
+      // Llamar al Orchestrator en lugar del Adapter directamente
+      final analyticsData = await widget.orchestrator.getEmergencyAnalytics();
 
-      // Procesar estadísticas de ubicaciones
-      Map<String, int> locationCount = {};
-      Map<String, int> emergencyTypeCount = {};
-      List<int> responseTimes = [];
-
-      for (var emergency in emergencies) {
-        // Contar ubicaciones
-        String location = emergency['location'] ?? 'Unknown';
-        locationCount[location] = (locationCount[location] ?? 0) + 1;
-
-        // Contar tipos de emergencia
-        String emerType = emergency['emerType'] ?? 'Unknown';
-        emergencyTypeCount[emerType] = (emergencyTypeCount[emerType] ?? 0) + 1;
-
-        // Recopilar tiempos de respuesta
-        int responseTime = emergency['seconds_response'] ?? 0;
-        if (responseTime > 0) {
-          responseTimes.add(responseTime);
-        }
-      }
-
-      // Calcular promedio de tiempo de respuesta
-      double avgTime = 0.0;
-      if (responseTimes.isNotEmpty) {
-        avgTime = responseTimes.reduce((a, b) => a + b) / responseTimes.length;
-      }
+      print('🔍 Analytics data received: $analyticsData');
+      print('🔍 Location stats: ${analyticsData['locationStats']}');
+      print('🔍 Emergency type stats: ${analyticsData['emergencyTypeStats']}');
 
       setState(() {
-        _locationStats = locationCount;
-        _emergencyTypeStats = emergencyTypeCount;
-        _avgResponseTime = avgTime;
+        _locationStats = Map<String, int>.from(
+          analyticsData['locationStats'] ?? {},
+        );
+        _emergencyTypeStats = Map<String, int>.from(
+          analyticsData['emergencyTypeStats'] ?? {},
+        );
+        _avgResponseTime = analyticsData['avgResponseTime']?.toDouble() ?? 0.0;
         _isLoading = false;
       });
+
+      print('🔍 Final location stats: $_locationStats');
+      print('🔍 Final emergency type stats: $_emergencyTypeStats');
     } catch (e) {
       print('Error loading analytics: $e');
       setState(() => _isLoading = false);
@@ -183,17 +164,33 @@ class _EmergencyAnalyticsPageState extends State<EmergencyAnalyticsPage> {
     var sortedLocations = _locationStats.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
+    print('🔍 Building location list with: $sortedLocations');
+
     return Column(
       children: sortedLocations.take(5).map((entry) {
+        print(
+          '🔍 Rendering location: "${entry.key}" (length: ${entry.key.length}) with count: ${entry.value}',
+        );
+        print('🔍 Key characters: ${entry.key.runes.toList()}');
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 3),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
-                child: Text(
-                  entry.key,
-                  style: Theme.of(context).textTheme.bodySmall,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'Building: ${entry.key}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
               Container(
@@ -225,8 +222,14 @@ class _EmergencyAnalyticsPageState extends State<EmergencyAnalyticsPage> {
     var sortedTypes = _emergencyTypeStats.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
+    print('🔍 Building emergency type list with: $sortedTypes');
+
     return Column(
       children: sortedTypes.map((entry) {
+        print(
+          '🔍 Rendering emergency type: "${entry.key}" (length: ${entry.key.length}) with count: ${entry.value}',
+        );
+        print('🔍 Key characters: ${entry.key.runes.toList()}');
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 3),
           child: Row(
@@ -237,9 +240,19 @@ class _EmergencyAnalyticsPageState extends State<EmergencyAnalyticsPage> {
                   children: [
                     _getEmergencyIcon(entry.key),
                     const SizedBox(width: 6),
-                    Text(
-                      entry.key,
-                      style: Theme.of(context).textTheme.bodySmall,
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withOpacity(0.3),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'Type: ${entry.key}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ],
                 ),
