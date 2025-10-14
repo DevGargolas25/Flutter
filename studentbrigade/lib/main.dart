@@ -12,10 +12,12 @@ import 'VM/AnalyticsVM.dart'; // importa el VM de Analytics
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'View/pruebaDB.dart';
+// SnackBar de sensor de luz
+import 'View/light_sensor_snackbar_listener.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Inicializa Firebase
+  // Inicializa Firebase con opciones generadas por FlutterFire
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   final analytics = FirebaseAnalytics.instance;
@@ -42,6 +44,8 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  final _rootMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
   @override
   void dispose() {
     Orchestrator().disposeOrchestrator(); // cerrar sensor
@@ -59,6 +63,13 @@ class _MyAppState extends State<MyApp> {
         return MaterialApp(
           navigatorObservers: [AnalyticsNavObserver()],
           debugShowCheckedModeBanner: false,
+          scaffoldMessengerKey: _rootMessengerKey,
+          // Envuelve toda la app con el listener para mostrar SnackBars del sensor
+          builder: (context, child) => LightSensorSnackBarListener(
+            scaffoldMessengerKey: _rootMessengerKey,
+            showDebugButton: false, // pon true si quieres ver los botones Sol/Luna de prueba
+            child: child ?? const SizedBox.shrink(),
+          ),
           theme: light.copyWith(
             textTheme: GoogleFonts.robotoTextTheme(light.textTheme),
           ),
