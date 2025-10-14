@@ -91,7 +91,7 @@ class _EmergencyAnalyticsPageState extends State<EmergencyAnalyticsPage> {
           : RefreshIndicator(
               onRefresh: _loadAnalytics,
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -101,7 +101,7 @@ class _EmergencyAnalyticsPageState extends State<EmergencyAnalyticsPage> {
                       icon: Icons.timer,
                       content: Text(
                         '${_avgResponseTime.toStringAsFixed(1)} seconds',
-                        style: tt.headlineMedium?.copyWith(
+                        style: tt.headlineSmall?.copyWith(
                           color: cs.primary,
                           fontWeight: FontWeight.bold,
                         ),
@@ -109,7 +109,7 @@ class _EmergencyAnalyticsPageState extends State<EmergencyAnalyticsPage> {
                       theme: theme,
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
 
                     // Ubicaciones más usadas
                     _buildStatsCard(
@@ -119,7 +119,7 @@ class _EmergencyAnalyticsPageState extends State<EmergencyAnalyticsPage> {
                       theme: theme,
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
 
                     // Tipos de emergencia más solicitados
                     _buildStatsCard(
@@ -145,27 +145,29 @@ class _EmergencyAnalyticsPageState extends State<EmergencyAnalyticsPage> {
     final tt = theme.textTheme;
 
     return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(icon, color: cs.primary, size: 24),
-                const SizedBox(width: 8),
-                Text(
-                  title,
-                  style: tt.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: cs.onSurface,
+                Icon(icon, color: cs.primary, size: 20),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: tt.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: cs.onSurface,
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             content,
           ],
         ),
@@ -184,25 +186,25 @@ class _EmergencyAnalyticsPageState extends State<EmergencyAnalyticsPage> {
     return Column(
       children: sortedLocations.take(5).map((entry) {
         return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.symmetric(vertical: 3),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
                 child: Text(
                   entry.key,
-                  style: Theme.of(context).textTheme.bodyMedium,
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   '${entry.value}',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: Theme.of(context).colorScheme.onPrimaryContainer,
                     fontWeight: FontWeight.bold,
                   ),
@@ -226,7 +228,7 @@ class _EmergencyAnalyticsPageState extends State<EmergencyAnalyticsPage> {
     return Column(
       children: sortedTypes.map((entry) {
         return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.symmetric(vertical: 3),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -234,23 +236,23 @@ class _EmergencyAnalyticsPageState extends State<EmergencyAnalyticsPage> {
                 child: Row(
                   children: [
                     _getEmergencyIcon(entry.key),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     Text(
                       entry.key,
-                      style: Theme.of(context).textTheme.bodyMedium,
+                      style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.secondaryContainer,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   '${entry.value}',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: Theme.of(context).colorScheme.onSecondaryContainer,
                     fontWeight: FontWeight.bold,
                   ),
@@ -284,6 +286,6 @@ class _EmergencyAnalyticsPageState extends State<EmergencyAnalyticsPage> {
         iconData = Icons.emergency;
     }
 
-    return Icon(iconData, color: color, size: 20);
+    return Icon(iconData, color: color, size: 16);
   }
 }
