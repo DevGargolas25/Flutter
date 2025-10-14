@@ -57,14 +57,19 @@ class Adapter {
   Future<User?> getUserByEmail(String email) async {
     try {
       final emailNorm = email.trim().toLowerCase(); // normaliza
+      print('[Adapter] Buscando usuario con email: $emailNorm');
       final ref = _database.ref('User');
       final snap = await ref.orderByChild('email').equalTo(emailNorm).get();
 
-      if (!snap.exists) return null;
+      if (!snap.exists) {
+        print('[Adapter] No existe usuario con ese email');
+        return null;
+      }
 
       // snap.value es un Map<id, objeto>
       if (snap.value is Map) {
         final usersMap = Map<String, dynamic>.from(snap.value as Map);
+        print('[Adapter] Usuarios encontrados: \\${usersMap.length}');
 
         // Tomar el primer resultado
         final entry = usersMap.entries.first;
@@ -74,13 +79,19 @@ class Adapter {
         if (data is Map) {
           final map = Map<String, dynamic>.from(data);
           map['id'] = userId; // añade el id al mapa
+          print('[Adapter] Usuario encontrado: \\${map.toString()}');
           return User.fromMap(map);
+        } else {
+          print('[Adapter] El dato del usuario no es un Map');
         }
+      } else {
+        print('[Adapter] snap.value no es un Map');
       }
 
+      print('[Adapter] No se encontró usuario válido');
       return null;
     } catch (e, st) {
-      debugPrint('🔥 getUserByEmail error: $e\n$st');
+      debugPrint('🔥 getUserByEmail error: $e\\n$st');
       return null;
     }
   }
