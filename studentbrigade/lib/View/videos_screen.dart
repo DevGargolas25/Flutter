@@ -5,6 +5,8 @@ import '../../Models/videoMod.dart'; // VideoMod, VideosInfo
 import '../../VM/VideosVM.dart'; // VideosVM
 import 'video_detail_sheet.dart';
 import '../VM/Orchestrator.dart'; // Orchestrator
+import 'Auth0/auth_service.dart'; // AuthService
+import '../VM/Adapter.dart'; // Adapter
 
 class VideosPage extends StatefulWidget {
   final Orchestrator orchestrator;
@@ -51,45 +53,104 @@ class _VideosPageState extends State<VideosPage> {
   }
 
   void _handleLike(VideoMod video) async {
-    final newLikes = video.likes + 1;
-    await _orch.adapter.updateLikes(video.id, newLikes);
-    setState(() {
-      final updatedVideo = VideoMod(
-        id: video.id,
-        title: video.title,
-        author: video.author,
-        tags: video.tags,
-        url: video.url,
-        duration: video.duration,
-        views: video.views,
-        publishedAt: video.publishedAt,
-        thumbnail: video.thumbnail,
-        description: video.description,
-        likes: newLikes,
+    try {
+      // Obtener ID del usuario actual desde AuthService
+      final userEmail = AuthService.instance.currentUserEmail ?? 'anonymous';
+      final userId = userEmail.replaceAll('@', '_').replaceAll('.', '_');
+
+      // Intentar actualizar like solo si no ha dado like antes
+      final wasUpdated = await _orch.adapter.updateLikesIfNotLiked(
+        userId,
+        video.id,
       );
-      _orch.videoVM.updateVideo(updatedVideo);
-    });
+
+      if (wasUpdated) {
+        // Solo actualizar UI si realmente se agregó el like
+        final newLikes = video.likes + 1;
+        setState(() {
+          final updatedVideo = VideoMod(
+            id: video.id,
+            title: video.title,
+            author: video.author,
+            tags: video.tags,
+            url: video.url,
+            duration: video.duration,
+            views: video.views,
+            publishedAt: video.publishedAt,
+            thumbnail: video.thumbnail,
+            description: video.description,
+            likes: newLikes,
+          );
+          _orch.videoVM.updateVideo(updatedVideo);
+        });
+
+        // Mostrar mensaje de éxito
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('👍 Like added!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      } else {
+        // Usuario ya dio like, mostrar mensaje
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('You already liked this video!'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      // Mostrar error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error adding like: $e'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   void _handleView(VideoMod video) async {
-    final newViews = video.views + 1;
-    await _orch.adapter.updateViews(video.id, newViews);
-    setState(() {
-      final updatedVideo = VideoMod(
-        id: video.id,
-        title: video.title,
-        author: video.author,
-        tags: video.tags,
-        url: video.url,
-        duration: video.duration,
-        views: newViews,
-        publishedAt: video.publishedAt,
-        thumbnail: video.thumbnail,
-        description: video.description,
-        likes: video.likes,
+    try {
+      // Obtener ID del usuario actual desde AuthService
+      final userEmail = AuthService.instance.currentUserEmail ?? 'anonymous';
+      final userId = userEmail.replaceAll('@', '_').replaceAll('.', '_');
+
+      // Intentar actualizar view solo si no ha visto el video antes
+      final wasUpdated = await _orch.adapter.updateViewsIfNotViewed(
+        userId,
+        video.id,
       );
-      _orch.videoVM.updateVideo(updatedVideo);
-    });
+
+      if (wasUpdated) {
+        // Solo actualizar UI si realmente se agregó el view
+        final newViews = video.views + 1;
+        setState(() {
+          final updatedVideo = VideoMod(
+            id: video.id,
+            title: video.title,
+            author: video.author,
+            tags: video.tags,
+            url: video.url,
+            duration: video.duration,
+            views: newViews,
+            publishedAt: video.publishedAt,
+            thumbnail: video.thumbnail,
+            description: video.description,
+            likes: video.likes,
+          );
+          _orch.videoVM.updateVideo(updatedVideo);
+        });
+      }
+      // No mostrar mensaje para views, es más discreto
+    } catch (e) {
+      print('Error adding view: $e');
+      // Views son menos críticos, no mostramos error al usuario
+    }
   }
 
   @override
@@ -195,7 +256,7 @@ class _VideosPageState extends State<VideosPage> {
 }
 
 /// Card estilizada, sin colores fijos: usa el tema
-class _VideoCard extends StatelessWidget {
+class _VideoCard extends StatefulWidget {
   final VideoMod video;
   final VoidCallback onPlay;
   final VoidCallback onLike;
@@ -207,6 +268,68 @@ class _VideoCard extends StatelessWidget {
     required this.onLike,
     required this.onView,
   });
+
+  @override
+  State<_VideoCard> createState() => _VideoCardState();
+}
+
+class _VideoCardState extends State<_VideoCard> {
+  bool _hasLiked = false;
+  bool _isCheckingLike = true;
+  final Adapter _adapter = Adapter();
+
+  @override
+  void initState() {
+    super.initState();
+    _checkUserInteractions();
+  }
+
+  void _checkUserInteractions() async {
+    try {
+      final userEmail = AuthService.instance.currentUserEmail ?? 'anonymous';
+      final userId = userEmail.replaceAll('@', '_').replaceAll('.', '_');
+
+      final interactions = await _adapter.getUserVideoInteractions(
+        userId,
+        widget.video.id,
+      );
+
+      if (mounted) {
+        setState(() {
+          _hasLiked = interactions['hasLiked'] ?? false;
+          _isCheckingLike = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isCheckingLike = false;
+        });
+      }
+    }
+  }
+
+  void _handleLike() {
+    if (_hasLiked) {
+      // Mostrar mensaje de que ya dio like
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('You already liked this video!'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    // Llamar la función original
+    widget.onLike();
+
+    // Actualizar estado local
+    setState(() {
+      _hasLiked = true;
+    });
+  }
 
   String _timeAgo(DateTime dt) {
     final d = DateTime.now().difference(dt);
@@ -238,8 +361,8 @@ class _VideoCard extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () {
-          onView(); // Incrementar views al tocar la tarjeta
-          onPlay(); // Abrir el video
+          widget.onView(); // Incrementar views al tocar la tarjeta
+          widget.onPlay(); // Abrir el video
         },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -254,9 +377,9 @@ class _VideoCard extends StatelessWidget {
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(16),
                     ),
-                    image: video.thumbnail.isNotEmpty
+                    image: widget.video.thumbnail.isNotEmpty
                         ? DecorationImage(
-                            image: NetworkImage(video.thumbnail),
+                            image: NetworkImage(widget.video.thumbnail),
                             fit: BoxFit.cover,
                           )
                         : null,
@@ -291,7 +414,7 @@ class _VideoCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      _durationText(video.duration),
+                      _durationText(widget.video.duration),
                       style: tt.labelLarge?.copyWith(
                         color: cs.onPrimaryContainer,
                         fontWeight: FontWeight.w700,
@@ -309,7 +432,7 @@ class _VideoCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    video.title,
+                    widget.video.title,
                     style: tt.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: cs.onSurface,
@@ -321,7 +444,7 @@ class _VideoCard extends StatelessWidget {
                   Wrap(
                     spacing: 8,
                     runSpacing: -8,
-                    children: video.tags
+                    children: widget.video.tags
                         .map(
                           (t) => Chip(
                             label: Text(t),
@@ -341,7 +464,7 @@ class _VideoCard extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        '${video.author}   •   ${_timeAgo(video.publishedAt)}',
+                        '${widget.video.author}   •   ${_timeAgo(widget.video.publishedAt)}',
                         style: tt.bodySmall?.copyWith(
                           color: cs.onSurface.withOpacity(.7),
                         ),
@@ -356,7 +479,7 @@ class _VideoCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '${nf.format(video.views)}',
+                            '${nf.format(widget.video.views)}',
                             style: tt.bodySmall?.copyWith(
                               color: cs.onSurface.withOpacity(.7),
                             ),
@@ -364,17 +487,19 @@ class _VideoCard extends StatelessWidget {
                           const SizedBox(width: 16),
                           // Like button (mano)
                           GestureDetector(
-                            onTap: onLike,
+                            onTap: _handleLike,
                             child: Row(
                               children: [
                                 Icon(
-                                  Icons.thumb_up,
+                                  _hasLiked
+                                      ? Icons.thumb_up
+                                      : Icons.thumb_up_outlined,
                                   size: 16,
-                                  color: cs.primary,
+                                  color: _hasLiked ? Colors.blue : cs.primary,
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  '${video.likes}',
+                                  '${widget.video.likes}',
                                   style: tt.bodySmall?.copyWith(
                                     color: cs.onSurface.withOpacity(.7),
                                   ),
