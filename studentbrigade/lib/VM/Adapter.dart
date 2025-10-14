@@ -2,6 +2,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../Models/videoMod.dart';
 import '../Models/userMod.dart';
+import '../Models/emergencyMod.dart';
 import 'package:flutter/foundation.dart';
 
 class Adapter {

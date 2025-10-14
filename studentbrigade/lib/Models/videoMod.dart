@@ -1,4 +1,3 @@
-import 'package:collection/collection.dart';
 import '../VM/Adapter.dart'; // ← Importar tu Adapter
 
 class VideoMod {

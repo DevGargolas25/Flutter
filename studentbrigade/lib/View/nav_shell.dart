@@ -225,17 +225,4 @@ class _NavItem extends StatelessWidget {
   }
 }
 
-/* ======================= Páginas de ejemplo ======================= */
-class _DummyPage extends StatelessWidget {
-  final String title;
-  const _DummyPage({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    final tt = Theme.of(context).textTheme;
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(child: Text('$title page', style: tt.headlineMedium)),
-    );
-  }
-}
+/* ======================= Páginas de ejemplo eliminadas (no usadas) ======================= */

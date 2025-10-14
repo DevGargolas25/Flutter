@@ -185,7 +185,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Text(
-              'No se encontraron datos de perfil para este usuario.\n\n${userError ?? ''}',
+              'No se encontraron datos de perfil para este usuario.\n\n${userError}',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyLarge,
             ),

@@ -47,6 +47,8 @@ class WelcomeScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 8),
+                  Text('Student Brigade', style: titleStyle, textAlign: TextAlign.center),
+                  const SizedBox(height: 6),
                   Text('Emergency response at your fingertips', style: subtitleStyle, textAlign: TextAlign.center),
                 ],
               ),

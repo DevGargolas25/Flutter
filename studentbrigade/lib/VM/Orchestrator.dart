@@ -1,6 +1,5 @@
 // lib/Orchestrator/orchestrator.dart
-import 'package:flutter/foundation.dart'
-    show ChangeNotifier, kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart' show ChangeNotifier;
 import 'package:flutter/material.dart';
 
 // ===== VMs =====
@@ -9,6 +8,7 @@ import 'UserVM.dart';
 import 'VideosVM.dart';
 import 'MapVM.dart';
 import 'EmergencyVM.dart';
+import 'AnalyticsVM.dart';
 
 // ===== Models =====
 import '../Models/mapMod.dart';
@@ -70,7 +70,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     _userVM = UserVM();
 
     // Centraliza el baseUrl con _resolveBaseUrl
-    _chatVM = ChatVM(baseUrl: _resolveBaseUrl()); // FIX: usar resolver
+  _chatVM = ChatVM();
     _chatVM.addListener(notifyListeners);
 
     // EmergencyVM con hooks hacia Analytics/DAO si los necesitas
@@ -250,12 +250,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   void navigateToProfile() => navigateToPage(4);
   void navigateToVideos() => navigateToPage(3);
 
-  // ---------- Exponer VMs ----------
-  MapVM get mapVM => _mapVM;
-  VideosVM get videoVM => _videoVM;
-  UserVM get userVM => _userVM;
-  EmergencyVM get emergencyVM => _emergencyVM;
-  ChatVM get chatVM => _chatVM;
+  // (duplicated getters removed)
 
   // ------ CHAT: resolver baseUrl según plataforma ---------
   //------CHAT---------
@@ -428,8 +423,8 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
         final fromLng = _emergencyVM.lastLongitude ?? _mapVM.currentUserLocation?.longitude;
 
         rt = await _mapVM.calculateRouteToBrigadist(
-          assigned.latitude,
-          assigned.longitude,
+          assigned.latitude ?? 0.0,
+          assigned.longitude ?? 0.0,
           fromLat: fromLat,
           fromLng: fromLng,
         );
@@ -505,8 +500,8 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
       final fromLng = longitude ?? _emergencyVM.lastLongitude ?? _mapVM.currentUserLocation?.longitude;
 
       final rt = await _mapVM.calculateRouteToBrigadist(
-        brig.latitude,
-        brig.longitude,
+        brig.latitude ?? 0.0,
+        brig.longitude ?? 0.0,
         fromLat: fromLat,
         fromLng: fromLng,
       );
