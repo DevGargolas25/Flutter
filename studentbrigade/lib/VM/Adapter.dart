@@ -4,6 +4,7 @@ import '../Models/videoMod.dart';
 import '../Models/userMod.dart';
 import '../Models/emergencyMod.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 class Adapter {
   late FirebaseDatabase _database;
@@ -373,6 +374,25 @@ class Adapter {
     } catch (e) {
       print('Error adding document to $collectionName: $e');
       throw Exception('Error al agregar documento: $e');
+    }
+  }
+
+  /// Guarda un evento de sensor de luz en la colección 'sensor_events'.
+  /// Incluye: modo ('dark'|'light'), duración en ms y un timestamp ISO.
+  Future<void> saveLightSensorEvent(Duration duration, ThemeMode mode, {String? userId}) async {
+    try {
+      final data = <String, dynamic>{
+        'type': 'light_sensor',
+        'mode': mode == ThemeMode.dark ? 'dark' : 'light',
+        'duration_ms': duration.inMilliseconds,
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+      if (userId != null) data['userId'] = userId;
+      await addDocument('sensor_events', data);
+      if (kDebugMode) print('✅ Sensor event persisted: $data');
+    } catch (e) {
+      print('Error saving light sensor event: $e');
+      throw Exception('Error saving light sensor event: $e');
     }
   }
 
