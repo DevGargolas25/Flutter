@@ -93,14 +93,12 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
 
     // Sensor de luz → recomputar tema
     _themeSensor.addListener(_recomputeTheme);
-    // Conectar callback de respuesta del sensor para notificaciones
+    // Conectar callback: solo logging; ThemeSensorService guarda en BD
     _themeSensor.onResponseMeasured = (duration, newMode) {
       final ms = duration.inMilliseconds;
       final modeName = newMode == ThemeMode.dark ? 'modo oscuro' : 'modo claro';
-      _lastLightSensorNotification =
-          'Sensor de luz: respuesta ${ms}ms → $modeName';
-      debugPrint(_lastLightSensorNotification);
-      notifyListeners();
+      debugPrint('Sensor de luz: respuesta ${ms}ms → $modeName (persistido en DB)');
+      // No notificar a la UI aquí para evitar snackbars/notificaciones.
     };
 
     _themeSensor.start();
@@ -554,3 +552,4 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   double? get lastLongitude => _emergencyVM.lastLongitude;
   DateTime? get lastLocationAt => _emergencyVM.lastLocationAt;
 }
+
