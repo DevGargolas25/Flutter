@@ -25,10 +25,10 @@ android {
 
         // Si ya tienes estas props definidas por Flutter, déjalas así;
         // si no, pon números/literales (p.ej. minSdk = 23).
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        minSdk = 23
+        targetSdk = 33
+        versionCode = 1
+        versionName = "1.0"
 
         // ✅ Kotlin DSL:
         manifestPlaceholders.putAll(
