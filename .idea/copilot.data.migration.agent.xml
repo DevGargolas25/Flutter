@@ -2,44 +2,56 @@
 <project version="4">
   <component name="AgentMigrationStateService">
     <option name="pendingSessionIds">
+      <option value="4c682985-5a97-4a5a-b6d7-ed3222ea17dc" />
       <option value="f19d2181-865a-45d7-89f0-d7789f09f086" />
     </option>
     <option name="pendingTurns">
       <map>
+        <entry key="4c682985-5a97-4a5a-b6d7-ed3222ea17dc">
+          <value>
+            <set>
+              <option value="e0c37588-eaa4-4e69-9d9e-53f526f1de67" />
+              <option value="3bbbb193-a22d-49aa-84f7-a2e310cf0cfd" />
+              <option value="c4af1761-3798-4b95-a468-d4e93828d814" />
+              <option value="b93a6411-6126-4908-9c42-e23940757f11" />
+              <option value="a1884a58-48e9-4579-988c-9e4eca351a18" />
+              <option value="e4477656-9b7d-4e2b-ae1d-190024ff8f73" />
+              <option value="a3b5f5e4-3748-4363-8d74-ee3b1f353782" />
+            </set>
+          </value>
+        </entry>
         <entry key="f19d2181-865a-45d7-89f0-d7789f09f086">
           <value>
             <set>
-              <option value="8c3e85f9-fbd7-4d6a-be42-693e45f500b1" />
-              <option value="abcb0075-09e3-483c-b8a2-c5d43ec84402" />
-              <option value="69fe805a-3d25-489a-a086-e7f27d5dae90" />
-              <option value="8584a28f-6190-4851-843c-7bbeaa6d999d" />
-              <option value="8978bc85-767e-42f8-9b19-e0abfd8768d5" />
-              <option value="e648400e-3c73-46c4-aa18-a46f93632e4b" />
-              <option value="8168fec5-9dc7-4dbf-9441-9bbc1f854088" />
-              <option value="70c1177a-436b-4ab7-a565-b9d1a426427d" />
-              <option value="b33f8e75-b838-49f8-8386-dfb6a7c40ac7" />
-              <option value="dddadb9e-d2c8-40a1-a2ac-d969786b338e" />
               <option value="1c83cf58-efc5-49ea-88be-282014574586" />
-              <option value="bb0204d6-3109-4b68-b59c-049557f33a3d" />
-              <option value="b024d1a3-f15e-4c21-92e4-9bbd640320e4" />
+              <option value="3e6aff6d-e4f3-412e-b8f5-0d6ec7e1f40b" />
               <option value="4a602c56-5575-4af6-9f60-6209e1b01d01" />
               <option value="553717e8-b3a8-49fb-a395-73e8d2630b40" />
+              <option value="69fe805a-3d25-489a-a086-e7f27d5dae90" />
+              <option value="70c1177a-436b-4ab7-a565-b9d1a426427d" />
+              <option value="8168fec5-9dc7-4dbf-9441-9bbc1f854088" />
+              <option value="8584a28f-6190-4851-843c-7bbeaa6d999d" />
+              <option value="8978bc85-767e-42f8-9b19-e0abfd8768d5" />
+              <option value="8c3e85f9-fbd7-4d6a-be42-693e45f500b1" />
+              <option value="abcb0075-09e3-483c-b8a2-c5d43ec84402" />
+              <option value="b024d1a3-f15e-4c21-92e4-9bbd640320e4" />
+              <option value="b33f8e75-b838-49f8-8386-dfb6a7c40ac7" />
+              <option value="bb0204d6-3109-4b68-b59c-049557f33a3d" />
+              <option value="dddadb9e-d2c8-40a1-a2ac-d969786b338e" />
               <option value="e1c43728-6136-4b4c-85e5-d7183ad8f50f" />
-              <option value="3e6aff6d-e4f3-412e-b8f5-0d6ec7e1f40b" />
+              <option value="e648400e-3c73-46c4-aa18-a46f93632e4b" />
             </set>
           </value>
         </entry>
       </map>
     </option>
     <pendingWorkingSetItems>
-      <entry key="f19d2181-865a-45d7-89f0-d7789f09f086">
+      <entry key="4c682985-5a97-4a5a-b6d7-ed3222ea17dc">
         <set>
-          <option value="file://$PROJECT_DIR$/studentbrigade/lib/VM/Orchestrator.dart" />
-          <option value="file://$PROJECT_DIR$/studentbrigade/lib/VM/EmergencyVM.dart" />
-          <option value="file://$PROJECT_DIR$/studentbrigade/lib/VM/theme_sensor_service.dart" />
-          <option value="file://$PROJECT_DIR$/studentbrigade/lib/VM/Orchestrator.dart" />
+          <option value="file://$PROJECT_DIR$/studentbrigade/lib/VM/Adapter.dart" />
         </set>
       </entry>
+      <entry key="f19d2181-865a-45d7-89f0-d7789f09f086" />
     </pendingWorkingSetItems>
   </component>
 </project>

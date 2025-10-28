@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import '../../VM/Orchestrator.dart';
 import 'emergency_chat_screen.dart';
-import 'emergency_type_dialog.dart';
 
 class SosDialog {
   static void show(BuildContext context, Orchestrator orchestrator) {

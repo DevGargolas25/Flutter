@@ -2,7 +2,9 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../Models/videoMod.dart';
 import '../Models/userMod.dart';
+import '../Models/emergencyMod.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 class Adapter {
   late FirebaseDatabase _database;
@@ -56,14 +58,19 @@ class Adapter {
   Future<User?> getUserByEmail(String email) async {
     try {
       final emailNorm = email.trim().toLowerCase(); // normaliza
+      print('[Adapter] Buscando usuario con email: $emailNorm');
       final ref = _database.ref('User');
       final snap = await ref.orderByChild('email').equalTo(emailNorm).get();
 
-      if (!snap.exists) return null;
+      if (!snap.exists) {
+        print('[Adapter] No existe usuario con ese email');
+        return null;
+      }
 
       // snap.value es un Map<id, objeto>
       if (snap.value is Map) {
         final usersMap = Map<String, dynamic>.from(snap.value as Map);
+        print('[Adapter] Usuarios encontrados: \\${usersMap.length}');
 
         // Tomar el primer resultado
         final entry = usersMap.entries.first;
@@ -73,13 +80,19 @@ class Adapter {
         if (data is Map) {
           final map = Map<String, dynamic>.from(data);
           map['id'] = userId; // añade el id al mapa
+          print('[Adapter] Usuario encontrado: \\${map.toString()}');
           return User.fromMap(map);
+        } else {
+          print('[Adapter] El dato del usuario no es un Map');
         }
+      } else {
+        print('[Adapter] snap.value no es un Map');
       }
 
+      print('[Adapter] No se encontró usuario válido');
       return null;
     } catch (e, st) {
-      debugPrint('🔥 getUserByEmail error: $e\n$st');
+      debugPrint('🔥 getUserByEmail error: $e\\n$st');
       return null;
     }
   }
@@ -361,6 +374,25 @@ class Adapter {
     } catch (e) {
       print('Error adding document to $collectionName: $e');
       throw Exception('Error al agregar documento: $e');
+    }
+  }
+
+  /// Guarda un evento de sensor de luz en la colección 'sensor_events'.
+  /// Incluye: modo ('dark'|'light'), duración en ms y un timestamp ISO.
+  Future<void> saveLightSensorEvent(Duration duration, ThemeMode mode, {String? userId}) async {
+    try {
+      final data = <String, dynamic>{
+        'type': 'light_sensor',
+        'mode': mode == ThemeMode.dark ? 'dark' : 'light',
+        'duration_ms': duration.inMilliseconds,
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+      if (userId != null) data['userId'] = userId;
+      await addDocument('sensor_events', data);
+      if (kDebugMode) print('✅ Sensor event persisted: $data');
+    } catch (e) {
+      print('Error saving light sensor event: $e');
+      throw Exception('Error saving light sensor event: $e');
     }
   }
 

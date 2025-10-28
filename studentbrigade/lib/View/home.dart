@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:studentbrigade/VM/Orchestrator.dart';
-import 'profile_page.dart';
 import 'widgets/video_card.dart';
 import 'widgets/rotating_image_box.dart';
 import 'analytics.dart';

@@ -1,6 +1,5 @@
 // lib/Orchestrator/orchestrator.dart
-import 'package:flutter/foundation.dart'
-    show ChangeNotifier, kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart' show ChangeNotifier;
 import 'package:flutter/material.dart';
 
 // ===== VMs =====
@@ -9,6 +8,7 @@ import 'UserVM.dart';
 import 'VideosVM.dart';
 import 'MapVM.dart';
 import 'EmergencyVM.dart';
+import 'AnalyticsVM.dart';
 
 // ===== Models =====
 import '../Models/mapMod.dart';
@@ -69,8 +69,11 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     _videoVM = VideosVM(VideosInfo(), adapter);
     _userVM = UserVM();
 
+    // Inicializar AnalyticsVM con el adapter
+    _analyticsVM = AnalyticsVM(adapter);
+
     // Centraliza el baseUrl con _resolveBaseUrl
-    _chatVM = ChatVM(baseUrl: _resolveBaseUrl()); // FIX: usar resolver
+    _chatVM = ChatVM();
     _chatVM.addListener(notifyListeners);
 
     // EmergencyVM con hooks hacia Analytics/DAO si los necesitas
@@ -90,13 +93,12 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
 
     // Sensor de luz → recomputar tema
     _themeSensor.addListener(_recomputeTheme);
-    // Conectar callback de respuesta del sensor para notificaciones
+    // Conectar callback: solo logging; ThemeSensorService guarda en BD
     _themeSensor.onResponseMeasured = (duration, newMode) {
       final ms = duration.inMilliseconds;
       final modeName = newMode == ThemeMode.dark ? 'modo oscuro' : 'modo claro';
-      _lastLightSensorNotification = 'Sensor de luz: respuesta ${ms}ms → $modeName';
-      debugPrint(_lastLightSensorNotification);
-      notifyListeners();
+      debugPrint('Sensor de luz: respuesta ${ms}ms → $modeName (persistido en DB)');
+      // No notificar a la UI aquí para evitar snackbars/notificaciones.
     };
 
     _themeSensor.start();
@@ -111,7 +113,8 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     final eta = _mapVM.estimatedArrivalTime;
     final key = _emergencyVM.lastEmergencyDbKey;
     if (eta == null || key == null || key.isEmpty) return;
-    if (_lastEtaPersistedForEmergencyKey == key) return; // ya persistido para esta emergency
+    if (_lastEtaPersistedForEmergencyKey == key)
+      return; // ya persistido para esta emergency
 
     _etaPersistInFlight = true;
     try {
@@ -250,54 +253,42 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   void navigateToProfile() => navigateToPage(4);
   void navigateToVideos() => navigateToPage(3);
 
-  // ---------- Exponer VMs ----------
-  MapVM get mapVM => _mapVM;
-  VideosVM get videoVM => _videoVM;
-  UserVM get userVM => _userVM;
-  EmergencyVM get emergencyVM => _emergencyVM;
-  ChatVM get chatVM => _chatVM;
+  // (duplicated getters removed)
 
   // ------ CHAT: resolver baseUrl según plataforma ---------
   //------CHAT---------
   List<ChatMessage> get chatMessages => _chatVM.messages;
   bool get chatIsTyping => _chatVM.isTyping;
-  Future<void> sendChatMessage(String text) => _chatVM.sendUserMessage(text);
-  void setChatBackendBaseUrl(String url) {
-    _chatVM.baseUrl = url; // usa el setter de ChatVM
-  }
 
-  void refreshChatBackendBaseUrl() {
-    _chatVM.baseUrl = _resolveBaseUrl();
-  }
-
-  String _resolveBaseUrl() {
-    if (kIsWeb) {
-      // Si sirves por https, tu backend debe ser https (usa ngrok/cloudflared)
-      return const String.fromEnvironment(
-        'BACKEND_URL',
-        defaultValue: 'http://127.0.0.1:8080',
-      );
-    }
-
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.android:
-      // Emulador Android
-        return 'http://10.0.2.2:8080';
-      case TargetPlatform.iOS:
-      // Simulator iOS
-        return 'http://localhost:8080';
-      default:
-      // Desktop (Windows/Mac/Linux)
-        return 'http://127.0.0.1:8080';
+  /// Envía un mensaje del usuario al chat y dispara la respuesta de IA
+  Future<void> sendChatMessage(String text) async {
+    try {
+      await _chatVM.sendMessage(text);
+    } catch (e) {
+      debugPrint('Orchestrator.sendChatMessage error: $e');
     }
   }
 
-  void useAndroidEmulatorBackend() {
-    _chatVM.baseUrl = 'http://10.0.2.2:8080';
+  /// Limpia el historial del chat
+  void clearChat() {
+    _chatVM.clearChat();
+    notifyListeners();
   }
 
-  void useLanBackend(String pcLanIp) {
-    _chatVM.baseUrl = 'http://$pcLanIp:8080';
+  /// Inicializa el chat con un prompt especializado para emergencias en tiempo real
+  void startEmergencyChat({String? customPrompt}) {
+    final defaultPrompt =
+        'Eres un asistente de emergencias en tiempo real para una brigada estudiantil. '
+        'Responde de forma breve, clara y priorizando la seguridad. '
+        'Proporciona pasos accionables inmediatos y confirma si la persona está a salvo. '
+        'Si detectas riesgo vital, sugiere llamar al 911 e informar la ubicación. '
+        'Adapta tus indicaciones al contexto (incendio, sismo, herida, desmayo, etc.).';
+    _chatVM.resetWithSystemPrompt(
+      customPrompt?.trim().isNotEmpty == true
+          ? customPrompt!.trim()
+          : defaultPrompt,
+    );
+    notifyListeners();
   }
 
   // ---------- MAP ----------
@@ -389,9 +380,9 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<Duration?> calculateRouteToBrigadist(
-      double brigadistLat,
-      double brigadistLng,
-      ) async {
+    double brigadistLat,
+    double brigadistLng,
+  ) async {
     try {
       final routeTime = await _mapVM.calculateRouteToBrigadist(
         brigadistLat,
@@ -408,6 +399,11 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   // === MÉTODO PARA ANALYTICS ===
   Map<String, dynamic> getRouteAnalytics() {
     return _mapVM.getEmergencyRouteAnalytics();
+  }
+
+  // === MÉTODO PARA EMERGENCY ANALYTICS ===
+  Future<Map<String, dynamic>> getEmergencyAnalytics() async {
+    return await _analyticsVM.getEmergencyAnalytics();
   }
 
   Brigadist? get assignedBrigadist => _userVM.assignedBrigadist;
@@ -433,12 +429,14 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
 
       // Calcular ruta si hay coords del brigadista
       if (assigned != null) {
-        final fromLat = _emergencyVM.lastLatitude ?? _mapVM.currentUserLocation?.latitude;
-        final fromLng = _emergencyVM.lastLongitude ?? _mapVM.currentUserLocation?.longitude;
+        final fromLat =
+            _emergencyVM.lastLatitude ?? _mapVM.currentUserLocation?.latitude;
+        final fromLng =
+            _emergencyVM.lastLongitude ?? _mapVM.currentUserLocation?.longitude;
 
         rt = await _mapVM.calculateRouteToBrigadist(
-          assigned.latitude,
-          assigned.longitude,
+          assigned.latitude ?? 0.0,
+          assigned.longitude ?? 0.0,
           fromLat: fromLat,
           fromLng: fromLng,
         );
@@ -450,7 +448,8 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
       await _emergencyVM.callBrigadistWithLocation(
         phone,
         routeCalcTime: routeEtaTime,
-        userId: _userVM.getUserData()?.studentId ??
+        userId:
+            _userVM.getUserData()?.studentId ??
             _userVM.getUserData()?.email ??
             'unknown',
       );
@@ -467,7 +466,8 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     String? description,
   }) async {
     try {
-      final userId = _userVM.getUserData()?.studentId ??
+      final userId =
+          _userVM.getUserData()?.studentId ??
           _userVM.getUserData()?.email ??
           'unknown';
 
@@ -491,8 +491,14 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
       _lastEtaPersistedForEmergencyKey = null;
 
       // 2) Pedir brigadista más cercano
-      final queryLat = latitude ?? _emergencyVM.lastLatitude ?? _mapVM.currentUserLocation?.latitude;
-      final queryLng = longitude ?? _emergencyVM.lastLongitude ?? _mapVM.currentUserLocation?.longitude;
+      final queryLat =
+          latitude ??
+          _emergencyVM.lastLatitude ??
+          _mapVM.currentUserLocation?.latitude;
+      final queryLng =
+          longitude ??
+          _emergencyVM.lastLongitude ??
+          _mapVM.currentUserLocation?.longitude;
 
       Brigadist? brig;
       if (queryLat != null && queryLng != null) {
@@ -510,12 +516,18 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
       _emergencyVM.setAssignedBrigadist(brig);
 
       // 4) Calcular ruta desde la ubicación de la emergencia si existe
-      final fromLat = latitude ?? _emergencyVM.lastLatitude ?? _mapVM.currentUserLocation?.latitude;
-      final fromLng = longitude ?? _emergencyVM.lastLongitude ?? _mapVM.currentUserLocation?.longitude;
+      final fromLat =
+          latitude ??
+          _emergencyVM.lastLatitude ??
+          _mapVM.currentUserLocation?.latitude;
+      final fromLng =
+          longitude ??
+          _emergencyVM.lastLongitude ??
+          _mapVM.currentUserLocation?.longitude;
 
       final rt = await _mapVM.calculateRouteToBrigadist(
-        brig.latitude,
-        brig.longitude,
+        brig.latitude ?? 0.0,
+        brig.longitude ?? 0.0,
         fromLat: fromLat,
         fromLng: fromLng,
       );
@@ -540,3 +552,4 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   double? get lastLongitude => _emergencyVM.lastLongitude;
   DateTime? get lastLocationAt => _emergencyVM.lastLocationAt;
 }
+

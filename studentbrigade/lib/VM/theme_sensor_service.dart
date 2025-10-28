@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:ambient_light/ambient_light.dart';
+import 'package:studentbrigade/VM/Adapter.dart';
 
 /// Traduce lux -> ThemeMode con suavizado + histeresis.
 /// Funciona en Android; en iOS el paquete usa CoreMotion/cámara en equipos compatibles.
@@ -20,6 +21,18 @@ class ThemeSensorService extends ChangeNotifier {
 
   /// Callback opcional: tiempo que tardó en cambiar de modo
   void Function(Duration duration, ThemeMode newMode)? onResponseMeasured;
+
+  // Adapter interno (lazy) para persistir eventos en DB
+  Adapter? _adapter;
+  Future<void> _ensureAdapter() async {
+    if (_adapter != null) return;
+    try {
+      _adapter = Adapter();
+    } catch (e) {
+      debugPrint('ThemeSensorService: error creando Adapter: $e');
+      _adapter = null;
+    }
+  }
 
   StreamSubscription<double>? _sub;
   final _buf = <double>[];
@@ -74,6 +87,17 @@ class ThemeSensorService extends ChangeNotifier {
       if (avg <= darkEnterLux) {
         if (_pendingTarget == ThemeMode.dark && _pendingStart != null) {
           _lastResponse = now.difference(_pendingStart!);
+          // Persistir automáticamente el evento de sensor
+          () async {
+            try {
+              await _ensureAdapter();
+              if (_adapter != null) {
+                await _adapter!.saveLightSensorEvent(_lastResponse!, ThemeMode.dark);
+              }
+            } catch (e) {
+              debugPrint('ThemeSensorService: error guardando evento dark: $e');
+            }
+          }();
           onResponseMeasured?.call(_lastResponse!, ThemeMode.dark);
         }
         _pendingTarget = null;
@@ -93,6 +117,17 @@ class ThemeSensorService extends ChangeNotifier {
       if (avg >= lightEnterLux) {
         if (_pendingTarget == ThemeMode.light && _pendingStart != null) {
           _lastResponse = now.difference(_pendingStart!);
+          // Persistir automáticamente el evento de sensor
+          () async {
+            try {
+              await _ensureAdapter();
+              if (_adapter != null) {
+                await _adapter!.saveLightSensorEvent(_lastResponse!, ThemeMode.light);
+              }
+            } catch (e) {
+              debugPrint('ThemeSensorService: error guardando evento light: $e');
+            }
+          }();
           onResponseMeasured?.call(_lastResponse!, ThemeMode.light);
         }
         _pendingTarget = null;
