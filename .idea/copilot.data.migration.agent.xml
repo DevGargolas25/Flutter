@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="AgentMigrationStateService">
+    <option name="migrationStatus" value="IN_PROGRESS" />
     <option name="pendingSessionIds">
       <option value="4c682985-5a97-4a5a-b6d7-ed3222ea17dc" />
+      <option value="66a3eae3-522e-44f0-b7bd-29a9164baa20" />
       <option value="f19d2181-865a-45d7-89f0-d7789f09f086" />
     </option>
     <option name="pendingTurns">
@@ -10,13 +12,96 @@
         <entry key="4c682985-5a97-4a5a-b6d7-ed3222ea17dc">
           <value>
             <set>
-              <option value="e0c37588-eaa4-4e69-9d9e-53f526f1de67" />
+              <option value="02eec5b9-17d0-4acc-8dd1-fbdbb35eb472" />
+              <option value="08d75939-8a98-4058-b90f-7576f325c41c" />
+              <option value="0a7f68e7-1674-4119-b632-accdc153a500" />
+              <option value="0ad6fa6b-0389-4db2-b78e-e26eb46c11e2" />
+              <option value="0ff4a5c3-057c-4893-99a2-dc85c9bd1963" />
+              <option value="1082812c-ae5a-4035-8554-4829d728a52d" />
+              <option value="11637176-31f2-4a96-9564-c5ce17e4bddc" />
+              <option value="14b5e619-ef13-40b2-b507-7f47ca808768" />
+              <option value="15632cd0-9249-4d63-a7c2-3df0564ac92a" />
+              <option value="1c348974-21d7-475f-ad41-cdc6cddde273" />
+              <option value="1fc494ec-2f73-434f-a523-cba5c58ca1d0" />
+              <option value="23db7579-4e75-4a65-945b-969b67fcaba5" />
+              <option value="277c5aad-684b-4a32-b0de-977d5ab4c24d" />
+              <option value="289df607-ecfe-48db-ad4f-dd0b3ae9bdda" />
+              <option value="289e49e8-4e17-44bb-a4a4-80ba931df8ba" />
+              <option value="298754e2-af73-489e-a705-2183372ae903" />
+              <option value="2ae45450-e0df-44d8-9ffd-6e31cb8ce246" />
+              <option value="2c5be781-cb25-47d5-9d0f-bca7eddfc2c7" />
+              <option value="2d886776-108e-4d35-937f-26bde7651d39" />
+              <option value="396790d9-422c-4808-9b0a-7f37456be04a" />
               <option value="3bbbb193-a22d-49aa-84f7-a2e310cf0cfd" />
-              <option value="c4af1761-3798-4b95-a468-d4e93828d814" />
-              <option value="b93a6411-6126-4908-9c42-e23940757f11" />
+              <option value="40259709-ca62-4018-9731-480b4e3a7966" />
+              <option value="409810c9-0881-4169-b3d2-55fc1f88f243" />
+              <option value="420fff41-c6ff-40ec-bc8b-5d5a7533dca1" />
+              <option value="4c22c40f-6691-4554-8173-51fec63a1a15" />
+              <option value="4dc931c9-d743-44ae-a1a1-8265eb7d70bd" />
+              <option value="5054b647-2042-47ef-9928-47bada7661bc" />
+              <option value="557e4bbc-309a-4393-9daf-1716c7a8ce4e" />
+              <option value="57b0f9b6-7409-4700-a4fe-2a588be94102" />
+              <option value="66f31859-e7e4-4b28-8630-122b334d18cf" />
+              <option value="69384faa-2b44-4b57-b50e-a8e584b638e8" />
+              <option value="6b75c4bb-e2a6-49b9-899b-dd97a72e5da7" />
+              <option value="718c5c73-bce4-4450-91da-0f3858d38669" />
+              <option value="77958cf8-bd80-4c94-8567-b6d88fe05a2d" />
+              <option value="7b5e311a-addc-4ee0-8614-1bea608b69a9" />
+              <option value="7fa6c9c1-07ed-4b09-9b0f-566be1172079" />
+              <option value="8382213f-64c1-4dc6-8b12-7582f1ace8a0" />
+              <option value="88c66ef5-bd82-4663-bbcd-0ab9ad3f71bc" />
+              <option value="89fe7497-3e20-4ee4-aa9d-594b51bd6dea" />
+              <option value="8aeeaf1b-229e-4f08-afaa-45e7875a25e7" />
+              <option value="8f776065-714e-43df-a8ba-259c626ee50a" />
+              <option value="9363b850-476d-4468-823f-7f6e755a0fed" />
+              <option value="9697e21f-81d4-4d80-a1de-cdd34098e0ae" />
+              <option value="994b5153-4194-4293-9fa3-e2028168026a" />
+              <option value="9edfc62e-84d0-4430-9811-3093d64df41d" />
+              <option value="9eeddf32-ebc6-46ae-8747-08c759040d47" />
+              <option value="9f083c6c-d7f1-4cfc-aa80-9e741299c7cd" />
+              <option value="a0f65b98-45ab-4aea-af9d-c49103374fe7" />
               <option value="a1884a58-48e9-4579-988c-9e4eca351a18" />
-              <option value="e4477656-9b7d-4e2b-ae1d-190024ff8f73" />
               <option value="a3b5f5e4-3748-4363-8d74-ee3b1f353782" />
+              <option value="a47258dc-da42-4c79-ba1a-a8f80cf70f60" />
+              <option value="b04ab735-9b78-49f2-ac13-9c9764a1085d" />
+              <option value="b3e1762c-b176-4383-9640-f162e527cc7b" />
+              <option value="b90a634b-dccd-46ef-8a05-efbb612c1c16" />
+              <option value="b93a6411-6126-4908-9c42-e23940757f11" />
+              <option value="c0b97051-a995-4611-b6bd-e79a912084d1" />
+              <option value="c468bf12-a21f-49b0-8b47-e5511d4ac0c4" />
+              <option value="c4af1761-3798-4b95-a468-d4e93828d814" />
+              <option value="c9065ec3-99b6-40f0-b821-23d28aa94269" />
+              <option value="d18148bc-bfbe-49ef-9334-507d51a5a485" />
+              <option value="d468fd6c-49cf-41f1-a945-9a799037b053" />
+              <option value="d537ab40-71d5-409f-9d68-7c53a16b40cf" />
+              <option value="d60b1696-d89f-4c9a-a24c-55a363aad97a" />
+              <option value="d970660e-54cc-4109-910b-43c816325c7a" />
+              <option value="dad026ea-b757-4d96-bab6-4071ab1738a3" />
+              <option value="e0c37588-eaa4-4e69-9d9e-53f526f1de67" />
+              <option value="e4309efa-d892-47c2-a400-8d3557259af8" />
+              <option value="e4477656-9b7d-4e2b-ae1d-190024ff8f73" />
+              <option value="e55cd006-a072-4893-9561-fb1afe3fa585" />
+              <option value="f13a8d86-f205-418f-b139-663b717a5572" />
+              <option value="f1d99f4a-9976-44ce-915e-157e98195fc1" />
+              <option value="f2371be0-cad5-4cfd-98ca-a9a8cbf9b25c" />
+              <option value="f3fa5bef-e2a3-4d12-af79-54a6791bc3a5" />
+              <option value="fa61985b-bebc-4f82-a897-52659e36b9ee" />
+              <option value="fe701201-0b9a-41eb-8d1e-6d8479aebc64" />
+            </set>
+          </value>
+        </entry>
+        <entry key="66a3eae3-522e-44f0-b7bd-29a9164baa20">
+          <value>
+            <set>
+              <option value="5e9e01ad-ce18-4f9c-842a-2e578f670ab6" />
+              <option value="f8e0ce54-ce72-40e8-ac8f-41a2a05b0d99" />
+              <option value="05fda314-320c-4a08-9b85-ea988013e40f" />
+              <option value="85febf6c-83fe-4cb6-9624-88427618b83b" />
+              <option value="cca2ff5c-68d1-4b1f-9d7b-58e170cf0136" />
+              <option value="8e3f173e-d8e8-4911-a292-8b3b29bbfab0" />
+              <option value="7903956c-0e30-46a5-bba3-68cc022ab90e" />
+              <option value="835aedfe-b539-41e9-9549-1aa9c93cb171" />
+              <option value="b744c7c7-81bd-49cd-b38b-543cd1a30785" />
             </set>
           </value>
         </entry>
@@ -49,6 +134,10 @@
       <entry key="4c682985-5a97-4a5a-b6d7-ed3222ea17dc">
         <set>
           <option value="file://$PROJECT_DIR$/studentbrigade/lib/VM/Adapter.dart" />
+          <option value="file://$PROJECT_DIR$/studentbrigade/lib/View/Auth0/auth_gate.dart" />
+          <option value="file://$PROJECT_DIR$/studentbrigade/lib/VM/UserVM.dart" />
+          <option value="file://$PROJECT_DIR$/studentbrigade/lib/VM/offline_queue.dart" />
+          <option value="file://$PROJECT_DIR$/studentbrigade/lib/View/profile_page.dart" />
         </set>
       </entry>
       <entry key="f19d2181-865a-45d7-89f0-d7789f09f086" />
