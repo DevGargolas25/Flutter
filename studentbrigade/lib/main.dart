@@ -16,10 +16,17 @@ import 'VM/Orchestrator.dart';
 import 'VM/AnalyticsVM.dart';
 import 'View/pruebaDB.dart';
 import 'View/light_sensor_snackbar_listener.dart';
+// FlutterMap Tiles Cache
+import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
+
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
+  
+   // Inicializa tiles de cache de mapa
+  await FMTCObjectBoxBackend().initialise();
+  await FMTCStore('mapStore').manage.create();
+  
   // ✅ Offline-friendly: no intentes bajar fuentes en runtime
   GoogleFonts.config.allowRuntimeFetching = false;
 
