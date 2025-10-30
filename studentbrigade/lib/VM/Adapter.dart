@@ -721,7 +721,131 @@ class Adapter {
     }
   }
 
+  // === USER LIKES & VIEWS TRACKING ===
 
+  // Verificar si un usuario ya dio like a un video
+  Future<bool> hasUserLikedVideo(String userId, String videoId) async {
+    try {
+      final snapshot = await _database.ref('UserLikes/$userId/$videoId').get();
+      return snapshot.exists;
+    } catch (e) {
+      print('❌ Error checking user like: $e');
+      return false;
+    }
+  }
 
+  // Registrar que un usuario dio like a un video
+  Future<void> addUserLike(String userId, String videoId) async {
+    try {
+      await _database.ref('UserLikes/$userId/$videoId').set({
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+        'likedAt': DateTime.now().toIso8601String(),
+      });
+      print('✅ User like registered: $userId -> $videoId');
+    } catch (e) {
+      print('❌ Error adding user like: $e');
+      throw Exception('Error al registrar like: $e');
+    }
+  }
 
+  // Verificar si un usuario ya vio un video
+  Future<bool> hasUserViewedVideo(String userId, String videoId) async {
+    try {
+      final snapshot = await _database.ref('UserViews/$userId/$videoId').get();
+      return snapshot.exists;
+    } catch (e) {
+      print('❌ Error checking user view: $e');
+      return false;
+    }
+  }
+
+  // Registrar que un usuario vio un video
+  Future<void> addUserView(String userId, String videoId) async {
+    try {
+      await _database.ref('UserViews/$userId/$videoId').set({
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+        'viewedAt': DateTime.now().toIso8601String(),
+      });
+      print('✅ User view registered: $userId -> $videoId');
+    } catch (e) {
+      print('❌ Error adding user view: $e');
+      throw Exception('Error al registrar view: $e');
+    }
+  }
+
+  // Actualizar likes solo si el usuario no ha dado like antes
+  Future<bool> updateLikesIfNotLiked(String userId, String videoId) async {
+    try {
+      // Verificar si ya dio like
+      final hasLiked = await hasUserLikedVideo(userId, videoId);
+      if (hasLiked) {
+        print('⚠️ Usuario $userId ya dio like al video $videoId');
+        return false; // No se actualizó
+      }
+
+      // Obtener likes actuales
+      final videoSnapshot = await _database.ref('Video/$videoId/like').get();
+      int currentLikes = 0;
+      if (videoSnapshot.exists) {
+        currentLikes = (videoSnapshot.value as num?)?.toInt() ?? 0;
+      }
+
+      // Actualizar likes y registrar usuario
+      final newLikes = currentLikes + 1;
+      await _database.ref('Video/$videoId/like').set(newLikes);
+      await addUserLike(userId, videoId);
+
+      print('✅ Like actualizado: $videoId -> $newLikes');
+      return true; // Se actualizó correctamente
+    } catch (e) {
+      print('❌ Error updating likes: $e');
+      throw Exception('Error al actualizar likes: $e');
+    }
+  }
+
+  // Actualizar views solo si el usuario no ha visto antes
+  Future<bool> updateViewsIfNotViewed(String userId, String videoId) async {
+    try {
+      // Verificar si ya vio el video
+      final hasViewed = await hasUserViewedVideo(userId, videoId);
+      if (hasViewed) {
+        print('⚠️ Usuario $userId ya vio el video $videoId');
+        return false; // No se actualizó
+      }
+
+      // Obtener views actuales
+      final videoSnapshot = await _database.ref('Video/$videoId/views').get();
+      int currentViews = 0;
+      if (videoSnapshot.exists) {
+        currentViews = (videoSnapshot.value as num?)?.toInt() ?? 0;
+      }
+
+      // Actualizar views y registrar usuario
+      final newViews = currentViews + 1;
+      await _database.ref('Video/$videoId/views').set(newViews);
+      await addUserView(userId, videoId);
+
+      print('✅ View actualizado: $videoId -> $newViews');
+      return true; // Se actualizó correctamente
+    } catch (e) {
+      print('❌ Error updating views: $e');
+      throw Exception('Error al actualizar views: $e');
+    }
+  }
+
+  // Obtener estado de likes/views para mostrar en UI
+  Future<Map<String, bool>> getUserVideoInteractions(
+    String userId,
+    String videoId,
+  ) async {
+    try {
+      final hasLiked = await hasUserLikedVideo(userId, videoId);
+      final hasViewed = await hasUserViewedVideo(userId, videoId);
+
+      return {'hasLiked': hasLiked, 'hasViewed': hasViewed};
+    } catch (e) {
+      print('❌ Error getting user video interactions: $e');
+      return {'hasLiked': false, 'hasViewed': false};
+    }
+  }
 }
