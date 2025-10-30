@@ -2,6 +2,9 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import '../../Models/videoMod.dart';
+import '../../Caches/video_cache_manager.dart';
+import '../../Services/connectivity_service.dart';
+import 'dart:io';
 
 class VideoPlayerView extends StatefulWidget {
   final VideoMod video;
@@ -14,19 +17,113 @@ class VideoPlayerView extends StatefulWidget {
 class _VideoPlayerViewState extends State<VideoPlayerView> {
   late VideoPlayerController _c;
   late Future<void> _init;
+  final VideoCacheManager _cacheManager = VideoCacheManager();
+  final ConnectivityService _connectivity = ConnectivityService();
+  bool _hasError = false;
+  String _errorMessage = '';
+  bool _isOfflineAndNotCached = false;
 
   bool get _isMuted => _c.value.volume == 0.0;
 
   @override
   void initState() {
     super.initState();
-    _c = VideoPlayerController.networkUrl(Uri.parse(widget.video.url));
-    _init = _c.initialize().then((_) async {
-      // 🔇 Para Web: inicia en mute para no bloquear el autoplay
-      // 🔊 Para móviles/escritorio: arranca con volumen normal
-      await _c.setVolume(kIsWeb ? 0.0 : 1.0);
-      setState(() {});
-    });
+    _initializePlayer();
+  }
+
+  Future<void> _initializePlayer() async {
+    try {
+      // Verificar si hay internet
+      await _connectivity.initialize();
+      final hasInternet = _connectivity.hasInternet;
+
+      if (hasInternet) {
+        // Con internet: usar URL normal y cachear en background
+        print('🌐 Reproduciendo video online: ${widget.video.url}');
+        _c = VideoPlayerController.networkUrl(Uri.parse(widget.video.url));
+
+        // Cachear video en background para uso futuro
+        _cacheManager.cacheVideo(widget.video.url);
+      } else {
+        // Sin internet: intentar usar video cacheado
+        print('📱 Sin internet, buscando video en cache...');
+        final cachedFile = await _cacheManager.getCachedVideo(widget.video.url);
+
+        if (cachedFile != null && cachedFile.existsSync()) {
+          print('✅ Video encontrado en cache: ${cachedFile.path}');
+          _c = VideoPlayerController.file(cachedFile);
+        } else {
+          // Verificar si este es uno de los 2 videos offline esperados
+          final offlineVideos = await _cacheManager.getOfflineVideos();
+          final isOfflineVideo = offlineVideos.any(
+            (v) => v.url == widget.video.url,
+          );
+
+          if (isOfflineVideo) {
+            print('⏳ Video debería estar en cache pero aún no está listo...');
+            // Esperar un poco más y reintentar
+            await Future.delayed(Duration(seconds: 1));
+            final retryFile = await _cacheManager.getCachedVideo(
+              widget.video.url,
+            );
+
+            if (retryFile != null && retryFile.existsSync()) {
+              print('✅ Video encontrado en reintento: ${retryFile.path}');
+              _c = VideoPlayerController.file(retryFile);
+            } else {
+              print('❌ Video offline no disponible aún');
+              _isOfflineAndNotCached = true;
+              _hasError = true;
+              _errorMessage =
+                  'Video cargando...\nIntenta de nuevo en unos segundos.';
+
+              _c = VideoPlayerController.networkUrl(Uri.parse(''));
+              _init = Future.value();
+              if (mounted) setState(() {});
+              return;
+            }
+          } else {
+            print('❌ Video no está en cache y no hay internet');
+            _isOfflineAndNotCached = true;
+            _hasError = true;
+            _errorMessage =
+                'Este video no está disponible sin conexión.\nConéctate a internet para verlo.';
+
+            _c = VideoPlayerController.networkUrl(Uri.parse(''));
+            _init = Future.value();
+            if (mounted) setState(() {});
+            return;
+          }
+        }
+      }
+
+      _init = _c
+          .initialize()
+          .then((_) async {
+            // 🔇 Para Web: inicia en mute para no bloquear el autoplay
+            // 🔊 Para móviles/escritorio: arranca con volumen normal
+            await _c.setVolume(kIsWeb ? 0.0 : 1.0);
+            _hasError = false;
+            _errorMessage = '';
+            if (mounted) setState(() {});
+          })
+          .catchError((error) {
+            print('❌ Error inicializando video player: $error');
+            _hasError = true;
+            _errorMessage =
+                'Error cargando el video.\nVerifica tu conexión a internet.';
+            if (mounted) setState(() {});
+          });
+    } catch (e) {
+      print('❌ Error en _initializePlayer: $e');
+      _hasError = true;
+      _errorMessage = 'Error inesperado.\nIntenta de nuevo.';
+
+      // Crear controller dummy
+      _c = VideoPlayerController.networkUrl(Uri.parse(''));
+      _init = Future.value();
+      if (mounted) setState(() {});
+    }
   }
 
   @override
@@ -64,17 +161,38 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
             child: Center(child: CircularProgressIndicator()),
           );
         }
-        if (_c.value.hasError) {
+        if (_hasError || _c.value.hasError) {
           return SizedBox(
             height: 220,
-            child: Center(
-              child: Text(
-                _c.value.errorDescription ?? 'Error loading video',
-                style: const TextStyle(color: Colors.white),
+            child: Container(
+              color: Colors.black,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      _isOfflineAndNotCached
+                          ? Icons.wifi_off
+                          : Icons.error_outline,
+                      color: Colors.white70,
+                      size: 48,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      _errorMessage.isNotEmpty
+                          ? _errorMessage
+                          : (_c.value.errorDescription ??
+                                'Error loading video'),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white, fontSize: 14),
+                    ),
+                  ],
+                ),
               ),
             ),
           );
         }
+
         return Stack(
           children: [
             AspectRatio(

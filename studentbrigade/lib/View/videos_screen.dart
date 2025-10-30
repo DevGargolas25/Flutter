@@ -5,6 +5,7 @@ import '../../Models/videoMod.dart'; // VideoMod, VideosInfo
 import '../VM/Orchestrator.dart'; // Orchestrator
 import 'Auth0/auth_service.dart'; // AuthService
 import '../VM/Adapter.dart'; // Adapter
+import 'widgets/no_internet_widget.dart'; // Widget sin internet
 
 class VideosPage extends StatefulWidget {
   final Orchestrator orchestrator;
@@ -161,11 +162,47 @@ class _VideosPageState extends State<VideosPage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: cs.primary,
-        title: Text(
-          'Training Videos',
-          style: tt.titleLarge?.copyWith(color: cs.onPrimary),
+        title: Row(
+          children: [
+            Text(
+              'Training Videos',
+              style: tt.titleLarge?.copyWith(color: cs.onPrimary),
+            ),
+            if (vm.isOfflineMode) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: cs.error,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.wifi_off, size: 16, color: cs.onError),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Offline',
+                      style: tt.labelSmall?.copyWith(
+                        color: cs.onError,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
         ),
         iconTheme: IconThemeData(color: cs.onPrimary),
+        actions: [
+          if (vm.isOfflineMode)
+            IconButton(
+              onPressed: () => vm.checkConnectivity(),
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Verificar conexión',
+            ),
+        ],
       ),
       body: Column(
         children: [
@@ -226,17 +263,35 @@ class _VideosPageState extends State<VideosPage> {
           Expanded(
             child: vm.videos.isEmpty
                 ? Center(
-                    child: Text(
-                      'No videos found',
-                      style: tt.bodyLarge?.copyWith(color: cs.onSurface),
-                    ),
+                    child: vm.isOfflineMode
+                        ? NoInternetWidget(
+                            onRetry: () => vm.checkConnectivity(),
+                            customMessage:
+                                'Sin conexión a internet. No hay videos guardados localmente disponibles.',
+                          )
+                        : Text(
+                            'No videos found',
+                            style: tt.bodyLarge?.copyWith(color: cs.onSurface),
+                          ),
                   )
                 : ListView.separated(
                     controller: _scrollCtrl,
                     padding: const EdgeInsets.all(16),
-                    itemCount: vm.videos.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 16),
+                    itemCount:
+                        vm.videos.length +
+                        (vm.isOfflineMode ? 1 : 0), // +1 para mensaje offline
+                    separatorBuilder: (_, i) => i < vm.videos.length
+                        ? const SizedBox(height: 16)
+                        : const SizedBox.shrink(),
                     itemBuilder: (_, i) {
+                      // Si es el último item y estamos offline, mostrar mensaje
+                      if (i == vm.videos.length && vm.isOfflineMode) {
+                        return OfflineEndMessageWidget(
+                          onRetry: () => vm.checkConnectivity(),
+                        );
+                      }
+
+                      // Item normal de video
                       final v = vm.videos[i];
                       return _VideoCard(
                         video: v,
