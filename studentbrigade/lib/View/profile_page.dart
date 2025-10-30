@@ -107,7 +107,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
   Future<void> _saveChanges() async {
     setState(() => _isSaving = true);
     try {
-      final success = await widget.orchestrator.updateUserData(
+      final success = await widget.orchestrator.userVM.updateUserData(
         emergencyName1: _emergencyName1,
         emergencyPhone1: _emergencyPhone1,
         emergencyName2: _emergencyName2,
@@ -132,15 +132,16 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
         setState(() => _isEditing = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Profile updated successfully!'),
+            content: const Text('Perfil actualizado (offline-first)'),
             backgroundColor: Theme.of(context).snackBarTheme.backgroundColor ??
                 Theme.of(context).colorScheme.inverseSurface,
           ),
         );
       } else {
+        final err = widget.orchestrator.userVM.errorMessage;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Failed to update profile. Please try again.'),
+            content: Text(err ?? 'No se pudo actualizar el perfil. Intenta de nuevo.'),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -214,7 +215,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
               ),
               child: _isSaving
                   ? const SizedBox(
-                      width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                   : const Text('Save'),
             ),
             const SizedBox(width: 8),

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../Models/userMod.dart';
 import 'Adapter.dart';
+import '../services/offline_queue.dart';
 
 class UserVM extends ChangeNotifier {
   final Adapter _adapter = Adapter();
@@ -49,12 +50,29 @@ class UserVM extends ChangeNotifier {
       if (vitaminsSupplements != null) _currentUser!.vitaminsSupplements = vitaminsSupplements.isEmpty ? null : vitaminsSupplements;
       if (specialInstructions != null) _currentUser!.specialInstructions = specialInstructions.isEmpty ? null : specialInstructions;
 
-      // Guardar en BD simulada
-      final key = _currentUser!.studentId.isNotEmpty ? _currentUser!.studentId : _currentUser!.email;
-      await _adapter.updateUser(key, _currentUser!.toMap());
+      // 1) Actualizar caché local para UI offline
+      await _adapter.cacheUser(_currentUser!);
+
+      // 2) Intentar update online por email; si falla, encolar para flush
+      final payload = _currentUser!.toMap();
+      bool enqueued = false;
+      try {
+        final ok = await _adapter.updateUserByEmail(_currentUser!.email, payload);
+        if (!ok) {
+          await OfflineQueue.enqueueUserUpdateByEmail(_currentUser!.email, payload);
+          enqueued = true;
+        }
+      } catch (_) {
+        await OfflineQueue.enqueueUserUpdateByEmail(_currentUser!.email, payload);
+        enqueued = true;
+      }
+
+      if (enqueued) {
+        debugPrint('Update encolado offline para ${_currentUser!.email}');
+      }
 
       notifyListeners();
-      return true;
+      return true; // estado local actualizado; sync se hará si corresponde
     } catch (e) {
       _errorMessage = e.toString();
       return false;
@@ -69,7 +87,8 @@ class UserVM extends ChangeNotifier {
   Future<User?> fetchUserByEmail(String email) async {
     _errorMessage = null;
     try {
-      final u = await _adapter.getUserByEmail(email);
+      // Estrategia offline-first: cache -> RTDB (con timeout interno)
+      final u = await _adapter.getUserFast(email);
 
       if (u == null) {
         _errorMessage = 'Usuario no encontrado para el email: $email';

@@ -92,7 +92,7 @@ class ThemeSensorService extends ChangeNotifier {
             try {
               await _ensureAdapter();
               if (_adapter != null) {
-                await _adapter!.saveLightSensorEvent(_lastResponse!, ThemeMode.dark);
+                // await _adapter!.saveLightSensorEvent(_lastResponse!, ThemeMode.dark);
               }
             } catch (e) {
               debugPrint('ThemeSensorService: error guardando evento dark: $e');
@@ -122,7 +122,7 @@ class ThemeSensorService extends ChangeNotifier {
             try {
               await _ensureAdapter();
               if (_adapter != null) {
-                await _adapter!.saveLightSensorEvent(_lastResponse!, ThemeMode.light);
+                // await _adapter!.saveLightSensorEvent(_lastResponse!, ThemeMode.light);
               }
             } catch (e) {
               debugPrint('ThemeSensorService: error guardando evento light: $e');
