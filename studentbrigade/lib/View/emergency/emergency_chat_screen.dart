@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 // Orchestrator & Map
 import '../../VM/Orchestrator.dart';
+import '../../Models/chatModel.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -14,18 +15,11 @@ class EmergencyChatScreen extends StatefulWidget {
   State<EmergencyChatScreen> createState() => _EmergencyChatScreenState();
 }
 
-enum _TabKey { brigadist, medical, map }
-
-class _Msg {
-  final String text;
-  final bool fromMe; // true => usuario; false => brigadista/bot
-  final String time;
-  _Msg({required this.text, required this.fromMe, this.time = 'Now'});
-}
+enum _TabKey { chat, medical, map }
 
 class _EmergencyChatScreenState extends State<EmergencyChatScreen>
     with WidgetsBindingObserver {
-  _TabKey _activeTab = _TabKey.brigadist;
+  _TabKey _activeTab = _TabKey.chat;
 
   // ---------- Mapa / Orchestrator ----------
   late final MapController _mapController = MapController();
@@ -34,31 +28,6 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen>
 
   // ---------- Chats ----------
   final _brigadistInput = TextEditingController();
-  final _botInput = TextEditingController();
-
-  final List<_Msg> _brigadistMsgs = [
-    _Msg(
-        text:
-            "Emergency received! I'm Sarah from the Brigade Team. Are you injured?",
-        fromMe: false),
-    _Msg(
-        text:
-            "I'm currently 2 minutes away from your location. Stay calm.",
-        fromMe: false),
-  ];
-
-  final List<_Msg> _botMsgs = [
-    _Msg(
-      text:
-          'Emergency protocol activated. I can help you with immediate safety instructions while help is on the way.',
-      fromMe: false,
-    ),
-    _Msg(
-      text:
-          'Based on your location, the nearest safe assembly point is the Main Campus front parking lot.',
-      fromMe: false,
-    ),
-  ];
 
   // ---------- Mock local (fallback si aún no carga el usuario) ----------
   final _medicalInfoFallback = const {
@@ -93,12 +62,15 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen>
     }
 
     _loadAssignedBrigadist();
+    // Reinicia el chat con un prompt específico para emergencias en tiempo real
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.orchestrator.startEmergencyChat();
+    });
   }
 
   @override
   void dispose() {
     _brigadistInput.dispose();
-    _botInput.dispose();
     widget.orchestrator.mapVM.removeListener(_onLocationUpdate);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -144,52 +116,7 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen>
     }
   }
 
-  // ---------- Reglas chatbot ----------
-  String _aiResponse(String userMessage) {
-    final m = userMessage.toLowerCase();
-    if (m.contains('first aid') || m.contains('injured') || m.contains('hurt')) {
-      return 'For immediate first aid: Check breathing and pulse. Apply pressure to bleeding wounds. Keep the person calm and still. Do not move them if you suspect spinal injury.';
-    }
-    if (m.contains('fire') || m.contains('smoke')) {
-      return 'Fire emergency protocol: Stay low to avoid smoke. Feel doors before opening. Use stairs, never elevators. If trapped, signal for help from a window.';
-    }
-    if (m.contains('evacuation') || m.contains('exit')) {
-      return 'Follow your nearest marked evacuation route. Proceed to the designated assembly point shown on the map. Wait for further instructions from brigadists.';
-    }
-    if (m.contains('panic') || m.contains('scared') || m.contains('afraid')) {
-      return 'Take slow, deep breaths. Focus on your breathing pattern. Help is on the way. You are not alone - the brigade team is trained to handle this situation.';
-    }
-    if (m.contains('earthquake') || m.contains('shake')) {
-      return 'During earthquake: Drop, Cover, Hold. After shaking stops, evacuate carefully watching for hazards. Stay away from damaged buildings and power lines.';
-    }
-    return "I'm here to help with emergency procedures. Ask me about first aid, evacuation routes, fire safety, or any other emergency situation you need assistance with.";
-  }
-
-  void _sendBrigadist() {
-    final text = _brigadistInput.text.trim();
-    if (text.isEmpty) return;
-    setState(() {
-      _brigadistMsgs.add(_Msg(text: text, fromMe: true));
-      _brigadistInput.clear();
-    });
-  }
-
-  void _sendBot() {
-    final text = _botInput.text.trim();
-    if (text.isEmpty) return;
-
-    setState(() {
-      _botMsgs.add(_Msg(text: text, fromMe: true));
-      _botInput.clear();
-    });
-
-    Future.delayed(const Duration(milliseconds: 800), () {
-      if (!mounted) return;
-      setState(() {
-        _botMsgs.add(_Msg(text: _aiResponse(text), fromMe: false));
-      });
-    });
-  }
+  // Eliminado: reglas/mock del chatbot local; ahora usamos el chat vía Orchestrator
 
   @override
   Widget build(BuildContext context) {
@@ -241,10 +168,10 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen>
             child: Row(
               children: [
                 _TabBtn(
-                  label: 'Brigadist',
+                  label: 'Chat',
                   icon: Icons.chat_bubble_outline,
-                  active: _activeTab == _TabKey.brigadist,
-                  onTap: () => setState(() => _activeTab = _TabKey.brigadist),
+                  active: _activeTab == _TabKey.chat,
+                  onTap: () => setState(() => _activeTab = _TabKey.chat),
                 ),
                 _TabBtn(
                   label: 'Medical',
@@ -268,7 +195,7 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen>
         child: IndexedStack(
           index: _activeTab.index,
           children: [
-            _buildBrigadist(theme),
+            _buildChat(theme),
             _buildMedical(theme),
             _buildMap(theme),
           ],
@@ -277,10 +204,14 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen>
     );
   }
 
-  // ---------- BRIGADIST ----------
-  Widget _buildBrigadist(ThemeData theme) {
+  // ---------- CHAT (Brigadist tab reemplazado por Chat GPT) ----------
+  Widget _buildChat(ThemeData theme) {
     final cs = theme.colorScheme;
     final tt = theme.textTheme;
+  final rawMsgs = widget.orchestrator.chatMessages;
+  // Ocultar mensajes del sistema en el UI; se usan internamente para orientar a la IA
+  final msgs = rawMsgs.where((m) => m.sender != Sender.system).toList();
+    final isTyping = widget.orchestrator.chatIsTyping;
 
     return Column(
       children: [
@@ -299,7 +230,7 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Sarah Martinez',
+                    Text('Brigade Assistant',
                         style: tt.titleSmall?.copyWith(
                           color: cs.onSurface,
                           fontWeight: FontWeight.w600,
@@ -315,11 +246,7 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen>
                           ),
                         ),
                         const SizedBox(width: 6),
-                        Text(widget.orchestrator.isCalculatingRoute
-                            ? 'Calculating route...'
-                            : widget.orchestrator.estimatedArrivalTime != null
-                                ? 'Available - ${widget.orchestrator.estimatedArrivalTime!.inMinutes} min away'
-                                : 'Available - Calculating time...',
+                        Text(isTyping ? 'Typing...' : 'Online',
                           style: tt.bodySmall?.copyWith(color: cs.secondary)),
                       ],
                     ),
@@ -339,17 +266,53 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen>
         Expanded(
           child: ListView.builder(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            itemCount: _brigadistMsgs.length,
+            // Si no hay mensajes aún, insertamos un mensaje inicial "de sistema"
+            // visible solo en esta vista.
+            itemCount: (msgs.isEmpty ? 1 : 0) + msgs.length + (isTyping ? 1 : 0),
             itemBuilder: (ctx, i) {
-              final m = _brigadistMsgs[i];
-              final isMe = m.fromMe;
+              // Mensaje de bienvenida en la primera posición si aún no hay chat
+              if (msgs.isEmpty) {
+                if (i == 0) {
+                  return _Bubble(
+                    text:
+                        'La ayuda está en camino. Si tienes alguna duda puedo colaborarte al instante.',
+                    time: _formatTime(DateTime.now()),
+                    fromMe: false,
+                    bg: cs.primaryContainer,
+                    fg: cs.onPrimaryContainer,
+                    leadingIcon: Icons.medical_services_outlined,
+                    leadingColor: cs.primary,
+                  );
+                }
+                // si isTyping y i == 1, caerá abajo en el indicador de typing
+              }
+
+              // Calcular índice real del mensaje
+              final baseOffset = msgs.isEmpty ? 1 : 0;
+              final isTypingIndex = baseOffset + msgs.length;
+
+              if (isTyping && i == isTypingIndex) {
+                return _Bubble(
+                  text: '…',
+                  time: 'Now',
+                  fromMe: false,
+                  bg: cs.primaryContainer,
+                  fg: cs.onPrimaryContainer,
+                  leadingIcon: Icons.medical_services_outlined,
+                  leadingColor: cs.primary,
+                );
+              }
+
+              final m = msgs[i - baseOffset];
+              final isMe = m.sender == Sender.user;
               return _Bubble(
                 text: m.text,
-                time: m.time,
+                time: _formatTime(m.time),
                 fromMe: isMe,
                 bg: isMe ? cs.secondary : cs.primaryContainer,
                 fg: isMe ? cs.onSecondary : cs.onPrimaryContainer,
-                leadingIcon: isMe ? Icons.person : Icons.medical_services_outlined,
+                leadingIcon:
+                    isMe ? Icons.person : Icons.medical_services_outlined,
                 leadingColor: isMe ? cs.secondary : cs.primary,
               );
             },
@@ -357,12 +320,26 @@ class _EmergencyChatScreenState extends State<EmergencyChatScreen>
         ),
         _InputBar(
           controller: _brigadistInput,
-          hint: 'Type your response...',
-          onSend: _sendBrigadist,
+          hint: 'Escribe tu mensaje...',
+          onSend: _sendChat,
           buttonColor: cs.secondary,
         ),
       ],
     );
+  }
+
+  void _sendChat() {
+    final text = _brigadistInput.text.trim();
+    if (text.isEmpty) return;
+    _brigadistInput.clear();
+    widget.orchestrator.sendChatMessage(text);
+    setState(() {});
+  }
+
+  String _formatTime(DateTime dt) {
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    return '$h:$m';
   }
 
   // ---------- MEDICAL ----------
@@ -949,7 +926,7 @@ class _Bubble extends StatelessWidget {
   final Color? leadingColor;
 
   const _Bubble({
-    super.key,
+    Key? key,
     required this.text,
     required this.time,
     required this.fromMe,
@@ -957,7 +934,7 @@ class _Bubble extends StatelessWidget {
     required this.fg,
     this.leadingIcon = Icons.person,
     this.leadingColor,
-  });
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {

@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../Models/videoMod.dart'; // VideoMod, VideosInfo
-import '../../VM/VideosVM.dart'; // VideosVM
-import 'video_detail_sheet.dart';
 import '../VM/Orchestrator.dart'; // Orchestrator
 import 'Auth0/auth_service.dart'; // AuthService
 import '../VM/Adapter.dart'; // Adapter

@@ -2,7 +2,15 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../Models/videoMod.dart';
 import '../Models/userMod.dart';
+import '../Models/emergencyMod.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'dart:async';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import '../cache/userCache.dart';
+import '../services/offline_queue.dart';
+
+String _norm(String e) => e.trim().toLowerCase();
 
 class Adapter {
   late FirebaseDatabase _database;
@@ -13,9 +21,40 @@ class Adapter {
       app: Firebase.app(),
       databaseURL: 'https://brigadist-29309-default-rtdb.firebaseio.com/',
     );
+
+    _database.setPersistenceEnabled(true);
+    _database.setPersistenceCacheSizeBytes(10 * 1024 * 1024);
+    _database.ref('User').keepSynced(true);
+    _database.ref('Video').keepSynced(true);
+    _database.ref('Emergency').keepSynced(true);
   }
 
-  // === Emergency Operation ==
+
+  Future<bool> _isOffline() async {
+    final conn = await Connectivity().checkConnectivity();
+    // Para depurar:
+    print('conn=$conn  type=${conn.runtimeType}');
+
+    // Si es un único enum:
+    if (conn is ConnectivityResult) {
+      return conn == ConnectivityResult.none;
+    }
+
+    // Si es una lista de resultados (algunas plataformas/devices):
+    if (conn is List<ConnectivityResult>) {
+      // offline solo si *todos* los interfaces reportan none
+      return conn.isEmpty || conn.every((r) => r == ConnectivityResult.none);
+    }
+
+    // Conservador si algo raro pasa
+    return true;
+  }
+
+  Future<int> flushOfflineQueue() async {
+    return OfflineQueue.flush(this);
+  }
+
+  // === Emergency Operation ===
   Future<String> createEmergencyFromModel(Emergency emergency) async {
     try {
       final ref = _database.ref('Emergency').push();
@@ -36,6 +75,205 @@ class Adapter {
 
   
   // === USER OPERATIONS ===
+
+  // offline
+  Map<String, dynamic> _mapFromSnap(String id, Object? val) {
+    if (val is Map) {
+      // safe cast to Map<String, dynamic>
+      final map = Map<String, dynamic>.from(val.cast<String, dynamic>());
+      map['id'] = id;
+      map.putIfAbsent('type', () => 'student');          // seguridad
+      if (map['email'] is String) map['email'] = _norm(map['email'] as String);
+      return map;
+    }
+    final map = <String, dynamic>{};
+    map['id'] = id;
+    map.putIfAbsent('type', () => 'student');
+    return map;
+  }
+
+  /// 1) Lectura rápida (cache) → 2) RTDB con timeout → cache
+  Future<User?> getUserFast(String email, {Duration timeout = const Duration(seconds: 5)}) async {
+    final emailNorm = _norm(email);
+
+    // 1) Cache (mem/disco) – instantáneo si ya existe
+    final cached = await UserCache.I.get(emailNorm);
+    print(cached);
+    if (cached != null) return cached;
+
+    // 2) RTDB (si tiene persistencia, también puede responder offline)
+    try {
+      final snap = await _database.ref('User')
+          .orderByChild('email')
+          .equalTo(emailNorm)
+          .limitToFirst(1)
+          .get()
+          .timeout(timeout);
+
+      if (!snap.exists || snap.children.isEmpty) return null;
+
+      final child = snap.children.first;
+      final map = _mapFromSnap(child.key ?? '', child.value);
+      final u = User.fromMap(map);
+      if (u != null) {
+        await UserCache.I.put(u); // calienta cache
+      }
+      return u;
+    } on TimeoutException {
+      debugPrint('[Adapter] getUserFast timeout "$emailNorm"');
+      return null;
+    } catch (e) {
+      debugPrint('[Adapter] getUserFast error "$emailNorm": $e');
+      return null;
+    }
+  }
+
+  /// Guardar/actualizar un user en RTDB y reflejar en caché
+  Future<String> upsertUser(User user) async {
+    final emailNorm = _norm(user.email);
+    final ref = _database.ref('User');
+
+    final existing = await ref.orderByChild('email').equalTo(emailNorm).limitToFirst(1).get();
+    final payload = _serializeForRtdb(user);
+
+    if (existing.exists && existing.children.isNotEmpty) {
+      final key = existing.children.first.key!;
+      await ref.child(key).update(payload);
+      await UserCache.I.put(user);
+      return key;
+    } else {
+      final newRef = ref.push();
+      await newRef.set(payload);
+      await UserCache.I.put(user);
+      return newRef.key!;
+    }
+  }
+
+  Map<String, dynamic> _serializeForRtdb(User u) {
+    final map = Map<String, dynamic>.from(u.toMap())
+      ..['email'] = _norm(u.email);
+    if (u is Brigadist) {
+      map['type'] = 'brigadist';
+      map['latitude'] = u.latitude;
+      map['longitude'] = u.longitude;
+      map['status'] = u.status;
+      map['estimatedArrivalMinutes'] = u.estimatedArrivalMinutes;
+    } else if (u is Analyst) {
+      map['type'] = 'analyst';
+    } else {
+      map['type'] = 'student';
+    }
+    return map;
+  }
+
+  /// Patch parcial y refresca caché si tenemos el email
+  Future<void> updateUserFields(String userKey, Map<String, dynamic> patch, {String? email}) async {
+    if (patch.containsKey('email')) {
+      patch['email'] = _norm(patch['email'] as String);
+    }
+
+    final offline = await _isOffline();
+    if (offline) {
+      // 1) Encola para enviar luego
+      if (email != null && email.isNotEmpty) {
+        await OfflineQueue.enqueueUserUpdateByEmail(email, patch);
+      } else {
+        await OfflineQueue.enqueueUpdate('User', userKey, patch);
+      }
+
+      // 2) Refresca la caché local de inmediato (la UI ve el cambio)
+      if (email != null && email.isNotEmpty) {
+        final cached = await UserCache.I.get(_norm(email));
+        if (cached != null) {
+          final merged = Map<String, dynamic>.from(cached.toMap())..addAll(patch);
+          final updated = User.fromMap(merged);
+          if (updated != null) await UserCache.I.put(updated);
+        }
+      }
+      return; // no intentes tocar RTDB ahora
+    }
+
+    // Online: escribe en RTDB y refresca caché
+    await _database.ref('User/$userKey').update(patch);
+
+    if (email != null && email.isNotEmpty) {
+      final cached = await UserCache.I.get(_norm(email));
+      if (cached != null) {
+        final merged = Map<String, dynamic>.from(cached.toMap())..addAll(patch);
+        final updated = User.fromMap(merged);
+        if (updated != null) await UserCache.I.put(updated);
+      } else {
+        // si no estaba en cache, intenta traerlo rápido y recalentar
+        final u = await getUserFast(email);
+        if (u != null) await UserCache.I.put(u);
+      }
+    }
+  }
+
+  /// Actualiza el caché local del usuario (sin tocar DB)
+  Future<void> cacheUser(User u) async {
+    await UserCache.I.put(u);
+  }
+
+
+  Future<bool> updateUserByEmail(String email, Map<String, dynamic> patch) async {
+    try {
+      // si no hay red, no intentes ir a RTDB: encola y sal
+
+      if (await _isOffline()) {
+        await OfflineQueue.enqueueUserUpdateByEmail(email, patch);
+        // también refresca cache local para que la UI refleje el cambio
+        final cached = await UserCache.I.get(_norm(email));
+        if (cached != null) {
+          final merged = Map<String, dynamic>.from(cached.toMap())..addAll(patch);
+          final updated = User.fromMap(merged);
+          if (updated != null) await UserCache.I.put(updated);
+        }
+        return false; // no se escribió online (se encoló)
+      }
+
+      final emailNorm = _norm(email);
+      if (patch.containsKey('email')) {
+        patch['email'] = _norm(patch['email'] as String);
+      }
+
+      final ref = _database.ref('User');
+      // 🔒 timeout al query
+      final snap = await ref
+          .orderByChild('email')
+          .equalTo(emailNorm)
+          .limitToFirst(1)
+          .get()
+          .timeout(const Duration(seconds: 4));
+
+      if (!snap.exists || snap.children.isEmpty) return false;
+
+      final key = snap.children.first.key!;
+      await ref.child(key).update(patch);
+
+      // refresca cache local
+      final current = await UserCache.I.get(emailNorm);
+      if (current != null) {
+        final merged = Map<String, dynamic>.from(current.toMap())..addAll(patch);
+        final updated = User.fromMap(merged);
+        if (updated != null) await UserCache.I.put(updated);
+      }
+      return true;
+    } on TimeoutException {
+      // 👇 si el query tarda, encola y no bloquees la UI
+      await OfflineQueue.enqueueUserUpdateByEmail(email, patch);
+      return false;
+    } catch (e) {
+      debugPrint('updateUserByEmail error: $e');
+      // ante error de red, encola también
+      await OfflineQueue.enqueueUserUpdateByEmail(email, patch);
+      return false;
+    }
+  }
+
+
+
+
   Future<Map<String, dynamic>?> getUser(String userId) async {
     try {
       final snapshot = await _database.ref('User/$userId').get();
@@ -53,17 +291,23 @@ class Adapter {
   }
 
   // Función para poder buscar usuario que inicio sesión
+  /*
   Future<User?> getUserByEmail(String email) async {
     try {
       final emailNorm = email.trim().toLowerCase(); // normaliza
+      print('[Adapter] Buscando usuario con email: $emailNorm');
       final ref = _database.ref('User');
       final snap = await ref.orderByChild('email').equalTo(emailNorm).get();
 
-      if (!snap.exists) return null;
+      if (!snap.exists) {
+        print('[Adapter] No existe usuario con ese email');
+        return null;
+      }
 
       // snap.value es un Map<id, objeto>
       if (snap.value is Map) {
         final usersMap = Map<String, dynamic>.from(snap.value as Map);
+        print('[Adapter] Usuarios encontrados: \\${usersMap.length}');
 
         // Tomar el primer resultado
         final entry = usersMap.entries.first;
@@ -73,20 +317,26 @@ class Adapter {
         if (data is Map) {
           final map = Map<String, dynamic>.from(data);
           map['id'] = userId; // añade el id al mapa
+          print('[Adapter] Usuario encontrado: \\${map.toString()}');
           return User.fromMap(map);
+        } else {
+          print('[Adapter] El dato del usuario no es un Map');
         }
+      } else {
+        print('[Adapter] snap.value no es un Map');
       }
 
+      print('[Adapter] No se encontró usuario válido');
       return null;
     } catch (e, st) {
-      debugPrint('🔥 getUserByEmail error: $e\n$st');
+      debugPrint('🔥 getUserByEmail error: $e\\n$st');
       return null;
     }
-  }
+  } */
 
   // Para actualizar datos del usuario en profile_page
   Future<void> updateUser(String userId, Map<String, dynamic> userData) async {
-    await _database.ref('users/$userId').update(userData);
+    await _database.ref('User/$userId').update(userData);
   }
 
   // === BRIGADIER OPERATIONS ===
@@ -361,6 +611,25 @@ class Adapter {
     } catch (e) {
       print('Error adding document to $collectionName: $e');
       throw Exception('Error al agregar documento: $e');
+    }
+  }
+
+  /// Guarda un evento de sensor de luz en la colección 'sensor_events'.
+  /// Incluye: modo ('dark'|'light'), duración en ms y un timestamp ISO.
+  Future<void> saveLightSensorEvent(Duration duration, ThemeMode mode, {String? userId}) async {
+    try {
+      final data = <String, dynamic>{
+        'type': 'light_sensor',
+        'mode': mode == ThemeMode.dark ? 'dark' : 'light',
+        'duration_ms': duration.inMilliseconds,
+        'timestamp': DateTime.now().toIso8601String(),
+      };
+      if (userId != null) data['userId'] = userId;
+      await addDocument('sensor_events', data);
+      if (kDebugMode) print('✅ Sensor event persisted: $data');
+    } catch (e) {
+      print('Error saving light sensor event: $e');
+      throw Exception('Error saving light sensor event: $e');
     }
   }
 
