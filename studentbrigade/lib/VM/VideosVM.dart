@@ -86,14 +86,14 @@ class VideosVM extends ChangeNotifier {
       // Guardar metadata y cachear videos en background
       await _cacheManager.saveOfflineVideosMetadata(_all);
 
-      // Cachear los primeros 2 videos inmediatamente (prioritario)
+      // Cachear los primeros 5 videos inmediatamente (prioritario)
       if (_all.isNotEmpty) {
-        await _cacheManager.cachePriorityVideos(_all, count: 2);
+        await _cacheManager.cachePriorityVideos(_all, count: 5);
       }
 
       // Cachear el resto de videos en background (sin esperar)
-      if (_all.length > 2) {
-        final remainingVideos = _all.skip(2).toList();
+      if (_all.length > 5) {
+        final remainingVideos = _all.skip(5).toList();
         _cacheManager.cacheMultipleVideos(remainingVideos);
       }
 
@@ -105,17 +105,17 @@ class VideosVM extends ChangeNotifier {
     }
   }
 
-  /// Carga solo 2 videos desde caché cuando no hay internet
+  /// Carga TODOS los videos cacheados cuando no hay internet
   Future<void> _loadOfflineVideos() async {
     try {
       print('📱 VideosVM: Cargando videos offline...');
       _isOfflineMode = true;
 
-      // Cargar solo los primeros 2 videos del caché
-      _all = await _cacheManager.getOfflineVideos();
+      // Cargar TODOS los videos que están realmente cacheados
+      _all = await _cacheManager.getCachedVideosOnly();
 
       _applyFilters();
-      print('✅ VideosVM: ${_all.length} videos cargados offline');
+      print('✅ VideosVM: ${_all.length} videos cacheados cargados offline');
     } catch (e) {
       print('❌ VideosVM: Error cargando videos offline: $e');
       _all = [];
