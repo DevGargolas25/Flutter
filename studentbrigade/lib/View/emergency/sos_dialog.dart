@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../../VM/Orchestrator.dart';
 import 'emergency_chat_screen.dart';
+import 'emergency_type_dialog.dart';
 
 class SosDialog {
   static void show(BuildContext context, Orchestrator orchestrator) {
@@ -84,6 +85,19 @@ class SosDialog {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    _ActionTile(
+                      leading: Icons.campaign_rounded,
+                      title: 'Send Emergency Alert',
+                      subtitle: 'Alert campus security and brigade members',
+                      onTap: () {
+                        // 1) Cierra este diálogo
+                        Navigator.of(context).pop();
+
+                        // 2) Abre el selector de tipo de emergencia (Fire/Earthquake/Medical)
+                        //    Lo hacemos en el próximo microtask para evitar conflictos con el cierre.
+                        Future.microtask(() => EmergencyTypeDialog.show(context));
+                      },
+                    ),
                     const SizedBox(height: 12),
 
                     _ActionTile(
@@ -115,7 +129,7 @@ class SosDialog {
                         nav.pop();
 
                         // 2) Iniciar la llamada (captura ubicación + abre dialer)
-                        orchestrator.callBrigadistWithLocation('+573053343497').catchError((e) {
+                        orchestrator.callBrigadist('+573053343497').catchError((e) {
                           // Limpia el listener si algo falla antes de salir al dialer
                           orchestrator.emergencyVM.removeListener(onReturn);
                           if (nav.mounted) {

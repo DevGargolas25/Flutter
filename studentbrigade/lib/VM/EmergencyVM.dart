@@ -140,6 +140,85 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
     }
   }
 
+  /// Llamar a brigadista
+
+  Future<void> callBrigadist(String phoneNumber) async {
+    final uri = Uri(scheme: 'tel', path: phoneNumber);
+    lastDialedPhone = phoneNumber;
+
+    if (!await canLaunchUrl(uri)) {
+      throw Exception('No se pudo iniciar la llamada');
+    }
+
+    _isCalling = true;
+    _callLaunchedAt = DateTime.now();
+    lastCallDurationSeconds = null;
+    notifyListeners();
+
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+    /// save medical emergency
+    await persistEmergencyUsingOffline(
+      type: EmergencyType.Medical,
+      userId: currentUserId,
+    );
+  }
+
+  // Save Emergency
+  Future<Emergency?> persistEmergencyUsingOffline({
+    required EmergencyType type,
+    Duration? routeCalcTime,
+    String? userId,
+    String? assignedBrigadistId,
+  }) async {
+    try {
+      _isWorking = true;
+      notifyListeners();
+
+      // 1) Ubicación actual
+      final pos = await _getCurrentPosition();
+      lastLatitude = pos.latitude;
+      lastLongitude = pos.longitude;
+      lastLocationAt = DateTime.now();
+      onLocationSaved?.call(lastLatitude!, lastLongitude!, lastLocationAt!);
+
+      // 2) ETA en segundos (si te lo pasan); si no, generamos un número aleatorio razonable
+      // Si no se pasa routeCalcTime, se genera un valor aleatorio entre 30 y 600 segundos
+      final secs = routeCalcTime == null
+          ? (math.Random().nextInt(571) + 30) // 30..600
+          : (routeCalcTime.inMilliseconds / 1000).ceil();
+
+      // 3) Tipo ya viene como enum
+      final emType = type;
+
+      // 4) Inferir ubicación simbólica
+      final locEnum = _inferLocationEnumFromLatLng(lastLatitude!, lastLongitude!);
+
+      // 5) Construir y persistir (esto se encola si no hay internet)
+      lastEmergency = _buildEmergency(
+        userId: userId ?? currentUserId ?? 'U000',
+        location: locEnum,
+        secondsResponse: secs,
+        type: emType,
+        assignedBrigadistId: assignedBrigadistId,
+      );
+
+      final key = await _adapter.createEmergencyFromModel(lastEmergency!);
+      lastEmergencyDbKey = key;
+
+      onEmergencyCreated?.call(lastEmergency!);
+      notifyListeners();
+      return lastEmergency;
+    } catch (e) {
+      debugPrint('❌ persistEmergencyUsingOffline error: $e');
+      return null;
+    } finally {
+      _isWorking = false;
+      notifyListeners();
+    }
+  }
+
+
   /// Lógica que combina: obtiene la posición actual, construye Emergency (usando routeCalcTime
   /// provisto por MapVM), persiste y abre el dialer al brigadista.
   Future<void> callBrigadistWithLocation(
@@ -329,8 +408,10 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
     }
 
     return Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-      timeLimit: const Duration(seconds: 10),
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        timeLimit: Duration(seconds: 10),
+      ),
     );
   }
 
@@ -411,3 +492,4 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
     return LocationEnum.RGD;
   }
 }
+

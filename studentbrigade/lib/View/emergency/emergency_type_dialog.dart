@@ -1,6 +1,8 @@
 // lib/widgets/emergency_type_dialog.dart
 import 'package:flutter/material.dart';
 import 'emergency_success_dialog.dart';
+import 'package:studentbrigade/VM/Orchestrator.dart';
+import 'package:studentbrigade/Models/emergencyMod.dart' as EmerModel;
 
 class EmergencyTypeDialog {
   static void show(BuildContext context) {
@@ -19,7 +21,7 @@ class EmergencyTypeDialog {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // ===== Header SOS (usa error/onError) =====
+              // ===== Header SOS =====
               Container(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
                 decoration: BoxDecoration(
@@ -44,7 +46,7 @@ class EmergencyTypeDialog {
                       height: 62,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: cs.onError.withOpacity(0.15),
+                        color: cs.onError.withAlpha((0.15 * 255).round()),
                       ),
                       child: Center(
                         child: Icon(Icons.warning_amber_rounded, color: cs.onError, size: 34),
@@ -62,7 +64,9 @@ class EmergencyTypeDialog {
                     const SizedBox(height: 4),
                     Text(
                       'Choose the type of emergency to report',
-                      style: tt.bodyMedium?.copyWith(color: cs.onError.withOpacity(.85)),
+                      style: tt.bodyMedium?.copyWith(
+                        color: cs.onError.withAlpha((0.85 * 255).round()),
+                      ),
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -82,12 +86,11 @@ class EmergencyTypeDialog {
                       iconColor: cs.error,
                       title: 'Fire Alert',
                       subtitle: 'Report fire emergency or smoke detection',
-                      onTap: () {
-                        Navigator.pop(context);
-                        Future.microtask(
-                              () => EmergencySuccessDialog.show(context, EmergencyType.fire),
-                        );
-                      },
+                      onTap: () => _onSelect(
+                        context: context,
+                        persistType: EmerModel.EmergencyType.Hazard, // ajusta si tienes EmergencyType.Fire
+                        successDialogType: EmergencyType.fire,
+                      ),
                     ),
                     const SizedBox(height: 12),
 
@@ -98,37 +101,24 @@ class EmergencyTypeDialog {
                       iconColor: cs.secondary,
                       title: 'Earthquake Alert',
                       subtitle: 'Report seismic activity or structural damage',
-                      onTap: () {
-                        Navigator.pop(context);
-                        Future.microtask(
-                              () => EmergencySuccessDialog.show(context, EmergencyType.earthquake),
-                        );
-                      },
+                      onTap: () => _onSelect(
+                        context: context,
+                        persistType: EmerModel.EmergencyType.Hazard, // o un tipo específico si lo tienes
+                        successDialogType: EmergencyType.earthquake,
+                      ),
                     ),
                     const SizedBox(height: 12),
 
-                    // MEDICAL
-                    _TypeTile(
-                      icon: Icons.favorite_rounded,
-                      containerColor: cs.tertiaryContainer,
-                      iconColor: cs.tertiary,
-                      title: 'Medical Alert',
-                      subtitle: 'Report medical emergency or injury',
-                      onTap: () {
-                        Navigator.pop(context);
-                        Future.microtask(
-                              () => EmergencySuccessDialog.show(context, EmergencyType.medical),
-                        );
-                      },
-                    ),
+                    // Aquí puedes añadir más tipos (Security, Medical, etc.)
+                    // _TypeTile(...)
 
                     const SizedBox(height: 16),
-                    // Nota informativa que respeta tema
+                    // Nota informativa
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       decoration: BoxDecoration(
-                        color: cs.surfaceVariant.withOpacity(.6),
+                        color: cs.surfaceContainerHighest.withAlpha((0.6 * 255).round()),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -145,6 +135,35 @@ class EmergencyTypeDialog {
         ),
       ),
     );
+  }
+
+  /// Helper: cierra el diálogo, llama al brigadista y delega la persistencia en Orchestrator.
+  static void _onSelect({
+    required BuildContext context,
+    required EmerModel.EmergencyType persistType,
+    required EmergencyType successDialogType,
+  }) {
+    Navigator.pop(context);
+
+    final orch = Orchestrator();
+    final user = orch.getUserData();
+
+    // 2) Persistir (RTDB offline-friendly). Aquí puede ir routeCalcTime si lo tienes.
+    Future.microtask(() async {
+      try {
+        await orch.persistEmergencyOffline(
+          type: persistType,
+          // routeCalcTime: someRouteDuration, // pásalo si lo calculas en MapVM
+          // assignedBrigadistId: ...          // si ya lo tienes
+        );
+      } catch (e) {
+        // No bloquees la UI por esto; RTDB encolará cuando vuelva internet si setPersistenceEnabled(true)
+        debugPrint('persistEmergencyOffline failed: $e');
+      }
+    });
+
+    // 3) Mostrar confirmación
+    Future.microtask(() => EmergencySuccessDialog.show(context, successDialogType));
   }
 }
 
@@ -209,12 +228,14 @@ class _TypeTile extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: tt.bodySmall?.copyWith(color: cs.onSurface.withOpacity(.7)),
+                      style: tt.bodySmall?.copyWith(
+                        color: cs.onSurface.withAlpha((0.7 * 255).round()),
+                      ),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: cs.onSurface.withOpacity(.35)),
+              Icon(Icons.chevron_right, color: cs.onSurface.withAlpha((0.35 * 255).round())),
             ],
           ),
         ),
@@ -222,4 +243,3 @@ class _TypeTile extends StatelessWidget {
     );
   }
 }
-
