@@ -18,6 +18,7 @@ import 'View/pruebaDB.dart';
 import 'View/light_sensor_snackbar_listener.dart';
 // FlutterMap Tiles Cache
 import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
+import 'services/meeting_point_storage.dart';
 
 
 Future<void> main() async {
@@ -26,7 +27,20 @@ Future<void> main() async {
    // Inicializa tiles de cache de mapa
   await FMTCObjectBoxBackend().initialise();
   await FMTCStore('mapStore').manage.create();
-  
+
+  // Guardar meeting points
+  await MeetingPointStorage.saveMeetingPoints(MapData.meetingPoints);
+  // Si la app se abre sin internet, los puedes cargar del almacenamiento local
+  final localPoints = await MeetingPointStorage.loadMeetingPoints();
+  if (localPoints.isNotEmpty) {
+    print('Puntos cargados localmente:');
+    for (var p in localPoints) {
+      print('${p.name} -> ${p.latitude}, ${p.longitude}');
+    }
+  } else {0
+    print('No hay puntos guardados localmente');
+  }
+
   // ✅ Offline-friendly: no intentes bajar fuentes en runtime
   GoogleFonts.config.allowRuntimeFetching = false;
 
