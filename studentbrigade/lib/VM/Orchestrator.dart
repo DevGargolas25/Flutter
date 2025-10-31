@@ -380,9 +380,9 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<Duration?> calculateRouteToBrigadist(
-    double brigadistLat,
-    double brigadistLng,
-  ) async {
+      double brigadistLat,
+      double brigadistLng,
+      ) async {
     try {
       final routeTime = await _mapVM.calculateRouteToBrigadist(
         brigadistLat,
@@ -420,6 +420,43 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   // ---------- EMERGENCY ----------
+  Future<void> callBrigadist(String phone) async {
+    try {
+      await _emergencyVM.callBrigadist(
+        phone,
+      );
+    } catch (e) {
+      debugPrint('Orchestrator.callBrigadist error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> persistEmergencyOffline({
+    required EmergencyType type,
+    Duration? routeCalcTime,
+    String? assignedBrigadistId,
+  }) async {
+    try {
+      final userId =
+          _userVM.getUserData()?.studentId ??
+              _userVM.getUserData()?.email ??
+              'unknown';
+
+      await _emergencyVM.createEmergencyAndPersist(
+        userId: userId,
+        location: LocationEnum.RGD, // o ajusta según tu lógica
+        secondsResponse: routeCalcTime != null
+            ? (routeCalcTime.inMilliseconds / 1000).ceil()
+            : 0,
+        type: type,
+        assignedBrigadistId: assignedBrigadistId,
+      );
+    } catch (e) {
+      debugPrint('Orchestrator.PersistEmergencyOffline error: $e');
+      rethrow;
+    }
+  }
+
   Future<void> callBrigadistWithLocation(String phone) async {
     try {
       // Usar solo el brigadista asignado desde UserVM
@@ -449,7 +486,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
         phone,
         routeCalcTime: routeEtaTime,
         userId:
-            _userVM.getUserData()?.studentId ??
+        _userVM.getUserData()?.studentId ??
             _userVM.getUserData()?.email ??
             'unknown',
       );
@@ -468,8 +505,8 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     try {
       final userId =
           _userVM.getUserData()?.studentId ??
-          _userVM.getUserData()?.email ??
-          'unknown';
+              _userVM.getUserData()?.email ??
+              'unknown';
 
       // 1) Persistir la emergencia vía EmergencyVM
       final em = await _emergencyVM.createEmergencyAndPersist(
@@ -493,12 +530,12 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
       // 2) Pedir brigadista más cercano
       final queryLat =
           latitude ??
-          _emergencyVM.lastLatitude ??
-          _mapVM.currentUserLocation?.latitude;
+              _emergencyVM.lastLatitude ??
+              _mapVM.currentUserLocation?.latitude;
       final queryLng =
           longitude ??
-          _emergencyVM.lastLongitude ??
-          _mapVM.currentUserLocation?.longitude;
+              _emergencyVM.lastLongitude ??
+              _mapVM.currentUserLocation?.longitude;
 
       Brigadist? brig;
       if (queryLat != null && queryLng != null) {
@@ -518,12 +555,12 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
       // 4) Calcular ruta desde la ubicación de la emergencia si existe
       final fromLat =
           latitude ??
-          _emergencyVM.lastLatitude ??
-          _mapVM.currentUserLocation?.latitude;
+              _emergencyVM.lastLatitude ??
+              _mapVM.currentUserLocation?.latitude;
       final fromLng =
           longitude ??
-          _emergencyVM.lastLongitude ??
-          _mapVM.currentUserLocation?.longitude;
+              _emergencyVM.lastLongitude ??
+              _mapVM.currentUserLocation?.longitude;
 
       final rt = await _mapVM.calculateRouteToBrigadist(
         brig.latitude ?? 0.0,
@@ -552,4 +589,3 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   double? get lastLongitude => _emergencyVM.lastLongitude;
   DateTime? get lastLocationAt => _emergencyVM.lastLocationAt;
 }
-
