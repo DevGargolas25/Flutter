@@ -24,31 +24,33 @@ class VideoLocalStorage {
     }
   }
 
-  /// Guarda SOLO los thumbnails de los 2 videos offline
+  /// Guarda thumbnails de TODOS los videos para modo offline
   Future<void> saveOfflineThumbnails(List<VideoMod> videos) async {
     try {
       if (_thumbnailsFile == null) await initialize();
 
-      // Solo los primeros 2 videos
-      final offlineVideos = videos.take(2).toList();
+      // TODOS los videos (no solo 2)
+      print('🖼️ VideoLocalStorage: Guardando ${videos.length} thumbnails...');
 
       // Crear estructura SOLO para thumbnails
-      final thumbnailData = offlineVideos
+      final thumbnailData = videos
           .map(
             (video) => {
               'id': video.id,
               'title': video.title,
               'thumbnail': video.thumbnail,
               'url': video.url, // Para identificar el video
+              'author': video.author,
+              'duration': video.duration.inSeconds,
             },
           )
           .toList();
 
-      // Guardar en archivo local (NO SharedPreferences)
+      // Guardar en archivo local
       await _thumbnailsFile!.writeAsString(jsonEncode(thumbnailData));
 
       print(
-        '�️ VideoLocalStorage: ${offlineVideos.length} thumbnails guardados localmente',
+        '🖼️ VideoLocalStorage: ${videos.length} thumbnails guardados localmente',
       );
     } catch (e) {
       print('❌ VideoLocalStorage: Error guardando thumbnails: $e');

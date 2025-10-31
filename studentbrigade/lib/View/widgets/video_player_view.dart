@@ -53,9 +53,9 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
           print('✅ Video encontrado en cache: ${cachedFile.path}');
           _c = VideoPlayerController.file(cachedFile);
         } else {
-          // Verificar si este es uno de los 2 videos offline esperados
-          final offlineVideos = await _cacheManager.getOfflineVideos();
-          final isOfflineVideo = offlineVideos.any(
+          // Verificar si este video está en los cacheados
+          final cachedVideos = await _cacheManager.getCachedVideosOnly();
+          final isOfflineVideo = cachedVideos.any(
             (v) => v.url == widget.video.url,
           );
 

@@ -133,18 +133,18 @@ class VideoCacheManager {
     }
   }
 
-  /// Guarda metadata de videos offline (solo los primeros 2) en archivo temporal
+  /// Guarda metadata de TODOS los videos para modo offline
   Future<void> saveOfflineVideosMetadata(List<VideoMod> videos) async {
     try {
       if (_offlineMetadataFile == null) {
         await initialize();
       }
 
-      // Solo los primeros 2 videos para modo offline
-      final offlineVideos = videos.take(2).toList();
+      // TODOS los videos (no limitamos a 2)
+      print('💾 Guardando metadata de ${videos.length} videos...');
 
       // Crear metadata
-      final metadataList = offlineVideos
+      final metadataList = videos
           .map(
             (video) => {
               'id': video.id,
@@ -166,14 +166,14 @@ class VideoCacheManager {
       await _offlineMetadataFile!.writeAsString(jsonEncode(metadataList));
 
       // TAMBIÉN guardar thumbnails en localStorage (separado del cache)
-      await _localStorage.saveOfflineThumbnails(offlineVideos);
+      await _localStorage.saveOfflineThumbnails(videos);
 
       print(
-        '💾 Metadata de ${offlineVideos.length} videos guardada en cache temporal',
+        '💾 Metadata de ${videos.length} videos guardada en cache temporal',
       );
 
       // Asegurar que los thumbnails de estos videos estén cacheados
-      for (final video in offlineVideos) {
+      for (final video in videos) {
         await cacheThumbnail(video.thumbnail);
       }
     } catch (e) {
@@ -218,6 +218,40 @@ class VideoCacheManager {
       return videos;
     } catch (e) {
       print('❌ Error cargando videos offline: $e');
+      return [];
+    }
+  }
+
+  /// Obtiene SOLO los videos que realmente están cacheados en el dispositivo
+  Future<List<VideoMod>> getCachedVideosOnly() async {
+    try {
+      // Primero obtener todos los videos del metadata
+      final allVideos = await getOfflineVideos();
+      final cachedVideos = <VideoMod>[];
+
+      print('🔍 Verificando cuáles videos están realmente cacheados...');
+
+      // Verificar uno por uno cuáles están realmente cacheados
+      for (final video in allVideos) {
+        final isVideoCacheAvailable = await isVideoCached(video.url);
+        final isThumbnailCacheAvailable = await isThumbnailCached(
+          video.thumbnail,
+        );
+
+        if (isVideoCacheAvailable || isThumbnailCacheAvailable) {
+          cachedVideos.add(video);
+          print('✅ Video cacheado: ${video.title}');
+        } else {
+          print('❌ Video NO cacheado: ${video.title}');
+        }
+      }
+
+      print(
+        '📱 ${cachedVideos.length} de ${allVideos.length} videos están realmente cacheados',
+      );
+      return cachedVideos;
+    } catch (e) {
+      print('❌ Error obteniendo videos cacheados: $e');
       return [];
     }
   }
