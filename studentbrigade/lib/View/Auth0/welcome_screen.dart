@@ -21,7 +21,7 @@ class WelcomeScreen extends StatelessWidget {
     required this.onNavigateToSignUp,
     this.disableAuthButtons = false,
     this.lastEmail,
-    this.onContinueSession, // ← NUEVO
+    this.onContinueSession,
   });
 
   @override
@@ -48,12 +48,10 @@ class WelcomeScreen extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
         child: Column(
           children: [
-            // Centro
             Expanded(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo
                   SizedBox(
                     width: 180, height: 180,
                     child: Image.asset(
@@ -73,9 +71,7 @@ class WelcomeScreen extends StatelessWidget {
               ),
             ),
 
-            // Zona inferior
             if (!disableAuthButtons) ...[
-              // Botón Continuar (opcional)
               if (onContinueSession != null) ...[
                 SizedBox(
                   width: double.infinity, height: 56,
@@ -93,7 +89,6 @@ class WelcomeScreen extends StatelessWidget {
                 const SizedBox(height: 12),
               ],
 
-              // Log in
               SizedBox(
                 width: double.infinity, height: 56,
                 child: ElevatedButton(
@@ -109,7 +104,6 @@ class WelcomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
 
-              // Sign up
               SizedBox(
                 width: double.infinity, height: 56,
                 child: OutlinedButton(
@@ -126,7 +120,6 @@ class WelcomeScreen extends StatelessWidget {
               Text('Universidad de los Andes', style: GoogleFonts.roboto(color: Colors.white70)),
               const SizedBox(height: 8),
             ] else ...[
-              // SIN Internet en primera vez: ocultar botones y mostrar mensaje
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),

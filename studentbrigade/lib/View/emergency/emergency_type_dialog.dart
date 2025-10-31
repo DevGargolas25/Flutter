@@ -88,7 +88,7 @@ class EmergencyTypeDialog {
                       subtitle: 'Report fire emergency or smoke detection',
                       onTap: () => _onSelect(
                         context: context,
-                        persistType: EmerModel.EmergencyType.Hazard, // ajusta si tienes EmergencyType.Fire
+                        persistType: EmerModel.EmergencyType.Fire, // ajusta si tienes EmergencyType.Fire
                         successDialogType: EmergencyType.fire,
                       ),
                     ),
@@ -103,7 +103,7 @@ class EmergencyTypeDialog {
                       subtitle: 'Report seismic activity or structural damage',
                       onTap: () => _onSelect(
                         context: context,
-                        persistType: EmerModel.EmergencyType.Hazard, // o un tipo específico si lo tienes
+                        persistType: EmerModel.EmergencyType.Earthquake, // o un tipo específico si lo tienes
                         successDialogType: EmergencyType.earthquake,
                       ),
                     ),
