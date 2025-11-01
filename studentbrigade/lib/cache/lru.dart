@@ -24,4 +24,5 @@ class LruCache<K, V> {
 
   bool containsKey(K key) => _map.containsKey(key);
   void clear() => _map.clear();
+  int get length => _map.length;
 }

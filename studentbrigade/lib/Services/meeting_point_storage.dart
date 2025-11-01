@@ -1,35 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-
-/// Modelo simple de MapLocation (si ya lo tienes en otro archivo,
-/// omite esta clase y mantén solo MeetingPointStorage)
-class MapLocation {
-  final double latitude;
-  final double longitude;
-  final String name;
-  final String? description;
-
-  const MapLocation({
-    required this.latitude,
-    required this.longitude,
-    required this.name,
-    this.description,
-  });
-
-  Map<String, dynamic> toJson() => {
-        'latitude': latitude,
-        'longitude': longitude,
-        'name': name,
-        'description': description,
-      };
-
-  factory MapLocation.fromJson(Map<String, dynamic> json) => MapLocation(
-        latitude: (json['latitude'] as num).toDouble(),
-        longitude: (json['longitude'] as num).toDouble(),
-        name: json['name'] as String,
-        description: json['description'] as String?,
-      );
-}
+import '../Models/mapMod.dart';
 
 /// Clase que maneja SharedPreferences para meeting points
 class MeetingPointStorage {
