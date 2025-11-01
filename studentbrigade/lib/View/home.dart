@@ -9,6 +9,11 @@ import 'Auth0/auth_service.dart';
 import 'Auth0/auth_gate.dart';
 import 'nav_shell.dart';
 import 'package:url_launcher/url_launcher.dart';
+// Para página offline de brigada
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'offline_info_page.dart';
+import 'package:http/http.dart' as http;
+
 
 typedef VideoSelect = void Function(int videoId);
 
@@ -279,23 +284,72 @@ class _HomePageState extends State<HomePage> {
                                   alignment: Alignment.centerLeft,
                                   child: FilledButton(
                                     onPressed: () async {
-                                      final url = Uri.parse(
-                                        'https://www.instagram.com/beuniandes/',
-                                      );
-                                      if (await canLaunchUrl(url)) {
-                                        await launchUrl(
+                                      // LOG: para depuración local; elimina si quieres
+                                      // print('learn pressed');
+
+                                      // 1) Comprobación rápida del estado de la interfaz (wifi/mobile/none)
+                                      final connResult = await Connectivity().checkConnectivity();
+                                      if (connResult == ConnectivityResult.none) {
+                                        // No hay interfaz => seguro offline
+                                        if (!context.mounted) return;
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(builder: (_) => const OfflineInfoPage()),
+                                        );
+                                        return;
+                                      }
+
+                                      // 2) Probe real de Internet: peticion ligera con timeout corto.
+                                      // usamos el endpoint generate_204 (devuelve HTTP 204 si hay Internet)
+                                      bool hasInternet = false;
+                                      try {
+                                        final uri = Uri.parse('https://clients3.google.com/generate_204');
+                                        final resp = await http.get(uri).timeout(const Duration(seconds: 3));
+                                        if (resp.statusCode == 204 || resp.statusCode == 200) {
+                                          hasInternet = true;
+                                        }
+                                      } catch (e) {
+                                        hasInternet = false;
+                                      }
+
+                                      if (!hasInternet) {
+                                        // No hay internet aunque la interfaz indique algo (por ejemplo, wifi sin Internet)
+                                        if (!context.mounted) return;
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(builder: (_) => const OfflineInfoPage()),
+                                        );
+                                        return;
+                                      }
+
+                                      // 3) Si llegamos acá -> hay Internet real. Intentamos abrir Instagram.
+                                      final url = Uri.parse('https://www.instagram.com/beuniandes/');
+
+                                      // canLaunchUrl puede devolver true aun si no hay internet (solo checkea scheme),
+                                      // pero como ya probamos la conexión, procedemos a lanzar.
+                                      try {
+                                        final launched = await launchUrl(
                                           url,
                                           mode: LaunchMode.externalApplication,
                                         );
-                                      } else {
-                                        if (!context.mounted) return;
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: const Text(
-                                              'Could not open Instagram link',
+
+                                        if (!launched) {
+                                          // No se pudo lanzar por alguna razón (fallo en intent)
+                                          if (!context.mounted) return;
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: const Text('Could not open Instagram link'),
+                                              backgroundColor: cs.error,
+                                              behavior: SnackBarBehavior.floating,
                                             ),
+                                          );
+                                        }
+                                      } catch (e) {
+                                        // Falla inesperada al lanzar
+                                        if (!context.mounted) return;
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: const Text('Error opening Instagram'),
                                             backgroundColor: cs.error,
                                             behavior: SnackBarBehavior.floating,
                                           ),
