@@ -86,6 +86,9 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
       },
     );
 
+    // Inicializar MapVM para cargar meeting points
+    _initializeMapVM();
+
     _loadInitialUser(); // TODO: reemplazar por el usuario autenticado
 
     // Observadores de ciclo de vida (sensor y medición de llamada)
@@ -97,7 +100,9 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     _themeSensor.onResponseMeasured = (duration, newMode) {
       final ms = duration.inMilliseconds;
       final modeName = newMode == ThemeMode.dark ? 'modo oscuro' : 'modo claro';
-      debugPrint('Sensor de luz: respuesta ${ms}ms → $modeName (persistido en DB)');
+      debugPrint(
+        'Sensor de luz: respuesta ${ms}ms → $modeName (persistido en DB)',
+      );
       // No notificar a la UI aquí para evitar snackbars/notificaciones.
     };
 
@@ -106,6 +111,16 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
 
     // NUEVO: escuchar MapVM para persistir ETA cuando esté disponible
     _mapVM.addListener(_onMapVmUpdated);
+  }
+
+  /// Inicializa el MapVM y sus datos
+  void _initializeMapVM() async {
+    try {
+      await _mapVM.initialize();
+      print('✅ Orchestrator: MapVM inicializado correctamente');
+    } catch (e) {
+      print('❌ Orchestrator: Error inicializando MapVM: $e');
+    }
   }
 
   void _onMapVmUpdated() async {
@@ -314,6 +329,12 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
 
   void clearRoute() => _mapVM.clearRoute();
 
+  /// Notifica al MapVM sobre cambios de conectividad
+  void onConnectivityChanged() => _mapVM.onConnectivityChanged();
+
+  /// Fuerza la recarga de meeting points
+  Future<void> reloadMeetingPoints() => _mapVM.reloadMeetingPoints();
+
   // Getters MAP
   UserLocation? get currentUserLocation => _mapVM.currentUserLocation;
   bool get isLocationLoading => _mapVM.isLocationLoading;
@@ -380,9 +401,9 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<Duration?> calculateRouteToBrigadist(
-      double brigadistLat,
-      double brigadistLng,
-      ) async {
+    double brigadistLat,
+    double brigadistLng,
+  ) async {
     try {
       final routeTime = await _mapVM.calculateRouteToBrigadist(
         brigadistLat,
@@ -422,9 +443,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   // ---------- EMERGENCY ----------
   Future<void> callBrigadist(String phone) async {
     try {
-      await _emergencyVM.callBrigadist(
-        phone,
-      );
+      await _emergencyVM.callBrigadist(phone);
     } catch (e) {
       debugPrint('Orchestrator.callBrigadist error: $e');
       rethrow;
@@ -439,8 +458,8 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     try {
       final userId =
           _userVM.getUserData()?.studentId ??
-              _userVM.getUserData()?.email ??
-              'unknown';
+          _userVM.getUserData()?.email ??
+          'unknown';
 
       await _emergencyVM.createEmergencyAndPersist(
         userId: userId,
@@ -486,7 +505,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
         phone,
         routeCalcTime: routeEtaTime,
         userId:
-        _userVM.getUserData()?.studentId ??
+            _userVM.getUserData()?.studentId ??
             _userVM.getUserData()?.email ??
             'unknown',
       );
@@ -505,8 +524,8 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     try {
       final userId =
           _userVM.getUserData()?.studentId ??
-              _userVM.getUserData()?.email ??
-              'unknown';
+          _userVM.getUserData()?.email ??
+          'unknown';
 
       // 1) Persistir la emergencia vía EmergencyVM
       final em = await _emergencyVM.createEmergencyAndPersist(
@@ -530,12 +549,12 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
       // 2) Pedir brigadista más cercano
       final queryLat =
           latitude ??
-              _emergencyVM.lastLatitude ??
-              _mapVM.currentUserLocation?.latitude;
+          _emergencyVM.lastLatitude ??
+          _mapVM.currentUserLocation?.latitude;
       final queryLng =
           longitude ??
-              _emergencyVM.lastLongitude ??
-              _mapVM.currentUserLocation?.longitude;
+          _emergencyVM.lastLongitude ??
+          _mapVM.currentUserLocation?.longitude;
 
       Brigadist? brig;
       if (queryLat != null && queryLng != null) {
@@ -555,12 +574,12 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
       // 4) Calcular ruta desde la ubicación de la emergencia si existe
       final fromLat =
           latitude ??
-              _emergencyVM.lastLatitude ??
-              _mapVM.currentUserLocation?.latitude;
+          _emergencyVM.lastLatitude ??
+          _mapVM.currentUserLocation?.latitude;
       final fromLng =
           longitude ??
-              _emergencyVM.lastLongitude ??
-              _mapVM.currentUserLocation?.longitude;
+          _emergencyVM.lastLongitude ??
+          _mapVM.currentUserLocation?.longitude;
 
       final rt = await _mapVM.calculateRouteToBrigadist(
         brig.latitude ?? 0.0,

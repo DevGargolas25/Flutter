@@ -68,7 +68,7 @@ class _ChatViewState extends State<ChatView> {
           Expanded(
             child: ListView.builder(
               controller: _scrollCtrl,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
               itemCount: msgs.length + (isTyping ? 1 : 0),
               itemBuilder: (_, i) {
                 if (isTyping && i == msgs.length) {
@@ -141,39 +141,57 @@ class _ChatRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final bubbleColor = isUser ? Colors.white : const Color(0xFF72C6C1);
     final textColor = isUser ? const Color(0xFF1B1F23) : Colors.white;
+    final screenWidth = MediaQuery.of(context).size.width;
 
     final bubble = ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 440),
+      constraints: BoxConstraints(
+        maxWidth: screenWidth * 0.85, // 85% del ancho de pantalla
+        minWidth: screenWidth * 0.3, // Mínimo 30% del ancho
+      ),
       child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: bubbleColor,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(18),
           boxShadow: const [
             BoxShadow(
               color: Colors.black12,
-              blurRadius: 5,
-              offset: Offset(0, 2),
+              blurRadius: 4,
+              offset: Offset(0, 1),
             ),
           ],
         ),
         child: isUser
             ? Text(
                 message.text,
-                style: TextStyle(fontSize: 14, color: textColor, height: 1.35),
+                style: TextStyle(fontSize: 15, color: textColor, height: 1.4),
               )
             : MarkdownBody(
                 data: message.text,
+                selectable: true, // Permite seleccionar texto
                 styleSheet: MarkdownStyleSheet(
-                  p: TextStyle(fontSize: 14, color: textColor, height: 1.35),
-                  h1: TextStyle(color: textColor, fontWeight: FontWeight.w700),
-                  h2: TextStyle(color: textColor, fontWeight: FontWeight.w700),
+                  p: TextStyle(fontSize: 15, color: textColor, height: 1.4),
+                  h1: TextStyle(
+                    color: textColor,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 18,
+                  ),
+                  h2: TextStyle(
+                    color: textColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
                   strong: TextStyle(
                     color: textColor,
                     fontWeight: FontWeight.w700,
                   ),
                   listBullet: TextStyle(color: textColor),
+                  code: TextStyle(
+                    color: textColor,
+                    backgroundColor: Colors.black12,
+                    fontSize: 14,
+                  ),
                 ),
               ),
       ),
@@ -189,14 +207,31 @@ class _ChatRow extends StatelessWidget {
       ),
     );
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: isUser
-          ? MainAxisAlignment.end
-          : MainAxisAlignment.start,
-      children: isUser
-          ? [bubble, const SizedBox(width: 8), avatar]
-          : [avatar, const SizedBox(width: 8), bubble],
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: isUser
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
+        children: isUser
+            ? [
+                const SizedBox(
+                  width: 40,
+                ), // Espacio para que no se pegue al borde
+                Flexible(child: bubble),
+                const SizedBox(width: 8),
+                avatar,
+              ]
+            : [
+                avatar,
+                const SizedBox(width: 8),
+                Flexible(child: bubble),
+                const SizedBox(
+                  width: 40,
+                ), // Espacio para que no se pegue al borde
+              ],
+      ),
     );
   }
 }
@@ -206,33 +241,36 @@ class _TypingRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const CircleAvatar(
-          radius: 14,
-          backgroundColor: Colors.white,
-          child: Icon(Icons.smart_toy, size: 16, color: Color(0xFF72C6C1)),
-        ),
-        const SizedBox(width: 8),
-        Container(
-          margin: const EdgeInsets.symmetric(vertical: 6),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: const Color(0xFF72C6C1),
-            borderRadius: BorderRadius.circular(16),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      child: Row(
+        children: [
+          const CircleAvatar(
+            radius: 14,
+            backgroundColor: Colors.white,
+            child: Icon(Icons.smart_toy, size: 16, color: Color(0xFF72C6C1)),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              _Dot(),
-              SizedBox(width: 4),
-              _Dot(),
-              SizedBox(width: 4),
-              _Dot(),
-            ],
+          const SizedBox(width: 8),
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF72C6C1),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                _Dot(),
+                SizedBox(width: 4),
+                _Dot(),
+                SizedBox(width: 4),
+                _Dot(),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

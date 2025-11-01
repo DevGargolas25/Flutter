@@ -1,6 +1,3 @@
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
-
 /// =============================
 /// CLASES PRINCIPALES
 /// =============================
@@ -55,10 +52,7 @@ class RoutePoint {
   final double latitude;
   final double longitude;
 
-  const RoutePoint({
-    required this.latitude,
-    required this.longitude,
-  });
+  const RoutePoint({required this.latitude, required this.longitude});
 }
 
 // Enum para los tipos de ruta
@@ -115,41 +109,5 @@ class MapData {
     description: 'Punto de encuentro de prueba',
   );
 
-  static const List<MapLocation> meetingPoints = [
-    Boho,
-    ML_banderas,
-    sd_cerca,
-  ];
+  static const List<MapLocation> meetingPoints = [Boho, ML_banderas, sd_cerca];
 }
-
-/// =============================
-/// STORAGE LOCAL
-/// =============================
-
-class MeetingPointStorage {
-  static const String _key = 'meeting_points';
-
-  /// Guarda la lista de puntos de encuentro en SharedPreferences
-  static Future<void> saveMeetingPoints(List<MapLocation> points) async {
-    final prefs = await SharedPreferences.getInstance();
-    final encoded = jsonEncode(points.map((p) => p.toJson()).toList());
-    await prefs.setString(_key, encoded);
-  }
-
-  /// Carga los puntos de encuentro desde SharedPreferences
-  static Future<List<MapLocation>> loadMeetingPoints() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jsonString = prefs.getString(_key);
-    if (jsonString == null) return [];
-
-    final decoded = jsonDecode(jsonString) as List<dynamic>;
-    return decoded.map((item) => MapLocation.fromJson(item)).toList();
-  }
-
-  /// Limpia el almacenamiento (opcional)
-  static Future<void> clearMeetingPoints() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_key);
-  }
-}
-

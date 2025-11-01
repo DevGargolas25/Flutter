@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import '../Models/mapMod.dart';
+import '../services/meeting_point_storage.dart' as storage;
+import '../Services/connectivity_service.dart';
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -14,6 +16,11 @@ class MapVM extends ChangeNotifier {
   bool _isLocationEnabled = false;
   String? _locationError;
   StreamSubscription<Position>? _positionStreamSubscription;
+
+  // ==================== ESTADO DE CONECTIVIDAD Y STORAGE ====================
+  final ConnectivityService _connectivity = ConnectivityService();
+  List<MapLocation> _meetingPoints = [];
+  bool _meetingPointsLoaded = false;
 
   // Getters comunes
   UserLocation? get currentUserLocation => _currentUserLocation;
@@ -31,7 +38,7 @@ class MapVM extends ChangeNotifier {
   RouteData? _brigadistRoute;
   bool _isCalculatingEmergencyRoute = false;
   String? _emergencyRouteError;
-  
+
   // Datos específicos de emergencia (para analytics y UI)
   Duration? _routeCalculationTime;
   Duration? _estimatedArrivalTime;
@@ -46,8 +53,65 @@ class MapVM extends ChangeNotifier {
   Duration? get estimatedArrivalTime => _estimatedArrivalTime; // Para UI
   double? get routeDistance => _routeDistance;
 
+  // ==================== MÉTODOS DE INICIALIZACIÓN ====================
+
+  /// Inicializa el MapVM y carga los puntos de encuentro
+  Future<void> initialize() async {
+    try {
+      await _connectivity.initialize();
+      await _loadMeetingPoints();
+    } catch (e) {
+      print('❌ MapVM: Error inicializando: $e');
+    }
+  }
+
+  /// Carga los puntos de encuentro con estrategia offline-first
+  Future<void> _loadMeetingPoints() async {
+    if (_meetingPointsLoaded) return;
+
+    try {
+      if (_connectivity.hasInternet) {
+        // ONLINE: Usar datos estáticos y guardar en local storage
+        print('🌐 MapVM: Cargando meeting points online...');
+        _meetingPoints = List.from(MapData.meetingPoints);
+
+        // Guardar en almacenamiento local para uso offline
+        await storage.MeetingPointStorage.saveMeetingPoints(_meetingPoints);
+        print('✅ MapVM: Meeting points guardados en local storage');
+      } else {
+        // OFFLINE: Cargar desde almacenamiento local
+        print(
+          '📱 MapVM: Sin internet, cargando meeting points desde local storage...',
+        );
+        _meetingPoints = await storage.MeetingPointStorage.loadMeetingPoints();
+
+        if (_meetingPoints.isEmpty) {
+          // Fallback: usar datos estáticos si no hay nada en storage
+          print(
+            '⚠️ MapVM: Local storage vacío, usando datos estáticos como fallback',
+          );
+          _meetingPoints = List.from(MapData.meetingPoints);
+          // No guardamos porque no hay internet
+        } else {
+          print(
+            '✅ MapVM: ${_meetingPoints.length} meeting points cargados desde local storage',
+          );
+        }
+      }
+
+      _meetingPointsLoaded = true;
+      notifyListeners();
+    } catch (e) {
+      print('❌ MapVM: Error cargando meeting points: $e');
+      // Fallback final: usar datos estáticos
+      _meetingPoints = List.from(MapData.meetingPoints);
+      _meetingPointsLoaded = true;
+      notifyListeners();
+    }
+  }
+
   // ==================== MÉTODOS COMUNES DE UBICACIÓN ====================
-  
+
   Future<UserLocation?> getCurrentLocation() async {
     _isLocationLoading = true;
     _locationError = null;
@@ -94,7 +158,6 @@ class MapVM extends ChangeNotifier {
       );
 
       _isLocationEnabled = true;
-
     } catch (e) {
       _locationError = 'Error getting location: $e';
     } finally {
@@ -111,25 +174,26 @@ class MapVM extends ChangeNotifier {
       distanceFilter: 10, // Actualizar cada 10 metros
     );
 
-    _positionStreamSubscription = Geolocator.getPositionStream(
-      locationSettings: locationSettings,
-    ).listen(
-      (Position position) {
-        _currentUserLocation = UserLocation(
-          latitude: position.latitude,
-          longitude: position.longitude,
-          timestamp: DateTime.now(),
-          accuracy: position.accuracy,
+    _positionStreamSubscription =
+        Geolocator.getPositionStream(locationSettings: locationSettings).listen(
+          (Position position) {
+            _currentUserLocation = UserLocation(
+              latitude: position.latitude,
+              longitude: position.longitude,
+              timestamp: DateTime.now(),
+              accuracy: position.accuracy,
+            );
+
+            print(
+              '📍 Location updated: ${position.latitude}, ${position.longitude}',
+            );
+            notifyListeners();
+          },
+          onError: (error) {
+            _locationError = 'Location tracking error: $error';
+            notifyListeners();
+          },
         );
-        
-        print('📍 Location updated: ${position.latitude}, ${position.longitude}');
-        notifyListeners();
-      },
-      onError: (error) {
-        _locationError = 'Location tracking error: $error';
-        notifyListeners();
-      },
-    );
   }
 
   void stopLocationTracking() {
@@ -138,18 +202,32 @@ class MapVM extends ChangeNotifier {
   }
 
   // ==================== MÉTODOS DEL MAPA NORMAL ====================
-  
+
+  /// Obtiene los puntos de encuentro (con carga automática si es necesario)
   List<MapLocation> getMeetingPoints() {
-    return MapData.meetingPoints;
+    // Si no están cargados, cargarlos de forma síncrona usando los estáticos como fallback
+    if (!_meetingPointsLoaded) {
+      _meetingPoints = List.from(MapData.meetingPoints);
+      _meetingPointsLoaded = true;
+      // Cargar en background
+      _loadMeetingPoints();
+    }
+    return _meetingPoints;
+  }
+
+  /// Fuerza la recarga de meeting points (útil al recuperar conectividad)
+  Future<void> reloadMeetingPoints() async {
+    _meetingPointsLoaded = false;
+    await _loadMeetingPoints();
   }
 
   MapLocation? getClosestMeetingPoint(UserLocation userLocation) {
     final meetingPoints = getMeetingPoints();
     if (meetingPoints.isEmpty) return null;
-  
+
     MapLocation? closest;
     double minDistance = double.infinity;
-  
+
     for (MapLocation point in meetingPoints) {
       double distance = _calculateDistanceInMeters(
         userLocation.latitude,
@@ -157,26 +235,26 @@ class MapVM extends ChangeNotifier {
         point.latitude,
         point.longitude,
       );
-  
+
       if (distance < minDistance) {
         minDistance = distance;
         closest = point;
       }
     }
-  
+
     return closest;
   }
 
   // Calcular ruta desde ubicación actual al punto más cercano
   Future<List<RoutePoint>?> calculateRouteToClosestPoint() async {
     if (_currentUserLocation == null) return null;
-    
+
     final closest = getClosestMeetingPoint(_currentUserLocation!);
     if (closest == null) return null;
-    
+
     try {
       print('🗺️ Calculando ruta al punto de encuentro más cercano');
-      
+
       final route = await _fetchRouteFromAPI(
         _currentUserLocation!.latitude,
         _currentUserLocation!.longitude,
@@ -184,7 +262,7 @@ class MapVM extends ChangeNotifier {
         closest.longitude,
         routeType: 'foot',
       );
-      
+
       _meetingPointRoute = RouteData(
         points: route,
         type: RouteType.meetingPoint,
@@ -206,8 +284,8 @@ class MapVM extends ChangeNotifier {
 
   // ==================== MÉTODOS DEL MAPA DE EMERGENCIA ====================
 
-// Método principal para calcular ruta al brigadista (usado por Orchestrator)
-    Future<Duration?> calculateRouteToBrigadist(
+  // Método principal para calcular ruta al brigadista (usado por Orchestrator)
+  Future<Duration?> calculateRouteToBrigadist(
     double brigadistLat,
     double brigadistLng, {
     double? fromLat,
@@ -248,8 +326,12 @@ class MapVM extends ChangeNotifier {
     } finally {
       // Calcular tiempo que tomó el cálculo
       if (_routeCalculationStartTime != null) {
-        _routeCalculationTime = DateTime.now().difference(_routeCalculationStartTime!);
-        print('⏱️ Ruta de emergencia calculada en: ${_routeCalculationTime!.inMilliseconds}ms');
+        _routeCalculationTime = DateTime.now().difference(
+          _routeCalculationStartTime!,
+        );
+        print(
+          '⏱️ Ruta de emergencia calculada en: ${_routeCalculationTime!.inMilliseconds}ms',
+        );
       }
 
       _isCalculatingEmergencyRoute = false;
@@ -260,12 +342,22 @@ class MapVM extends ChangeNotifier {
     return _routeCalculationTime;
   }
 
-
-  Future<void> _calculateEmergencyRouteWithAPI(double fromLat, double fromLng, double toLat, double toLng) async {
+  Future<void> _calculateEmergencyRouteWithAPI(
+    double fromLat,
+    double fromLng,
+    double toLat,
+    double toLng,
+  ) async {
     try {
       // Intentar con API real primero
-      final route = await _fetchRouteFromAPI(fromLat, fromLng, toLat, toLng, routeType: 'foot');
-      
+      final route = await _fetchRouteFromAPI(
+        fromLat,
+        fromLng,
+        toLat,
+        toLng,
+        routeType: 'foot',
+      );
+
       // Si se obtuvo la ruta de la API, extraer información adicional
       if (route.isNotEmpty) {
         _brigadistRoute = RouteData(
@@ -273,50 +365,65 @@ class MapVM extends ChangeNotifier {
           type: RouteType.brigadist,
           calculatedAt: DateTime.now(),
         );
-        
+
         // Calcular distancia total de la ruta
         _routeDistance = _calculateRouteDistance(route);
-        
+
         // Estimar tiempo basado en velocidad promedio de caminata (5 km/h)
         const averageWalkingSpeedKmh = 5.0;
         final estimatedHours = _routeDistance! / averageWalkingSpeedKmh;
-        _estimatedArrivalTime = Duration(minutes: (estimatedHours * 60).round());
-        
-        print('✅ Ruta de emergencia: ${_routeDistance!.toStringAsFixed(2)} km, ${_estimatedArrivalTime!.inMinutes} min');
+        _estimatedArrivalTime = Duration(
+          minutes: (estimatedHours * 60).round(),
+        );
+
+        print(
+          '✅ Ruta de emergencia: ${_routeDistance!.toStringAsFixed(2)} km, ${_estimatedArrivalTime!.inMinutes} min',
+        );
       } else {
         throw Exception('No route found');
       }
-      
     } catch (e) {
       print('⚠️ Error con API, usando cálculo aproximado: $e');
-      
+
       // Fallback: Cálculo aproximado
       await _calculateEmergencyRouteApproximate(fromLat, fromLng, toLat, toLng);
     }
   }
 
-  Future<void> _calculateEmergencyRouteApproximate(double fromLat, double fromLng, double toLat, double toLng) async {
+  Future<void> _calculateEmergencyRouteApproximate(
+    double fromLat,
+    double fromLng,
+    double toLat,
+    double toLng,
+  ) async {
     // Simular delay de cálculo
     await Future.delayed(const Duration(milliseconds: 800));
-    
+
     // Calcular distancia directa (Haversine)
     final distance = _calculateDistanceInKm(fromLat, fromLng, toLat, toLng);
     _routeDistance = distance;
-    
+
     // Estimar tiempo basado en velocidad promedio de caminata (5 km/h)
     const averageWalkingSpeedKmh = 5.0;
     final estimatedHours = distance / averageWalkingSpeedKmh;
     _estimatedArrivalTime = Duration(minutes: (estimatedHours * 60).round());
-    
+
     // Crear ruta simple (línea recta con puntos intermedios)
-    final routePoints = _generateStraightLineRoute(fromLat, fromLng, toLat, toLng);
+    final routePoints = _generateStraightLineRoute(
+      fromLat,
+      fromLng,
+      toLat,
+      toLng,
+    );
     _brigadistRoute = RouteData(
       points: routePoints,
       type: RouteType.brigadist,
       calculatedAt: DateTime.now(),
     );
-    
-    print('✅ Ruta aproximada de emergencia: ${distance.toStringAsFixed(2)} km, ${_estimatedArrivalTime!.inMinutes} min');
+
+    print(
+      '✅ Ruta aproximada de emergencia: ${distance.toStringAsFixed(2)} km, ${_estimatedArrivalTime!.inMinutes} min',
+    );
   }
 
   void clearBrigadistRoute() {
@@ -339,42 +446,58 @@ class MapVM extends ChangeNotifier {
   }
 
   // ==================== MÉTODOS AUXILIARES PRIVADOS ====================
-  
+
   // Calcular distancia en metros (para puntos de encuentro)
-  double _calculateDistanceInMeters(double lat1, double lon1, double lat2, double lon2) {
+  double _calculateDistanceInMeters(
+    double lat1,
+    double lon1,
+    double lat2,
+    double lon2,
+  ) {
     const double earthRadius = 6371000; // Radio de la Tierra en metros
-    
+
     double dLat = _degreesToRadians(lat2 - lat1);
     double dLon = _degreesToRadians(lon2 - lon1);
-    
-    double a = math.sin(dLat / 2) * math.sin(dLat / 2) +
-        math.cos(_degreesToRadians(lat1)) * math.cos(_degreesToRadians(lat2)) *
-        math.sin(dLon / 2) * math.sin(dLon / 2);
-        
+
+    double a =
+        math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(_degreesToRadians(lat1)) *
+            math.cos(_degreesToRadians(lat2)) *
+            math.sin(dLon / 2) *
+            math.sin(dLon / 2);
+
     double c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-    
+
     return earthRadius * c;
   }
 
   // Calcular distancia en kilómetros (para emergencias)
-  double _calculateDistanceInKm(double lat1, double lng1, double lat2, double lng2) {
+  double _calculateDistanceInKm(
+    double lat1,
+    double lng1,
+    double lat2,
+    double lng2,
+  ) {
     const double earthRadius = 6371; // Radio de la Tierra en km
-    
+
     final double dLat = _degreesToRadians(lat2 - lat1);
     final double dLng = _degreesToRadians(lng2 - lng1);
-    
-    final double a = math.sin(dLat / 2) * math.sin(dLat / 2) +
-        math.cos(_degreesToRadians(lat1)) * math.cos(_degreesToRadians(lat2)) *
-        math.sin(dLng / 2) * math.sin(dLng / 2);
-    
+
+    final double a =
+        math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(_degreesToRadians(lat1)) *
+            math.cos(_degreesToRadians(lat2)) *
+            math.sin(dLng / 2) *
+            math.sin(dLng / 2);
+
     final double c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-    
+
     return earthRadius * c;
   }
 
   double _calculateRouteDistance(List<RoutePoint> route) {
     if (route.length < 2) return 0.0;
-    
+
     double totalDistance = 0.0;
     for (int i = 0; i < route.length - 1; i++) {
       totalDistance += _calculateDistanceInKm(
@@ -384,21 +507,26 @@ class MapVM extends ChangeNotifier {
         route[i + 1].longitude,
       );
     }
-    
+
     return totalDistance;
   }
 
-  List<RoutePoint> _generateStraightLineRoute(double lat1, double lng1, double lat2, double lng2) {
+  List<RoutePoint> _generateStraightLineRoute(
+    double lat1,
+    double lng1,
+    double lat2,
+    double lng2,
+  ) {
     const int points = 10; // Número de puntos intermedios
     final List<RoutePoint> route = [];
-    
+
     for (int i = 0; i <= points; i++) {
       final double ratio = i / points;
       final double lat = lat1 + (lat2 - lat1) * ratio;
       final double lng = lng1 + (lng2 - lng1) * ratio;
       route.add(RoutePoint(latitude: lat, longitude: lng));
     }
-    
+
     return route;
   }
 
@@ -408,33 +536,37 @@ class MapVM extends ChangeNotifier {
 
   // Método de API compartido pero usado de diferentes formas
   Future<List<RoutePoint>> _fetchRouteFromAPI(
-    double startLat, double startLon,
-    double endLat, double endLon, {
+    double startLat,
+    double startLon,
+    double endLat,
+    double endLon, {
     String routeType = 'foot',
   }) async {
     try {
       // OSRM (Open Source Routing Machine) - gratuito, sin API key
-      final String url = 'http://router.project-osrm.org/route/v1/$routeType'
+      final String url =
+          'http://router.project-osrm.org/route/v1/$routeType'
           '/$startLon,$startLat;$endLon,$endLat?'
           'overview=full&geometries=geojson';
-      
+
       final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        
+
         if (data['routes'] != null && data['routes'].isNotEmpty) {
-          final coordinates = data['routes'][0]['geometry']['coordinates'] as List;
-          
+          final coordinates =
+              data['routes'][0]['geometry']['coordinates'] as List;
+
           return coordinates.map<RoutePoint>((coord) {
             return RoutePoint(
-              latitude: coord[1].toDouble(),  // lat
+              latitude: coord[1].toDouble(), // lat
               longitude: coord[0].toDouble(), // lon
             );
           }).toList();
         }
       }
-      
+
       print('OSRM API Error: ${response.statusCode}');
       return _fallbackRoute(startLat, startLon, endLat, endLon);
     } catch (e) {
@@ -444,8 +576,10 @@ class MapVM extends ChangeNotifier {
   }
 
   List<RoutePoint> _fallbackRoute(
-    double startLat, double startLon,
-    double endLat, double endLon,
+    double startLat,
+    double startLon,
+    double endLat,
+    double endLon,
   ) {
     return [
       RoutePoint(latitude: startLat, longitude: startLon),
@@ -453,8 +587,21 @@ class MapVM extends ChangeNotifier {
     ];
   }
 
-  // ==================== MÉTODOS DE LIMPIEZA ====================
-  
+  // ==================== MÉTODOS DE LIMPIEZA Y CONECTIVIDAD ====================
+
+  /// Maneja cambios en la conectividad
+  void onConnectivityChanged() async {
+    if (_connectivity.hasInternet && _meetingPointsLoaded) {
+      // Reconectado: guardar puntos actuales en storage si no están guardados
+      try {
+        await storage.MeetingPointStorage.saveMeetingPoints(_meetingPoints);
+        print('✅ MapVM: Meeting points sincronizados tras reconexión');
+      } catch (e) {
+        print('❌ MapVM: Error sincronizando meeting points: $e');
+      }
+    }
+  }
+
   void clearAllRoutes() {
     clearMeetingPointRoute();
     clearBrigadistRoute();
