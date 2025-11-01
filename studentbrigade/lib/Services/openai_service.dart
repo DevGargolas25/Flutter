@@ -61,5 +61,6 @@ class OpenAIService {
   }
 
   /// Verifica si la API key está configurada
-  static bool get isConfigured => _apiKey != 'YOUR_API_KEY_HERE' && _apiKey.isNotEmpty;
+  static bool get isConfigured =>
+      _apiKey != 'YOUR_API_KEY_HERE' && _apiKey.isNotEmpty;
 }
