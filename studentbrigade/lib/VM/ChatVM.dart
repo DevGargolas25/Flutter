@@ -78,22 +78,31 @@ class ChatVM extends ChangeNotifier {
     try {
       String responseText;
 
-      // 1. Verificar cache primero (respuesta instantánea)
-      final cachedResponse = _cacheService.getCachedResponse(text);
-      if (cachedResponse != null) {
-        responseText = cachedResponse;
-        print('💾 Usando respuesta cacheada');
-      } else if (_connectivityService.hasInternet &&
-          OpenAIService.isConfigured) {
-        // 2. Con internet: usar OpenAI
+      // Debug: verificar estado de conectividad y configuración
+      print('🔍 ChatVM Debug:');
+      print('  - hasInternet: ${_connectivityService.hasInternet}');
+      print('  - OpenAI configured: ${OpenAIService.isConfigured}');
+      print('  - Connectivity status: ${_connectivityService.status}');
+
+      // 1. Con internet: usar OpenAI directamente
+      if (_connectivityService.hasInternet && OpenAIService.isConfigured) {
+        print('🌐 Intentando OpenAI...');
         responseText = await OpenAIService.sendChatCompletion(_chat);
         // Guardar respuesta en cache para futuro uso offline
         _cacheService.cacheResponse(text, responseText);
         print('🌐 Respuesta de OpenAI obtenida y cacheada');
       } else {
-        // 3. Sin internet o sin API key: fallback inteligente
-        responseText = _getSmartFallbackResponse(text);
-        print('📱 Usando respuesta offline');
+        print('📱 Sin internet o OpenAI no configurado, usando fallback...');
+        // 2. Sin internet: buscar en cache primero
+        final cachedResponse = _cacheService.getCachedResponse(text);
+        if (cachedResponse != null) {
+          responseText = cachedResponse;
+          print('💾 Usando respuesta cacheada (sin internet)');
+        } else {
+          // 3. Sin internet y sin cache: fallback inteligente
+          responseText = _getSmartFallbackResponse(text);
+          print('📱 Usando respuesta offline fallback');
+        }
       }
 
       _chat.add(

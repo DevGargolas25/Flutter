@@ -67,11 +67,10 @@ class ConnectivityService extends ChangeNotifier {
       );
 
       if (hasConnection) {
-        // Hay conexión física, pero verificar si realmente hay internet
-        _hasInternet = await _hasActualInternetConnection();
-        _status = _hasInternet
-            ? ConnectivityStatus.online
-            : ConnectivityStatus.offline;
+        // Por ahora, asumir que hay internet si hay conexión física
+        _hasInternet = true;
+        _status = ConnectivityStatus.online;
+        print('🌐 ConnectivityService: Internet detectado (simplificado)');
       } else {
         // No hay conexión física
         _hasInternet = false;
@@ -85,6 +84,8 @@ class ConnectivityService extends ChangeNotifier {
   }
 
   /// Verifica si realmente hay acceso a internet (no solo conexión WiFi/móvil)
+  // Temporalmente comentado para debugging
+  /*
   Future<bool> _hasActualInternetConnection() async {
     try {
       // Hacer una petición simple para verificar internet real
@@ -101,6 +102,7 @@ class ConnectivityService extends ChangeNotifier {
       return false;
     }
   }
+  */
 
   /// Fuerza una verificación manual del estado
   Future<void> checkConnectivity() async {

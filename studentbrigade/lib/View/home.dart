@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:studentbrigade/VM/Orchestrator.dart';
 import 'widgets/video_card.dart';
 import 'widgets/rotating_image_box.dart';
-import 'analytics.dart';
+// import 'analytics.dart';
 import 'emergency_analytics.dart';
 import 'Auth0/auth_service.dart';
 import 'Auth0/auth_gate.dart';
@@ -13,7 +13,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'offline_info_page.dart';
 import 'package:http/http.dart' as http;
-
 
 typedef VideoSelect = void Function(int videoId);
 
@@ -164,23 +163,23 @@ class _HomePageState extends State<HomePage> {
                       color: cs.onPrimary,
                     ),
                   ),
-                  if (roles.contains('analytics'))
-                    IconButton(
-                      tooltip: 'Analytics',
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const AnalyticsPage(),
-                          ),
-                        );
-                      },
-                      icon: Icon(
-                        Icons.analytics_outlined,
-                        size: 20,
-                        color: cs.onPrimary,
-                      ),
-                    ),
+                  // if (roles.contains('analytics'))
+                  //   IconButton(
+                  //     tooltip: 'Analytics',
+                  //     onPressed: () {
+                  //       Navigator.push(
+                  //         context,
+                  //         MaterialPageRoute(
+                  //           builder: (context) => const AnalyticsPage(),
+                  //         ),
+                  //       );
+                  //     },
+                  //     icon: Icon(
+                  //       Icons.analytics_outlined,
+                  //       size: 20,
+                  //       color: cs.onPrimary,
+                  //     ),
+                  //   ),
                 ],
               ),
             ),
@@ -288,13 +287,18 @@ class _HomePageState extends State<HomePage> {
                                       // print('learn pressed');
 
                                       // 1) Comprobación rápida del estado de la interfaz (wifi/mobile/none)
-                                      final connResult = await Connectivity().checkConnectivity();
-                                      if (connResult == ConnectivityResult.none) {
+                                      final connResult = await Connectivity()
+                                          .checkConnectivity();
+                                      if (connResult ==
+                                          ConnectivityResult.none) {
                                         // No hay interfaz => seguro offline
                                         if (!context.mounted) return;
                                         Navigator.push(
                                           context,
-                                          MaterialPageRoute(builder: (_) => const OfflineInfoPage()),
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                const OfflineInfoPage(),
+                                          ),
                                         );
                                         return;
                                       }
@@ -303,9 +307,16 @@ class _HomePageState extends State<HomePage> {
                                       // usamos el endpoint generate_204 (devuelve HTTP 204 si hay Internet)
                                       bool hasInternet = false;
                                       try {
-                                        final uri = Uri.parse('https://clients3.google.com/generate_204');
-                                        final resp = await http.get(uri).timeout(const Duration(seconds: 3));
-                                        if (resp.statusCode == 204 || resp.statusCode == 200) {
+                                        final uri = Uri.parse(
+                                          'https://clients3.google.com/generate_204',
+                                        );
+                                        final resp = await http
+                                            .get(uri)
+                                            .timeout(
+                                              const Duration(seconds: 3),
+                                            );
+                                        if (resp.statusCode == 204 ||
+                                            resp.statusCode == 200) {
                                           hasInternet = true;
                                         }
                                       } catch (e) {
@@ -317,13 +328,18 @@ class _HomePageState extends State<HomePage> {
                                         if (!context.mounted) return;
                                         Navigator.push(
                                           context,
-                                          MaterialPageRoute(builder: (_) => const OfflineInfoPage()),
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                const OfflineInfoPage(),
+                                          ),
                                         );
                                         return;
                                       }
 
                                       // 3) Si llegamos acá -> hay Internet real. Intentamos abrir Instagram.
-                                      final url = Uri.parse('https://www.instagram.com/beuniandes/');
+                                      final url = Uri.parse(
+                                        'https://www.instagram.com/beuniandes/',
+                                      );
 
                                       // canLaunchUrl puede devolver true aun si no hay internet (solo checkea scheme),
                                       // pero como ya probamos la conexión, procedemos a lanzar.
@@ -336,20 +352,29 @@ class _HomePageState extends State<HomePage> {
                                         if (!launched) {
                                           // No se pudo lanzar por alguna razón (fallo en intent)
                                           if (!context.mounted) return;
-                                          ScaffoldMessenger.of(context).showSnackBar(
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
                                             SnackBar(
-                                              content: const Text('Could not open Instagram link'),
+                                              content: const Text(
+                                                'Could not open Instagram link',
+                                              ),
                                               backgroundColor: cs.error,
-                                              behavior: SnackBarBehavior.floating,
+                                              behavior:
+                                                  SnackBarBehavior.floating,
                                             ),
                                           );
                                         }
                                       } catch (e) {
                                         // Falla inesperada al lanzar
                                         if (!context.mounted) return;
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
                                           SnackBar(
-                                            content: const Text('Error opening Instagram'),
+                                            content: const Text(
+                                              'Error opening Instagram',
+                                            ),
                                             backgroundColor: cs.error,
                                             behavior: SnackBarBehavior.floating,
                                           ),
