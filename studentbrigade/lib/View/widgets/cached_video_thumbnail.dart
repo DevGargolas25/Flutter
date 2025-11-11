@@ -22,7 +22,9 @@ class CachedVideoThumbnail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<File?>(
-      future: VideoCacheManager().getCachedThumbnail(thumbnailUrl),
+      future: VideoCacheManager().getCachedThumbnail(
+        videoId,
+      ), // ← FIX: usar videoId, no thumbnailUrl
       builder: (context, snapshot) {
         // Si tenemos el thumbnail en cache, usarlo
         if (snapshot.hasData && snapshot.data != null) {
