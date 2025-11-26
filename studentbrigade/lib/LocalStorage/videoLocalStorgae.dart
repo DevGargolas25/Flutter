@@ -91,8 +91,28 @@ class VideoLocalStorage {
     try {
       if (_thumbnailsFile == null) await initialize();
 
+      // TODOS los videos (no solo 2)
+      print('🖼️ VideoLocalStorage: Guardando ${videos.length} thumbnails...');
+
+      // Crear estructura SOLO para thumbnails
+      final thumbnailData = videos
+          .map(
+            (video) => {
+              'id': video.id,
+              'title': video.title,
+              'thumbnail': video.thumbnail,
+              'url': video.url, // Para identificar el video
+              'author': video.author,
+              'duration': video.duration.inSeconds,
+            },
+          )
+          .toList();
+
+      // Guardar en archivo local
+      await _thumbnailsFile!.writeAsString(jsonEncode(thumbnailData));
+
       print(
-        '🖼️ VideoLocalStorage: Descargando ${videos.length} thumbnails...',
+        '🖼️ VideoLocalStorage: ${videos.length} thumbnails guardados localmente',
       );
 
       // Descargar todos los thumbnails y guardar rutas locales

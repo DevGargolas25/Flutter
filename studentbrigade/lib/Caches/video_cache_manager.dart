@@ -174,7 +174,7 @@ class VideoCacheManager {
 
       // Asegurar que los thumbnails de estos videos estén cacheados
       for (final video in videos) {
-        await cacheThumbnail(video.thumbnail, video.id);
+        await cacheThumbnail(video.thumbnail);
       }
     } catch (e) {
       print('❌ Error guardando metadata offline: $e');
@@ -234,24 +234,15 @@ class VideoCacheManager {
       // Verificar uno por uno cuáles están realmente cacheados
       for (final video in allVideos) {
         final isVideoCacheAvailable = await isVideoCached(video.url);
-        final isThumbnailCacheAvailable = await isThumbnailCached(video.id);
-
-        // Debug: mostrar estado de cada video
-        print(
-          '📹 ${video.title}: video=${isVideoCacheAvailable ? "✅" : "❌"}, thumbnail=${isThumbnailCacheAvailable ? "✅" : "❌"}',
+        final isThumbnailCacheAvailable = await isThumbnailCached(
+          video.thumbnail,
         );
 
-        // Si AL MENOS el thumbnail está disponible, mostrar el video
-        if (isThumbnailCacheAvailable) {
+        if (isVideoCacheAvailable || isThumbnailCacheAvailable) {
           cachedVideos.add(video);
-          print('✅ Video incluido: ${video.title} (thumbnail disponible)');
-        } else if (isVideoCacheAvailable) {
-          cachedVideos.add(video);
-          print('✅ Video incluido: ${video.title} (video disponible)');
+          print('✅ Video cacheado: ${video.title}');
         } else {
-          print(
-            '❌ Video excluido: ${video.title} (ni video ni thumbnail disponibles)',
-          );
+          print('❌ Video NO cacheado: ${video.title}');
         }
       }
 
