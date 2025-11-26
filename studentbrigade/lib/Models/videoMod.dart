@@ -1,3 +1,5 @@
+import 'dart:core';
+
 import '../VM/Adapter.dart'; // ← Importar tu Adapter
 
 class VideoMod {
