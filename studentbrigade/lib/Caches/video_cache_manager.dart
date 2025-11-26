@@ -14,24 +14,13 @@ class VideoCacheManager {
   // LocalStorage para thumbnails offline
   final VideoLocalStorage _localStorage = VideoLocalStorage();
 
-  // Cache manager para videos
+  // Cache manager para videos SOLAMENTE
   static final CacheManager _videoCacheManager = CacheManager(
     Config(
       'video_cache',
       stalePeriod: const Duration(days: 7),
       maxNrOfCacheObjects: 50,
       repo: JsonCacheInfoRepository(databaseName: 'video_cache'),
-      fileService: HttpFileService(),
-    ),
-  );
-
-  // Cache manager para thumbnails
-  static final CacheManager _thumbnailCacheManager = CacheManager(
-    Config(
-      'thumbnail_cache',
-      stalePeriod: const Duration(days: 30),
-      maxNrOfCacheObjects: 200,
-      repo: JsonCacheInfoRepository(databaseName: 'thumbnail_cache'),
       fileService: HttpFileService(),
     ),
   );
@@ -69,13 +58,24 @@ class VideoCacheManager {
     }
   }
 
-  /// Cachea un thumbnail
-  Future<File?> cacheThumbnail(String thumbnailUrl) async {
+  /// Guarda un thumbnail PERMANENTEMENTE en LocalStorage
+  Future<String?> cacheThumbnail(String thumbnailUrl, String videoId) async {
     try {
-      print('🖼️ Cacheando thumbnail: $thumbnailUrl');
-      final file = await _thumbnailCacheManager.getSingleFile(thumbnailUrl);
-      print('✅ Thumbnail cacheado: ${file.path}');
-      return file;
+      print('🖼️ Guardando thumbnail permanente: $thumbnailUrl');
+
+      // Usar VideoLocalStorage en lugar de cache temporal
+      final localPath = await _localStorage.downloadAndSaveThumbnail(
+        thumbnailUrl,
+        videoId,
+      );
+
+      if (localPath != null) {
+        print('✅ Thumbnail guardado permanentemente: $localPath');
+        return localPath;
+      } else {
+        print('❌ Error guardando thumbnail');
+        return null;
+      }
     } catch (e) {
       print('❌ Error cacheando thumbnail: $e');
       return null;
@@ -93,7 +93,7 @@ class VideoCacheManager {
       // Cachear videos y thumbnails en paralelo
       final videoFutures = videosToCache.map((video) => cacheVideo(video.url));
       final thumbnailFutures = videosToCache.map(
-        (video) => cacheThumbnail(video.thumbnail),
+        (video) => cacheThumbnail(video.thumbnail, video.id),
       );
 
       await Future.wait([...videoFutures, ...thumbnailFutures]);
@@ -119,7 +119,7 @@ class VideoCacheManager {
           // Cachear video y thumbnail en paralelo
           await Future.wait([
             cacheVideo(video.url),
-            cacheThumbnail(video.thumbnail),
+            cacheThumbnail(video.thumbnail, video.id),
           ]);
           print('✅ Video prioritario cacheado: ${video.title}');
         } catch (e) {
@@ -266,13 +266,11 @@ class VideoCacheManager {
     }
   }
 
-  /// Verifica si un thumbnail está en cache
-  Future<bool> isThumbnailCached(String thumbnailUrl) async {
+  /// Verifica si un thumbnail está guardado permanentemente
+  Future<bool> isThumbnailCached(String videoId) async {
     try {
-      final fileInfo = await _thumbnailCacheManager.getFileFromCache(
-        thumbnailUrl,
-      );
-      return fileInfo != null && fileInfo.file.existsSync();
+      final localPath = await _localStorage.getLocalThumbnailPath(videoId);
+      return localPath != null && File(localPath).existsSync();
     } catch (e) {
       return false;
     }
@@ -292,30 +290,28 @@ class VideoCacheManager {
     }
   }
 
-  /// Obtiene un thumbnail desde cache (sin descargarlo)
-  Future<File?> getCachedThumbnail(String thumbnailUrl) async {
+  /// Obtiene un thumbnail desde storage permanente
+  Future<File?> getCachedThumbnail(String videoId) async {
     try {
-      final fileInfo = await _thumbnailCacheManager.getFileFromCache(
-        thumbnailUrl,
-      );
-      if (fileInfo != null && fileInfo.file.existsSync()) {
-        return fileInfo.file;
+      final localPath = await _localStorage.getLocalThumbnailPath(videoId);
+      if (localPath != null && File(localPath).existsSync()) {
+        return File(localPath);
       }
       return null;
     } catch (e) {
-      print('❌ Error obteniendo thumbnail cacheado: $e');
+      print('❌ Error obteniendo thumbnail guardado: $e');
       return null;
     }
   }
 
-  /// Limpia todo el cache (videos, thumbnails y metadata)
+  /// Limpia todo el cache (videos y thumbnails permanentes)
   Future<void> clearAllCache() async {
     try {
       // Limpiar cache de videos
       await _videoCacheManager.emptyCache();
 
-      // Limpiar cache de thumbnails
-      await _thumbnailCacheManager.emptyCache();
+      // Limpiar thumbnails permanentes
+      await _localStorage.clearThumbnails();
 
       // Limpiar archivo de metadata
       if (_offlineMetadataFile != null && _offlineMetadataFile!.existsSync()) {

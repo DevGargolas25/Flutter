@@ -11,12 +11,21 @@ import 'package:studentbrigade/VM/Adapter.dart';
 
 /// Puerta de autenticación con:
 /// - Restauración online (Auth0 CredentialsManager).
-/// - Opción de "offline ligero" SOLO si el usuario decide continuar.
+/// - Opción de "offline ligero" si el usuario ya inició sesión alguna vez.
 /// - Visualiza el último email usado para UX.
+/// - NUEVO: auto-entrada si se restauró sesión o hay login previo offline.
 class AuthGate extends StatefulWidget {
   final Widget childWhenAuthed; // ej: NavShell()
 
-  const AuthGate({super.key, required this.childWhenAuthed});
+  /// Si es true, cuando haya sesión restaurada (o login previo en modo offline),
+  /// se entra automáticamente y NO se muestra el WelcomeScreen.
+  final bool autoEnterIfRestored;
+
+  const AuthGate({
+    super.key,
+    required this.childWhenAuthed,
+    this.autoEnterIfRestored = true,
+  });
 
   @override
   State<AuthGate> createState() => _AuthGateState();
@@ -84,9 +93,14 @@ class _AuthGateState extends State<AuthGate> {
 
     // 3) Decisión de entrada
     if (restored) {
-      // Hay sesión lista: mostramos Welcome con botón "Continuar"
-      _canResumeSession = true;
-      _loggedIn = false;
+      // Hay sesión lista
+      if (widget.autoEnterIfRestored) {
+        _loggedIn = true;        // ← entra directo
+        _canResumeSession = false;
+      } else {
+        _canResumeSession = true; // ← muestra botón "Continuar"
+        _loggedIn = false;
+      }
     } else if (_offline) {
       // Offline y NO se restauró → ¿hubo login antes? (offline-ligero)
       bool hadLogin = false;
@@ -98,11 +112,27 @@ class _AuthGateState extends State<AuthGate> {
       }
 
       if (hadLogin) {
-        _canResumeSession = true; // NO entrar automático
         try {
           _lastEmail = await AuthService.getLastEmail();
         } catch (e, st) {
           debugPrint('Error cargando lastEmail: $e\n$st');
+        }
+
+        if (widget.autoEnterIfRestored) {
+          // Calentar perfil best-effort (offline puede existir caché local)
+          final email = _lastEmail;
+          if (email != null && email.isNotEmpty) {
+            try {
+              await Orchestrator().loadUserByEmail(email);
+            } catch (e, st) {
+              debugPrint('Carga de perfil offline-ligero falló: $e\n$st');
+            }
+          }
+          _loggedIn = true;       // ← entra directo aunque esté offline
+          _canResumeSession = false;
+        } else {
+          _canResumeSession = true; // ← botón "Continuar" si prefieres manual
+          _loggedIn = false;
         }
       } else {
         // Primera vez y sin red → bloquea login/signup
@@ -239,9 +269,10 @@ class _AuthGateState extends State<AuthGate> {
     return WelcomeScreen(
       onNavigateToLogin: _firstTimeOfflineBlock ? _showNeedInternet : _doLogin,
       onNavigateToSignUp: _firstTimeOfflineBlock ? _showNeedInternet : _doSignup,
-      onContinueSession: canContinue ? _continueSession : null, // ← botón opcional
+      onContinueSession: canContinue ? _continueSession : null, // ← botón opcional si autoEnterIfRestored = false
       disableAuthButtons: _firstTimeOfflineBlock,
       lastEmail: _lastEmail,
     );
   }
 }
+

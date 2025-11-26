@@ -86,6 +86,9 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
       },
     );
 
+    // Inicializar MapVM para cargar meeting points
+    _initializeMapVM();
+
     _loadInitialUser(); // TODO: reemplazar por el usuario autenticado
 
     // Observadores de ciclo de vida (sensor y medición de llamada)
@@ -97,7 +100,9 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     _themeSensor.onResponseMeasured = (duration, newMode) {
       final ms = duration.inMilliseconds;
       final modeName = newMode == ThemeMode.dark ? 'modo oscuro' : 'modo claro';
-      debugPrint('Sensor de luz: respuesta ${ms}ms → $modeName (persistido en DB)');
+      debugPrint(
+        'Sensor de luz: respuesta ${ms}ms → $modeName (persistido en DB)',
+      );
       // No notificar a la UI aquí para evitar snackbars/notificaciones.
     };
 
@@ -106,6 +111,16 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
 
     // NUEVO: escuchar MapVM para persistir ETA cuando esté disponible
     _mapVM.addListener(_onMapVmUpdated);
+  }
+
+  /// Inicializa el MapVM y sus datos
+  void _initializeMapVM() async {
+    try {
+      await _mapVM.initialize();
+      print('✅ Orchestrator: MapVM inicializado correctamente');
+    } catch (e) {
+      print('❌ Orchestrator: Error inicializando MapVM: $e');
+    }
   }
 
   void _onMapVmUpdated() async {
@@ -314,6 +329,12 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
 
   void clearRoute() => _mapVM.clearRoute();
 
+  /// Notifica al MapVM sobre cambios de conectividad
+  void onConnectivityChanged() => _mapVM.onConnectivityChanged();
+
+  /// Fuerza la recarga de meeting points
+  Future<void> reloadMeetingPoints() => _mapVM.reloadMeetingPoints();
+
   // Getters MAP
   UserLocation? get currentUserLocation => _mapVM.currentUserLocation;
   bool get isLocationLoading => _mapVM.isLocationLoading;
@@ -420,6 +441,41 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   // ---------- EMERGENCY ----------
+  Future<void> callBrigadist(String phone) async {
+    try {
+      await _emergencyVM.callBrigadist(phone);
+    } catch (e) {
+      debugPrint('Orchestrator.callBrigadist error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> persistEmergencyOffline({
+    required EmergencyType type,
+    Duration? routeCalcTime,
+    String? assignedBrigadistId,
+  }) async {
+    try {
+      final userId =
+          _userVM.getUserData()?.studentId ??
+          _userVM.getUserData()?.email ??
+          'unknown';
+
+      await _emergencyVM.createEmergencyAndPersist(
+        userId: userId,
+        location: LocationEnum.RGD, // o ajusta según tu lógica
+        secondsResponse: routeCalcTime != null
+            ? (routeCalcTime.inMilliseconds / 1000).ceil()
+            : 0,
+        type: type,
+        assignedBrigadistId: assignedBrigadistId,
+      );
+    } catch (e) {
+      debugPrint('Orchestrator.PersistEmergencyOffline error: $e');
+      rethrow;
+    }
+  }
+
   Future<void> callBrigadistWithLocation(String phone) async {
     try {
       // Usar solo el brigadista asignado desde UserVM
@@ -552,4 +608,3 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   double? get lastLongitude => _emergencyVM.lastLongitude;
   DateTime? get lastLocationAt => _emergencyVM.lastLocationAt;
 }
-

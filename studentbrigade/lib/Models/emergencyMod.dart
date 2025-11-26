@@ -2,7 +2,7 @@
 import 'dart:convert';
 
 /// <<emerType>> según el diagrama: Medical, Psycological, Hazard
-enum EmergencyType { Medical, Psycological, Hazard }
+enum EmergencyType { Medical, Psycological, Hazard, Fire, Earthquake }
 
 /// <<location>> según el diagrama: SD, ML, RGD
 enum LocationEnum { SD, ML, RGD }

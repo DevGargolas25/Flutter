@@ -93,15 +93,32 @@
         <entry key="66a3eae3-522e-44f0-b7bd-29a9164baa20">
           <value>
             <set>
-              <option value="5e9e01ad-ce18-4f9c-842a-2e578f670ab6" />
-              <option value="f8e0ce54-ce72-40e8-ac8f-41a2a05b0d99" />
+              <option value="00c59df0-6e58-4900-8689-99a5cc905f4c" />
               <option value="05fda314-320c-4a08-9b85-ea988013e40f" />
-              <option value="85febf6c-83fe-4cb6-9624-88427618b83b" />
-              <option value="cca2ff5c-68d1-4b1f-9d7b-58e170cf0136" />
-              <option value="8e3f173e-d8e8-4911-a292-8b3b29bbfab0" />
+              <option value="2490f580-79c4-47f7-b47b-5cd0cda12700" />
+              <option value="2525678f-0457-4a07-8a1a-8bed9970d843" />
+              <option value="31e15c0b-f937-47a1-829a-c16851544182" />
+              <option value="3e9420b2-10db-4e72-9670-c02274fa310d" />
+              <option value="40fc0e03-e9a2-491a-be2f-0fd8f40d9adc" />
+              <option value="58a8b501-f3f7-4f5a-be4e-5c6ec6d84c84" />
+              <option value="5da2d85a-cdf1-4787-8bc3-67d14e776a2e" />
+              <option value="5e9e01ad-ce18-4f9c-842a-2e578f670ab6" />
+              <option value="6f7281ec-660d-4edd-a868-07cb5b5ee08f" />
               <option value="7903956c-0e30-46a5-bba3-68cc022ab90e" />
               <option value="835aedfe-b539-41e9-9549-1aa9c93cb171" />
+              <option value="85febf6c-83fe-4cb6-9624-88427618b83b" />
+              <option value="8e3f173e-d8e8-4911-a292-8b3b29bbfab0" />
+              <option value="91010d0d-2bcc-4a54-a76f-b0f39b2ff0c9" />
+              <option value="af006c73-f76d-4ac7-8dc0-283fc3b2fd34" />
+              <option value="b47f53a5-2380-409c-a5a6-c62c312dae09" />
+              <option value="b5e61194-3bc1-404d-9c8c-4bfc608ad506" />
               <option value="b744c7c7-81bd-49cd-b38b-543cd1a30785" />
+              <option value="bca432b6-a413-4637-a790-a3c548a237ab" />
+              <option value="c8ebd557-78fa-4392-87f1-6048a015d81a" />
+              <option value="cca2ff5c-68d1-4b1f-9d7b-58e170cf0136" />
+              <option value="d5b6a1af-e83b-4d52-942b-1b6b9f548764" />
+              <option value="f31a5ff3-a483-4324-be57-e37b866f4c68" />
+              <option value="f8e0ce54-ce72-40e8-ac8f-41a2a05b0d99" />
             </set>
           </value>
         </entry>
@@ -131,15 +148,8 @@
       </map>
     </option>
     <pendingWorkingSetItems>
-      <entry key="4c682985-5a97-4a5a-b6d7-ed3222ea17dc">
-        <set>
-          <option value="file://$PROJECT_DIR$/studentbrigade/lib/VM/Adapter.dart" />
-          <option value="file://$PROJECT_DIR$/studentbrigade/lib/View/Auth0/auth_gate.dart" />
-          <option value="file://$PROJECT_DIR$/studentbrigade/lib/VM/UserVM.dart" />
-          <option value="file://$PROJECT_DIR$/studentbrigade/lib/VM/offline_queue.dart" />
-          <option value="file://$PROJECT_DIR$/studentbrigade/lib/View/profile_page.dart" />
-        </set>
-      </entry>
+      <entry key="4c682985-5a97-4a5a-b6d7-ed3222ea17dc" />
+      <entry key="66a3eae3-522e-44f0-b7bd-29a9164baa20" />
       <entry key="f19d2181-865a-45d7-89f0-d7789f09f086" />
     </pendingWorkingSetItems>
   </component>

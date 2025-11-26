@@ -1,31 +1,56 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:studentbrigade/Models/mapMod.dart';
 import 'firebase_options.dart';
 import 'services/sync_service.dart';
 import 'VM/Adapter.dart';
-import 'app_theme.dart';      // buildLightTheme()
-import 'dark_theme.dart';     // buildDarkTheme()
+import 'app_theme.dart'; // buildLightTheme()
+import 'dark_theme.dart'; // buildDarkTheme()
 import 'View/nav_shell.dart';
 import 'View/Auth0/auth_gate.dart';
 import 'VM/Orchestrator.dart';
 import 'VM/AnalyticsVM.dart';
 import 'View/pruebaDB.dart';
 import 'View/light_sensor_snackbar_listener.dart';
+// FlutterMap Tiles Cache
+import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
+import 'services/meeting_point_storage.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Inicializa tiles de cache de mapa
+  await FMTCObjectBoxBackend().initialise();
+  await FMTCStore('mapStore').manage.create();
+
+  // Guardar meeting points
+  await MeetingPointStorage.saveMeetingPoints(MapData.meetingPoints);
+  // Si la app se abre sin internet, los puedes cargar del almacenamiento local
+  final localPoints = await MeetingPointStorage.loadMeetingPoints();
+  if (localPoints.isNotEmpty) {
+    print('Puntos cargados localmente:');
+    for (var p in localPoints) {
+      print('${p.name} -> ${p.latitude}, ${p.longitude}');
+    }
+  } else {
+    0;
+    print('No hay puntos guardados localmente');
+  }
 
   // ✅ Offline-friendly: no intentes bajar fuentes en runtime
   GoogleFonts.config.allowRuntimeFetching = false;
 
   // ✅ Inicializa Firebase primero (puede fallar offline y no tumbamos la app)
   try {
-    await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
   } catch (e) {
     debugPrint('Firebase init failed (offline or config issue): $e');
   }
@@ -51,8 +76,10 @@ Future<void> _setupAnalyticsSafe() async {
     final platformLabel = kIsWeb
         ? 'web'
         : (defaultTargetPlatform == TargetPlatform.android
-        ? 'android'
-        : (defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'other'));
+              ? 'android'
+              : (defaultTargetPlatform == TargetPlatform.iOS
+                    ? 'ios'
+                    : 'other'));
 
     await analytics.logEvent(
       name: 'app_started',
@@ -119,12 +146,16 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           ),
 
           // ✅ Con allowRuntimeFetching=false arriba, no hace requests de fuentes
-          theme: light.copyWith(textTheme: GoogleFonts.robotoTextTheme(light.textTheme)),
-          darkTheme: dark.copyWith(textTheme: GoogleFonts.robotoTextTheme(dark.textTheme)),
+          theme: light.copyWith(
+            textTheme: GoogleFonts.robotoTextTheme(light.textTheme),
+          ),
+          darkTheme: dark.copyWith(
+            textTheme: GoogleFonts.robotoTextTheme(dark.textTheme),
+          ),
           themeMode: mode,
 
           home: const AuthGate(childWhenAuthed: NavShell()),
-          routes: { TestFirebasePage.routeName: (_) => TestFirebasePage() },
+          routes: {TestFirebasePage.routeName: (_) => TestFirebasePage()},
         );
       },
     );
