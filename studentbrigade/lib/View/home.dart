@@ -12,6 +12,7 @@ import 'package:url_launcher/url_launcher.dart';
 // Para página offline de brigada
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'offline_info_page.dart';
+import 'blood_donation_page.dart';
 import 'package:http/http.dart' as http;
 
 typedef VideoSelect = void Function(int videoId);
@@ -499,6 +500,17 @@ class _HomePageState extends State<HomePage> {
                             minimumSize: const Size(double.infinity, 45),
                           ),
                         ),
+                        const SizedBox(height: 8),
+                        ElevatedButton.icon(
+                          onPressed: () => _navigateToBloodDonation(context),
+                          icon: const Icon(Icons.favorite),
+                          label: const Text('Blood Donation Information'),
+                          style: ElevatedButton.styleFrom(
+                            minimumSize: const Size(double.infinity, 45),
+                            backgroundColor: cs.error,
+                            foregroundColor: cs.onError,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -513,6 +525,16 @@ class _HomePageState extends State<HomePage> {
 
   void _navigateToNewsFeed(BuildContext context) {
     Navigator.of(context).pushNamed('/news');
+  }
+
+  void _navigateToBloodDonation(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => BloodDonationPage(
+          orchestrator: widget.orchestrator,
+        ),
+      ),
+    );
   }
 }
 
