@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import '../Models/mapMod.dart';
 import '../services/meeting_point_storage.dart' as storage;
+import '../services/blood_donation_storage.dart';
 import '../Services/connectivity_service.dart';
 import 'dart:async';
 import 'package:http/http.dart' as http;
@@ -21,6 +22,10 @@ class MapVM extends ChangeNotifier {
   final ConnectivityService _connectivity = ConnectivityService();
   List<MapLocation> _meetingPoints = [];
   bool _meetingPointsLoaded = false;
+
+  // Estado de puntos de donación de sangre
+  List<MapLocation> _bloodDonationCenters = [];
+  bool _bloodDonationCentersLoaded = false;
 
   // Getters comunes
   UserLocation? get currentUserLocation => _currentUserLocation;
@@ -60,6 +65,7 @@ class MapVM extends ChangeNotifier {
     try {
       await _connectivity.initialize();
       await _loadMeetingPoints();
+      await _loadBloodDonationCenters();
     } catch (e) {
       print('❌ MapVM: Error inicializando: $e');
     }
@@ -280,6 +286,94 @@ class MapVM extends ChangeNotifier {
   void clearMeetingPointRoute() {
     _meetingPointRoute = null;
     notifyListeners();
+  }
+
+  // ==================== MÉTODOS DEL MAPA DE DONACIÓN DE SANGRE ====================
+
+  /// Carga los centros de donación de sangre con estrategia offline-first
+  Future<void> _loadBloodDonationCenters() async {
+    if (_bloodDonationCentersLoaded) return;
+
+    try {
+      if (_connectivity.hasInternet) {
+        // ONLINE: Usar datos estáticos y guardar en SharedPreferences
+        print('🌐 MapVM: Cargando centros de donación online...');
+        _bloodDonationCenters = List.from(MapData.bloodDonationCenters);
+
+        // Guardar en SharedPreferences
+        await BloodDonationStorage.saveBloodDonationPoints(_bloodDonationCenters);
+        print('✅ MapVM: Centros de donación guardados en SharedPreferences');
+      } else {
+        // OFFLINE: Cargar desde SharedPreferences
+        print(
+          '📱 MapVM: Sin internet, cargando centros de donación desde SharedPreferences...',
+        );
+        _bloodDonationCenters = await BloodDonationStorage.getBloodDonationPoints();
+
+        if (_bloodDonationCenters.isEmpty) {
+          // Fallback: usar datos estáticos
+          print(
+            '⚠️ MapVM: SharedPreferences vacío, usando datos estáticos de donación como fallback',
+          );
+          _bloodDonationCenters = List.from(MapData.bloodDonationCenters);
+        } else {
+          print(
+            '✅ MapVM: ${_bloodDonationCenters.length} centros de donación cargados desde SharedPreferences',
+          );
+        }
+      }
+
+      _bloodDonationCentersLoaded = true;
+      notifyListeners();
+    } catch (e) {
+      print('❌ MapVM: Error cargando centros de donación: $e');
+      // Fallback final: usar datos estáticos
+      _bloodDonationCenters = List.from(MapData.bloodDonationCenters);
+      _bloodDonationCentersLoaded = true;
+      notifyListeners();
+    }
+  }
+
+  /// Obtiene los centros de donación de sangre (con carga automática si es necesario)
+  List<MapLocation> getBloodDonationCenters() {
+    if (!_bloodDonationCentersLoaded) {
+      _bloodDonationCenters = List.from(MapData.bloodDonationCenters);
+      _bloodDonationCentersLoaded = true;
+      // Cargar en background
+      _loadBloodDonationCenters();
+    }
+    return _bloodDonationCenters;
+  }
+
+  /// Fuerza la recarga de centros de donación
+  Future<void> reloadBloodDonationCenters() async {
+    _bloodDonationCentersLoaded = false;
+    await _loadBloodDonationCenters();
+  }
+
+  /// Obtiene el centro de donación más cercano a una ubicación
+  MapLocation? getClosestBloodDonationCenter(UserLocation userLocation) {
+    final centers = getBloodDonationCenters();
+    if (centers.isEmpty) return null;
+
+    MapLocation? closest;
+    double minDistance = double.infinity;
+
+    for (MapLocation center in centers) {
+      double distance = _calculateDistanceInMeters(
+        userLocation.latitude,
+        userLocation.longitude,
+        center.latitude,
+        center.longitude,
+      );
+
+      if (distance < minDistance) {
+        minDistance = distance;
+        closest = center;
+      }
+    }
+
+    return closest;
   }
 
   // ==================== MÉTODOS DEL MAPA DE EMERGENCIA ====================
