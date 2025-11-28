@@ -14,6 +14,7 @@ import 'app_theme.dart'; // buildLightTheme()
 import 'dark_theme.dart'; // buildDarkTheme()
 import 'View/nav_shell.dart';
 import 'View/Auth0/auth_gate.dart';
+import 'View/news_screen.dart';
 import 'VM/Orchestrator.dart';
 import 'VM/AnalyticsVM.dart';
 import 'View/pruebaDB.dart';
@@ -155,7 +156,10 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
           themeMode: mode,
 
           home: const AuthGate(childWhenAuthed: NavShell()),
-          routes: {TestFirebasePage.routeName: (_) => TestFirebasePage()},
+          routes: {
+            TestFirebasePage.routeName: (_) => TestFirebasePage(),
+            '/news': (context) => NewsScreen(orchestrator: Orchestrator()),
+          },
         );
       },
     );

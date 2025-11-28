@@ -490,6 +490,15 @@ class _HomePageState extends State<HomePage> {
                             child: Text('View All Videos'),
                           ),
                         ),
+                        const SizedBox(height: 8),
+                        ElevatedButton.icon(
+                          onPressed: () => _navigateToNewsFeed(context),
+                          icon: const Icon(Icons.newspaper),
+                          label: const Text('Visit News Feed'),
+                          style: ElevatedButton.styleFrom(
+                            minimumSize: const Size(double.infinity, 45),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -500,6 +509,10 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
     );
+  }
+
+  void _navigateToNewsFeed(BuildContext context) {
+    Navigator.of(context).pushNamed('/news');
   }
 }
 
