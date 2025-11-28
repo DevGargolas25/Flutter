@@ -9,6 +9,7 @@ import 'VideosVM.dart';
 import 'MapVM.dart';
 import 'EmergencyVM.dart';
 import 'AnalyticsVM.dart';
+import 'NewsVM.dart';
 
 // ===== Models =====
 import '../Models/mapMod.dart';
@@ -40,6 +41,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   late final ChatVM _chatVM;
   late final EmergencyVM _emergencyVM;
   late final AnalyticsVM _analyticsVM;
+  late final NewsVM _newsVM;
 
   // ---------- Navegación ----------
   int _currentPageIndex = 0;
@@ -71,6 +73,9 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
 
     // Inicializar AnalyticsVM con el adapter
     _analyticsVM = AnalyticsVM(adapter);
+
+    // Inicializar NewsVM
+    _newsVM = NewsVM();
 
     // Centraliza el baseUrl con _resolveBaseUrl
     _chatVM = ChatVM();
@@ -150,6 +155,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   EmergencyVM get emergencyVM => _emergencyVM;
   ChatVM get chatVM => _chatVM;
   AnalyticsVM get analyticsVM => _analyticsVM;
+  NewsVM get newsVM => _newsVM;
 
   // ---------- Limpieza explícita ----------
   void disposeOrchestrator() {

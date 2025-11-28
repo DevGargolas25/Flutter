@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import '../Models/videoMod.dart';
 import '../Models/userMod.dart';
 import '../Models/emergencyMod.dart';
+import '../Models/newsModel.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
@@ -27,8 +28,8 @@ class Adapter {
     _database.ref('User').keepSynced(true);
     _database.ref('Video').keepSynced(true);
     _database.ref('Emergency').keepSynced(true);
+    _database.ref('news').keepSynced(true);
   }
-
 
   Future<bool> _isOffline() async {
     final conn = await Connectivity().checkConnectivity();
@@ -59,11 +60,10 @@ class Adapter {
     try {
       final ref = _database.ref('Emergency').push();
       final data = emergency.toJson();
-      print('🆕 Creando Emergency en: ${ref.path}, payload: ' + data.toString());
-      await ref.set({
-        ...data,
-        'createdAt': ServerValue.timestamp,
-      });
+      print(
+        '🆕 Creando Emergency en: ${ref.path}, payload: ' + data.toString(),
+      );
+      await ref.set({...data, 'createdAt': ServerValue.timestamp});
       print('✅ Emergency creada con key: ${ref.key}');
       return ref.key!;
     } catch (e) {
@@ -72,8 +72,6 @@ class Adapter {
     }
   }
 
-
-  
   // === USER OPERATIONS ===
 
   // offline
@@ -82,7 +80,7 @@ class Adapter {
       // safe cast to Map<String, dynamic>
       final map = Map<String, dynamic>.from(val.cast<String, dynamic>());
       map['id'] = id;
-      map.putIfAbsent('type', () => 'student');          // seguridad
+      map.putIfAbsent('type', () => 'student'); // seguridad
       if (map['email'] is String) map['email'] = _norm(map['email'] as String);
       return map;
     }
@@ -93,7 +91,10 @@ class Adapter {
   }
 
   /// 1) Lectura rápida (cache) → 2) RTDB con timeout → cache
-  Future<User?> getUserFast(String email, {Duration timeout = const Duration(seconds: 5)}) async {
+  Future<User?> getUserFast(
+    String email, {
+    Duration timeout = const Duration(seconds: 5),
+  }) async {
     final emailNorm = _norm(email);
 
     // 1) Cache (mem/disco) – instantáneo si ya existe
@@ -103,7 +104,8 @@ class Adapter {
 
     // 2) RTDB (si tiene persistencia, también puede responder offline)
     try {
-      final snap = await _database.ref('User')
+      final snap = await _database
+          .ref('User')
           .orderByChild('email')
           .equalTo(emailNorm)
           .limitToFirst(1)
@@ -133,7 +135,11 @@ class Adapter {
     final emailNorm = _norm(user.email);
     final ref = _database.ref('User');
 
-    final existing = await ref.orderByChild('email').equalTo(emailNorm).limitToFirst(1).get();
+    final existing = await ref
+        .orderByChild('email')
+        .equalTo(emailNorm)
+        .limitToFirst(1)
+        .get();
     final payload = _serializeForRtdb(user);
 
     if (existing.exists && existing.children.isNotEmpty) {
@@ -167,7 +173,11 @@ class Adapter {
   }
 
   /// Patch parcial y refresca caché si tenemos el email
-  Future<void> updateUserFields(String userKey, Map<String, dynamic> patch, {String? email}) async {
+  Future<void> updateUserFields(
+    String userKey,
+    Map<String, dynamic> patch, {
+    String? email,
+  }) async {
     if (patch.containsKey('email')) {
       patch['email'] = _norm(patch['email'] as String);
     }
@@ -185,7 +195,8 @@ class Adapter {
       if (email != null && email.isNotEmpty) {
         final cached = await UserCache.I.get(_norm(email));
         if (cached != null) {
-          final merged = Map<String, dynamic>.from(cached.toMap())..addAll(patch);
+          final merged = Map<String, dynamic>.from(cached.toMap())
+            ..addAll(patch);
           final updated = User.fromMap(merged);
           if (updated != null) await UserCache.I.put(updated);
         }
@@ -215,8 +226,10 @@ class Adapter {
     await UserCache.I.put(u);
   }
 
-
-  Future<bool> updateUserByEmail(String email, Map<String, dynamic> patch) async {
+  Future<bool> updateUserByEmail(
+    String email,
+    Map<String, dynamic> patch,
+  ) async {
     try {
       // si no hay red, no intentes ir a RTDB: encola y sal
 
@@ -225,7 +238,8 @@ class Adapter {
         // también refresca cache local para que la UI refleje el cambio
         final cached = await UserCache.I.get(_norm(email));
         if (cached != null) {
-          final merged = Map<String, dynamic>.from(cached.toMap())..addAll(patch);
+          final merged = Map<String, dynamic>.from(cached.toMap())
+            ..addAll(patch);
           final updated = User.fromMap(merged);
           if (updated != null) await UserCache.I.put(updated);
         }
@@ -254,7 +268,8 @@ class Adapter {
       // refresca cache local
       final current = await UserCache.I.get(emailNorm);
       if (current != null) {
-        final merged = Map<String, dynamic>.from(current.toMap())..addAll(patch);
+        final merged = Map<String, dynamic>.from(current.toMap())
+          ..addAll(patch);
         final updated = User.fromMap(merged);
         if (updated != null) await UserCache.I.put(updated);
       }
@@ -270,9 +285,6 @@ class Adapter {
       return false;
     }
   }
-
-
-
 
   Future<Map<String, dynamic>?> getUser(String userId) async {
     try {
@@ -616,7 +628,11 @@ class Adapter {
 
   /// Guarda un evento de sensor de luz en la colección 'sensor_events'.
   /// Incluye: modo ('dark'|'light'), duración en ms y un timestamp ISO.
-  Future<void> saveLightSensorEvent(Duration duration, ThemeMode mode, {String? userId}) async {
+  Future<void> saveLightSensorEvent(
+    Duration duration,
+    ThemeMode mode, {
+    String? userId,
+  }) async {
     try {
       final data = <String, dynamic>{
         'type': 'light_sensor',
@@ -846,6 +862,107 @@ class Adapter {
     } catch (e) {
       print('❌ Error getting user video interactions: $e');
       return {'hasLiked': false, 'hasViewed': false};
+    }
+  }
+
+  // ============ NOTICIAS ============
+
+  /// Obtiene todas las noticias desde Firebase
+  Future<List<NewsModel>> getNews() async {
+    try {
+      print('🔥 Adapter: Conectando a Firebase para obtener noticias...');
+      final newsRef = _database.ref('news');
+      print('🔥 Adapter: Referencia creada: ${newsRef.path}');
+
+      final snapshot = await newsRef.get();
+      print('🔥 Adapter: Snapshot obtenido. Exists: ${snapshot.exists}');
+
+      if (snapshot.exists && snapshot.value != null) {
+        print('🔥 Adapter: Snapshot value type: ${snapshot.value.runtimeType}');
+        print('🔥 Adapter: Snapshot value: ${snapshot.value}');
+
+        final newsMap = snapshot.value as Map<dynamic, dynamic>;
+        print('🔥 Adapter: NewsMap keys: ${newsMap.keys.toList()}');
+
+        final List<NewsModel> newsList = [];
+
+        newsMap.forEach((key, value) {
+          print(
+            '🔥 Adapter: Procesando key: $key, value type: ${value.runtimeType}',
+          );
+
+          if (value is Map<dynamic, dynamic>) {
+            try {
+              final newsItem = Map<String, dynamic>.from(value);
+              print('🔥 Adapter: NewsItem: $newsItem');
+
+              final newsModel = NewsModel.fromFirebase(
+                key.toString(),
+                newsItem,
+              );
+              newsList.add(newsModel);
+              print('✅ Adapter: Noticia agregada: ${newsModel.title}');
+            } catch (e) {
+              print('❌ Adapter: Error procesando noticia $key: $e');
+            }
+          }
+        });
+
+        // Ordenar por fecha de creación (más reciente primero)
+        newsList.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+        print('✅ ${newsList.length} noticias obtenidas de Firebase');
+        return newsList;
+      } else {
+        print(
+          '⚠️ No hay noticias en Firebase - snapshot.exists: ${snapshot.exists}, value: ${snapshot.value}',
+        );
+      }
+
+      return [];
+    } catch (e) {
+      print('❌ Error obteniendo noticias: $e');
+      print('❌ Stack trace: ${StackTrace.current}');
+      return [];
+    }
+  }
+
+  /// Agrega una nueva noticia a Firebase
+  Future<void> addNews(NewsModel newsModel) async {
+    try {
+      final newsRef = _database.ref('news').push();
+      final data = newsModel.toFirebase();
+
+      await newsRef.set(data);
+      print('✅ Noticia agregada: ${newsModel.title}');
+    } catch (e) {
+      print('❌ Error agregando noticia: $e');
+      throw Exception('Error al agregar noticia: $e');
+    }
+  }
+
+  /// Actualiza una noticia existente
+  Future<void> updateNews(String newsId, NewsModel newsModel) async {
+    try {
+      final newsRef = _database.ref('news/$newsId');
+      final data = newsModel.toFirebase();
+
+      await newsRef.update(data);
+      print('✅ Noticia actualizada: $newsId');
+    } catch (e) {
+      print('❌ Error actualizando noticia: $e');
+      throw Exception('Error al actualizar noticia: $e');
+    }
+  }
+
+  /// Elimina una noticia
+  Future<void> deleteNews(String newsId) async {
+    try {
+      await _database.ref('news/$newsId').remove();
+      print('✅ Noticia eliminada: $newsId');
+    } catch (e) {
+      print('❌ Error eliminando noticia: $e');
+      throw Exception('Error al eliminar noticia: $e');
     }
   }
 }
