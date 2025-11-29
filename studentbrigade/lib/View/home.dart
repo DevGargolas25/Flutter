@@ -3,13 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:studentbrigade/VM/Orchestrator.dart';
 import 'widgets/video_card.dart';
 import 'widgets/rotating_image_box.dart';
-// import 'analytics.dart';
 import 'emergency_analytics.dart';
 import 'Auth0/auth_service.dart';
 import 'Auth0/auth_gate.dart';
 import 'nav_shell.dart';
 import 'package:url_launcher/url_launcher.dart';
-// Para página offline de brigada
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'offline_info_page.dart';
 import 'blood_donation_page.dart';
@@ -20,6 +18,7 @@ typedef VideoSelect = void Function(int videoId);
 class HomePage extends StatefulWidget {
   final Orchestrator orchestrator;
   final String userName;
+  final String? userType;
   final VoidCallback? onNavigateToVideos;
   final VoidCallback? onOpenProfile;
   final VideoSelect? onVideoSelect;
@@ -28,6 +27,7 @@ class HomePage extends StatefulWidget {
     super.key,
     required this.orchestrator,
     this.userName = 'John',
+    this.userType,
     this.onNavigateToVideos,
     this.onOpenProfile,
     this.onVideoSelect,
@@ -61,6 +61,10 @@ class _HomePageState extends State<HomePage> {
   Timer? _notifTimer;
   Timer? _hourTimer;
 
+  // ===== Unattended para brigadistas =====
+  List<Map<String, dynamic>> _unattended = [];
+  bool _loadingUnattended = false;
+
   @override
   void initState() {
     super.initState();
@@ -88,6 +92,88 @@ class _HomePageState extends State<HomePage> {
         featuredIndex = currentHourVideoIndex;
       });
     });
+
+    // 👇 Solo si es brigadista, cargamos emergencias unattended
+    if (widget.userType?.toLowerCase() == 'brigadist') {
+      _loadUnattended();
+    }
+  }
+
+  Future<void> _loadUnattended() async {
+    setState(() => _loadingUnattended = true);
+    try {
+      final list = await widget.orchestrator.loadUnattendedEmergencies();
+      if (!mounted) return;
+      setState(() {
+        _unattended = list;
+        _loadingUnattended = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loadingUnattended = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error loading emergencies')),
+      );
+    }
+  }
+
+  Future<void> _onTapEmergencyCard(Map<String, dynamic> emergency) async {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Attend emergency?'),
+        content: const Text(
+          'Do you want to attend this emergency and mark it as In Progress?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Attend'),
+          ),
+        ],
+      ),
+    ) ??
+        false;
+
+    if (!confirmed) return;
+
+    // Obtenemos el id del brigadista logueado
+    final user = widget.orchestrator.getUserData();
+    final brigadistId = user?.email;
+
+    try {
+      await widget.orchestrator.attendEmergency(
+        emergencyId: emergency['id'] as String,
+        brigadistId: brigadistId,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Emergency set to In Progress'),
+          backgroundColor: cs.primary,
+        ),
+      );
+
+      // Refrescar la lista después:
+      _loadUnattended();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Error attending emergency'),
+          backgroundColor: cs.error,
+        ),
+      );
+    }
   }
 
   @override
@@ -105,15 +191,13 @@ class _HomePageState extends State<HomePage> {
 
     final vm = widget.orchestrator.videoVM;
     final items = vm.videos;
-    final creds = AuthService.instance.credentials;
-    final roles = creds?.roles ?? [];
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
-            // ===== Barra superior usando el color primario del tema =====
+            // ===== Barra superior =====
             Container(
               color: cs.primary,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -164,28 +248,11 @@ class _HomePageState extends State<HomePage> {
                       color: cs.onPrimary,
                     ),
                   ),
-                  // if (roles.contains('analytics'))
-                  //   IconButton(
-                  //     tooltip: 'Analytics',
-                  //     onPressed: () {
-                  //       Navigator.push(
-                  //         context,
-                  //         MaterialPageRoute(
-                  //           builder: (context) => const AnalyticsPage(),
-                  //         ),
-                  //       );
-                  //     },
-                  //     icon: Icon(
-                  //       Icons.analytics_outlined,
-                  //       size: 20,
-                  //       color: cs.onPrimary,
-                  //     ),
-                  //   ),
                 ],
               ),
             ),
 
-            // ===== Contenido scrollable =====
+            // ===== Contenido =====
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
@@ -199,323 +266,391 @@ class _HomePageState extends State<HomePage> {
                   ),
                   const SizedBox(height: 16),
 
-                  // --- Join the Brigade ---
-                  Container(
-                    decoration: BoxDecoration(
-                      color: theme.cardColor,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: theme.dividerColor),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(
-                            theme.brightness == Brightness.light ? .05 : .25,
-                          ),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+                  // ===== Sección Unattended SOLO Brigadist =====
+                  if (widget.userType?.toLowerCase() == 'brigadist') ...[
+                    Text(
+                      'Unattended Emergencies',
+                      style: tt.titleLarge?.copyWith(
+                        color: cs.onSurface,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                    child: Row(
-                      children: [
-                        // Ilustración (cuadrada)
-                        Expanded(
-                          flex: 2,
-                          child: ClipRRect(
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(16),
-                              bottomLeft: Radius.circular(16),
+                    const SizedBox(height: 12),
+
+                    if (_loadingUnattended)
+                      const Center(child: CircularProgressIndicator())
+                    else if (_unattended.isEmpty)
+                      Text(
+                        'There are no unattended emergencies right now.',
+                        style: tt.bodyMedium?.copyWith(color: cs.onSurface),
+                      )
+                    else
+                      Column(
+                        children: _unattended
+                            .map(
+                              (e) => _EmergencyCard(
+                            emergency: e,
+                            onTap: () => _onTapEmergencyCard(e),
+                          ),
+                        )
+                            .toList(),
+                      ),
+
+                    const SizedBox(height: 24),
+                  ],
+
+                  // --- Join the Brigade (se oculta para brigadistas) ---
+                  if (widget.userType?.toLowerCase() != 'brigadist') ...[
+                    Container(
+                      decoration: BoxDecoration(
+                        color: theme.cardColor,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: theme.dividerColor),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(
+                              theme.brightness == Brightness.light ? .05 : .25,
                             ),
-                            child: AspectRatio(
-                              aspectRatio: 1,
-                              child: Container(
-                                color: cs.surface,
-                                child: const RotatingImageBox(),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: ClipRRect(
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(16),
+                                bottomLeft: Radius.circular(16),
+                              ),
+                              child: AspectRatio(
+                                aspectRatio: 1,
+                                child: Container(
+                                  color: cs.surface,
+                                  child: const RotatingImageBox(),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-
-                        // Contenido
-                        Expanded(
-                          flex: 3,
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    CircleAvatar(
-                                      radius: 16,
-                                      backgroundColor: cs.primary,
-                                      child: Icon(
-                                        Icons.group,
-                                        color: cs.onPrimary,
-                                        size: 18,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 10),
-                                    Flexible(
-                                      child: Text(
-                                        'Join the Brigade',
-                                        overflow: TextOverflow.ellipsis,
-                                        maxLines: 1,
-                                        style: tt.titleMedium?.copyWith(
-                                          color: cs.onSurface,
-                                          fontWeight: FontWeight.w600,
+                          Expanded(
+                            flex: 3,
+                            child: Padding(
+                              padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 16,
+                                        backgroundColor: cs.primary,
+                                        child: Icon(
+                                          Icons.group,
+                                          color: cs.onPrimary,
+                                          size: 18,
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Become part of the student safety team and help keep our campus secure.',
-                                  style: tt.bodyMedium?.copyWith(
-                                    color: cs.onSurface,
+                                      const SizedBox(width: 10),
+                                      Flexible(
+                                        child: Text(
+                                          'Join the Brigade',
+                                          overflow: TextOverflow.ellipsis,
+                                          maxLines: 1,
+                                          style: tt.titleMedium?.copyWith(
+                                            color: cs.onSurface,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                                const SizedBox(height: 12),
-
-                                // Botón deja que herede del tema (FilledButtonTheme)
-                                Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: FilledButton(
-                                    onPressed: () async {
-                                      // LOG: para depuración local; elimina si quieres
-                                      // print('learn pressed');
-
-                                      // 1) Comprobación rápida del estado de la interfaz (wifi/mobile/none)
-                                      final connResult = await Connectivity()
-                                          .checkConnectivity();
-                                      if (connResult ==
-                                          ConnectivityResult.none) {
-                                        // No hay interfaz => seguro offline
-                                        if (!context.mounted) return;
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) =>
-                                                const OfflineInfoPage(),
-                                          ),
-                                        );
-                                        return;
-                                      }
-
-                                      // 2) Probe real de Internet: peticion ligera con timeout corto.
-                                      // usamos el endpoint generate_204 (devuelve HTTP 204 si hay Internet)
-                                      bool hasInternet = false;
-                                      try {
-                                        final uri = Uri.parse(
-                                          'https://clients3.google.com/generate_204',
-                                        );
-                                        final resp = await http
-                                            .get(uri)
-                                            .timeout(
-                                              const Duration(seconds: 3),
-                                            );
-                                        if (resp.statusCode == 204 ||
-                                            resp.statusCode == 200) {
-                                          hasInternet = true;
-                                        }
-                                      } catch (e) {
-                                        hasInternet = false;
-                                      }
-
-                                      if (!hasInternet) {
-                                        // No hay internet aunque la interfaz indique algo (por ejemplo, wifi sin Internet)
-                                        if (!context.mounted) return;
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) =>
-                                                const OfflineInfoPage(),
-                                          ),
-                                        );
-                                        return;
-                                      }
-
-                                      // 3) Si llegamos acá -> hay Internet real. Intentamos abrir Instagram.
-                                      final url = Uri.parse(
-                                        'https://www.instagram.com/beuniandes/',
-                                      );
-
-                                      // canLaunchUrl puede devolver true aun si no hay internet (solo checkea scheme),
-                                      // pero como ya probamos la conexión, procedemos a lanzar.
-                                      try {
-                                        final launched = await launchUrl(
-                                          url,
-                                          mode: LaunchMode.externalApplication,
-                                        );
-
-                                        if (!launched) {
-                                          // No se pudo lanzar por alguna razón (fallo en intent)
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Become part of the student safety team and help keep our campus secure.',
+                                    style: tt.bodyMedium?.copyWith(
+                                      color: cs.onSurface,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: FilledButton(
+                                      onPressed: () async {
+                                        final connResult =
+                                        await Connectivity().checkConnectivity();
+                                        if (connResult == ConnectivityResult.none) {
                                           if (!context.mounted) return;
-                                          ScaffoldMessenger.of(
+                                          Navigator.push(
                                             context,
-                                          ).showSnackBar(
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                              const OfflineInfoPage(),
+                                            ),
+                                          );
+                                          return;
+                                        }
+
+                                        bool hasInternet = false;
+                                        try {
+                                          final uri = Uri.parse(
+                                            'https://clients3.google.com/generate_204',
+                                          );
+                                          final resp = await http.get(uri).timeout(
+                                            const Duration(seconds: 3),
+                                          );
+                                          if (resp.statusCode == 204 ||
+                                              resp.statusCode == 200) {
+                                            hasInternet = true;
+                                          }
+                                        } catch (e) {
+                                          hasInternet = false;
+                                        }
+
+                                        if (!hasInternet) {
+                                          if (!context.mounted) return;
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                              const OfflineInfoPage(),
+                                            ),
+                                          );
+                                          return;
+                                        }
+
+                                        final url = Uri.parse(
+                                          'https://www.instagram.com/beuniandes/',
+                                        );
+
+                                        try {
+                                          final launched = await launchUrl(
+                                            url,
+                                            mode: LaunchMode.externalApplication,
+                                          );
+
+                                          if (!launched) {
+                                            if (!context.mounted) return;
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              SnackBar(
+                                                content: const Text(
+                                                  'Could not open Instagram link',
+                                                ),
+                                                backgroundColor: cs.error,
+                                                behavior: SnackBarBehavior.floating,
+                                              ),
+                                            );
+                                          }
+                                        } catch (e) {
+                                          if (!context.mounted) return;
+                                          ScaffoldMessenger.of(context).showSnackBar(
                                             SnackBar(
                                               content: const Text(
-                                                'Could not open Instagram link',
+                                                'Error opening Instagram',
                                               ),
                                               backgroundColor: cs.error,
-                                              behavior:
-                                                  SnackBarBehavior.floating,
+                                              behavior: SnackBarBehavior.floating,
                                             ),
                                           );
                                         }
-                                      } catch (e) {
-                                        // Falla inesperada al lanzar
-                                        if (!context.mounted) return;
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: const Text(
-                                              'Error opening Instagram',
-                                            ),
-                                            backgroundColor: cs.error,
-                                            behavior: SnackBarBehavior.floating,
-                                          ),
-                                        );
-                                      }
-                                    },
-                                    child: const Text('Learn More'),
+                                      },
+                                      child: const Text('Learn More'),
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // --- Learn on Your Own (hidden for brigadists) ---
+                  if (widget.userType?.toLowerCase() != 'brigadist') ...[
+                    Container(
+                      decoration: BoxDecoration(
+                        color: theme.cardColor,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: theme.dividerColor),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(
+                              theme.brightness == Brightness.light ? .05 : .25,
+                            ),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 16,
+                                backgroundColor: cs.secondary,
+                                child: Icon(
+                                  Icons.menu_book_rounded,
+                                  color: cs.onSecondary,
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                'Learn on Your Own',
+                                style: tt.titleMedium?.copyWith(
+                                  color: cs.onSurface,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Watch training videos and safety guides at your own pace.',
+                            style: tt.bodySmall?.copyWith(color: cs.onSurface),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            height: 280,
+                            child: items.isEmpty
+                                ? const Center(child: CircularProgressIndicator())
+                                : Builder(
+                                    builder: (context) {
+                                      final sortedItems = [...items]
+                                        ..sort((a, b) => b.views.compareTo(a.views));
+                                      return ListView.separated(
+                                        scrollDirection: Axis.horizontal,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 4,
+                                        ),
+                                        itemCount: sortedItems.length,
+                                        separatorBuilder: (_, __) =>
+                                            const SizedBox(width: 16),
+                                        itemBuilder: (context, i) {
+                                          final v = sortedItems[i];
+                                          final isFeatured = i ==
+                                              (featuredIndex % sortedItems.length);
+                                          return VideoCard(
+                                            video: v,
+                                            isFeatured: isFeatured,
+                                            onTap: () => widget.orchestrator
+                                                .openVideoDetails(context, v),
+                                          );
+                                        },
+                                      );
+                                    },
+                                  ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: widget.onNavigateToVideos,
+                            child: const Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text('View All Videos'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Tarjeta individual de emergencia
+class _EmergencyCard extends StatelessWidget {
+  final Map<String, dynamic> emergency;
+  final VoidCallback onTap;
+
+  const _EmergencyCard({
+    required this.emergency,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final tt = theme.textTheme;
+
+    final type = (emergency['type'] ?? 'Medical').toString();
+    final location = (emergency['location'] ?? 'Unknown').toString();
+    final minutes =
+    (emergency['etaMinutes'] ?? emergency['distance'] ?? 0).toString();
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: theme.dividerColor),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(
+                theme.brightness == Brightness.light ? .04 : .25,
+              ),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    type,
+                    style: tt.titleMedium?.copyWith(
+                      color: cs.primary,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-
-                  const SizedBox(height: 16),
-
-                  // --- Learn on Your Own ---
-                  Container(
-                    decoration: BoxDecoration(
-                      color: theme.cardColor,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: theme.dividerColor),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(
-                            theme.brightness == Brightness.light ? .05 : .25,
-                          ),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 16,
-                              backgroundColor: cs.secondary,
-                              child: Icon(
-                                Icons.menu_book_rounded,
-                                color: cs.onSecondary,
-                                size: 18,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              'Learn on Your Own',
-                              style: tt.titleMedium?.copyWith(
-                                color: cs.onSurface,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Watch training videos and safety guides at your own pace.',
-                          style: tt.bodySmall?.copyWith(color: cs.onSurface),
-                        ),
-                        const SizedBox(height: 12),
-
-                        SizedBox(
-                          height: 280,
-                          child: items.isEmpty
-                              ? const Center(child: CircularProgressIndicator())
-                              : Builder(
-                                  builder: (context) {
-                                    // Crear lista ordenada por likes (mayor primero)
-                                    final sortedItems = [...items];
-                                    sortedItems.sort((a, b) {
-                                      final aViews = a.views;
-                                      final bViews = b.views;
-                                      return bViews.compareTo(aViews);
-                                    });
-
-                                    return ListView.separated(
-                                      scrollDirection: Axis.horizontal,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 4,
-                                      ),
-                                      itemCount: sortedItems.length,
-                                      separatorBuilder: (_, __) =>
-                                          const SizedBox(width: 16),
-                                      itemBuilder: (context, i) {
-                                        final v = sortedItems[i];
-                                        final isFeatured =
-                                            i ==
-                                            (featuredIndex %
-                                                sortedItems.length);
-                                        return VideoCard(
-                                          video: v,
-                                          isFeatured: isFeatured,
-                                          onTap: () => widget.orchestrator
-                                              .openVideoDetails(context, v),
-                                        );
-                                      },
-                                    );
-                                  },
-                                ),
-                        ),
-
-                        const SizedBox(height: 8),
-                        TextButton(
-                          onPressed: widget.onNavigateToVideos,
-                          child: const Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text('View All Videos'),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        ElevatedButton.icon(
-                          onPressed: () => _navigateToNewsFeed(context),
-                          icon: const Icon(Icons.newspaper),
-                          label: const Text('Visit News Feed'),
-                          style: ElevatedButton.styleFrom(
-                            minimumSize: const Size(double.infinity, 45),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        ElevatedButton.icon(
-                          onPressed: () => _navigateToBloodDonation(context),
-                          icon: const Icon(Icons.favorite),
-                          label: const Text('Blood Donation Information'),
-                          style: ElevatedButton.styleFrom(
-                            minimumSize: const Size(double.infinity, 45),
-                            backgroundColor: cs.error,
-                            foregroundColor: cs.onError,
-                          ),
-                        ),
-                      ],
-                    ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Location: $location',
+                    style: tt.bodySmall?.copyWith(color: cs.onSurface),
                   ),
                 ],
               ),
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '$minutes m',
+                  style: tt.titleMedium?.copyWith(
+                    color: cs.secondary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  'away',
+                  style: tt.bodySmall?.copyWith(color: cs.onSurface),
+                ),
+              ],
             ),
           ],
         ),
@@ -541,9 +676,9 @@ class _HomePageState extends State<HomePage> {
 /* =================== Modales reutilizables =================== */
 
 Future<void> showProfileMenuDialog(
-  BuildContext context,
-  VoidCallback? onOpenProfile,
-) {
+    BuildContext context,
+    VoidCallback? onOpenProfile,
+    ) {
   final theme = Theme.of(context);
   final cs = theme.colorScheme;
   final tt = theme.textTheme;
@@ -558,7 +693,6 @@ Future<void> showProfileMenuDialog(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
@@ -588,8 +722,6 @@ Future<void> showProfileMenuDialog(
                 ],
               ),
             ),
-
-            // Opción: Profile Settings
             Padding(
               padding: const EdgeInsets.all(16),
               child: InkWell(
@@ -635,8 +767,6 @@ Future<void> showProfileMenuDialog(
                 ),
               ),
             ),
-
-            // Logout
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: InkWell(
@@ -646,10 +776,9 @@ Future<void> showProfileMenuDialog(
                   if (!context.mounted) return;
                   Navigator.of(context).pushAndRemoveUntil(
                     MaterialPageRoute(
-                      builder: (_) =>
-                          const AuthGate(childWhenAuthed: NavShell()),
+                      builder: (_) => const AuthGate(childWhenAuthed: NavShell()),
                     ),
-                    (_) => false,
+                        (_) => false,
                   );
                 },
                 borderRadius: BorderRadius.circular(12),
@@ -686,7 +815,6 @@ Future<void> showProfileMenuDialog(
                 ),
               ),
             ),
-
             const SizedBox(height: 8),
           ],
         ),
@@ -696,9 +824,9 @@ Future<void> showProfileMenuDialog(
 }
 
 Future<void> showAllNotificationsDialog(
-  BuildContext context,
-  List<String> notifications,
-) {
+    BuildContext context,
+    List<String> notifications,
+    ) {
   final theme = Theme.of(context);
   final cs = theme.colorScheme;
   final tt = theme.textTheme;
@@ -715,7 +843,6 @@ Future<void> showAllNotificationsDialog(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Header
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
@@ -752,49 +879,47 @@ Future<void> showAllNotificationsDialog(
                     children: notifications
                         .map(
                           (n) => Container(
-                            margin: const EdgeInsets.only(bottom: 10),
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: theme.cardColor,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: theme.dividerColor),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(
-                                    theme.brightness == Brightness.light
-                                        ? .03
-                                        : .2,
-                                  ),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: theme.cardColor,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: theme.dividerColor),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(
+                                theme.brightness == Brightness.light ? .03 : .2,
+                              ),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
                             ),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                CircleAvatar(
-                                  radius: 14,
-                                  backgroundColor: cs.primary,
-                                  child: Icon(
-                                    Icons.notifications,
-                                    size: 14,
-                                    color: cs.onPrimary,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    n,
-                                    style: tt.bodyMedium?.copyWith(
-                                      color: cs.onSurface,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                          ],
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            CircleAvatar(
+                              radius: 14,
+                              backgroundColor: cs.primary,
+                              child: Icon(
+                                Icons.notifications,
+                                size: 14,
+                                color: cs.onPrimary,
+                              ),
                             ),
-                          ),
-                        )
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                n,
+                                style: tt.bodyMedium?.copyWith(
+                                  color: cs.onSurface,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
                         .toList(),
                   ),
                 ),

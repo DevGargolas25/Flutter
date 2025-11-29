@@ -7,6 +7,9 @@ enum EmergencyType { Medical, Psycological, Hazard, Fire, Earthquake }
 /// <<location>> según el diagrama: SD, ML, RGD
 enum LocationEnum { SD, ML, RGD }
 
+/// Status de la emergencia: Unattended / In progress / Resolved
+enum EmergencyStatus { Unattended, InProgress, Resolved }
+
 class ChatMessagee {
   final String id;
   final String text;
@@ -40,10 +43,19 @@ class Emergency {
   final String userId;                   // FK
   final String? assignedBrigadistId;     // FK (nullable)
   final DateTime dateTime;               // date_time
-  final int emerResquestTime;            // EmerResquestTime (según diagrama)
-  final int secondsResponse;             // seconds_response
+
+  final int emerResquestTime;            // emerResquestTime / EmerResquestTime
+  final int secondsResponse;             // secondsResponse / seconds_response
+
   final LocationEnum location;           // Enumeration (SD/ML/RGD)
   final EmergencyType emerType;          // Enumeration (Medical/...)
+  final EmergencyStatus status;          // Unattended / In progress / Resolved
+
+  final double? latitude;                // latitude
+  final double? longitude;               // longitude
+  final DateTime? createdAt;             // createdAt (epoch ms)
+  final DateTime? updatedAt;             // updatedAt (epoch ms)
+
   final List<ChatMessagee>? chatMessages; // opcional
 
   const Emergency({
@@ -55,6 +67,11 @@ class Emergency {
     required this.secondsResponse,
     required this.location,
     required this.emerType,
+    required this.status,
+    this.latitude,
+    this.longitude,
+    this.createdAt,
+    this.updatedAt,
     this.chatMessages,
   });
 
@@ -67,6 +84,11 @@ class Emergency {
     int? secondsResponse,
     LocationEnum? location,
     EmergencyType? emerType,
+    EmergencyStatus? status,
+    double? latitude,
+    double? longitude,
+    DateTime? createdAt,
+    DateTime? updatedAt,
     List<ChatMessagee>? chatMessages,
   }) {
     return Emergency(
@@ -78,6 +100,11 @@ class Emergency {
       secondsResponse: secondsResponse ?? this.secondsResponse,
       location: location ?? this.location,
       emerType: emerType ?? this.emerType,
+      status: status ?? this.status,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
       chatMessages: chatMessages ?? this.chatMessages,
     );
   }
@@ -88,10 +115,27 @@ class Emergency {
     userId: json['userId'] as String,
     assignedBrigadistId: json['assignedBrigadistId'] as String?,
     dateTime: DateTime.parse(json['date_time'] as String),
-    emerResquestTime: (json['EmerResquestTime'] as num).toInt(),
-    secondsResponse: (json['seconds_response'] as num).toInt(),
+
+    // Soporta emerResquestTime y EmerResquestTime
+    emerResquestTime: _intFromJson(
+      json['emerResquestTime'] ?? json['EmerResquestTime'],
+    ),
+
+    // Soporta secondsResponse y seconds_response
+    secondsResponse: _intFromJson(
+      json['secondsResponse'] ?? json['seconds_response'],
+    ),
+
     location: _locationFromWire(json['location'] as String),
     emerType: _emerTypeFromWire(json['emerType'] as String),
+    status: _statusFromWire(json['status'] as String),
+
+    latitude: _doubleFromJson(json['latitude']),
+    longitude: _doubleFromJson(json['longitude']),
+
+    createdAt: _dateTimeFromMillisOrIso(json['createdAt']),
+    updatedAt: _dateTimeFromMillisOrIso(json['updatedAt']),
+
     chatMessages: (json['chatMessages'] as List?)
         ?.map((e) => ChatMessagee.fromJson(
       Map<String, dynamic>.from(e as Map),
@@ -104,14 +148,58 @@ class Emergency {
     'userId': userId,
     'assignedBrigadistId': assignedBrigadistId,
     'date_time': dateTime.toIso8601String(),
-    'EmerResquestTime': emerResquestTime,
-    'seconds_response': secondsResponse,
-    'location': _locationToWire(location),   // SD/ML/RGD
-    'emerType': _emerTypeToWire(emerType),   // Medical/Psycological/Hazard
+
+    // Usamos una convención "bonita" hacia afuera:
+    'emerResquestTime': emerResquestTime,
+    'secondsResponse': secondsResponse,
+
+    'location': _locationToWire(location),    // SD/ML/RGD
+    'emerType': _emerTypeToWire(emerType),    // Medical/Psycological/...
+    'status': _statusToWire(status),          // Unattended / In progress / Resolved
+
+    'latitude': latitude,
+    'longitude': longitude,
+    'createdAt': createdAt?.millisecondsSinceEpoch,
+    'updatedAt': updatedAt?.millisecondsSinceEpoch,
+
     'chatMessages': chatMessages?.map((m) => m.toJson()).toList(),
   };
 
-  // ---- Enum <-> wire helpers (respetan EXACTAMENTE el texto del diagrama) ----
+  // ---- helpers genéricos ----
+
+  static int _intFromJson(dynamic v, [int defaultValue = 0]) {
+    if (v == null) return defaultValue;
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v) ?? defaultValue;
+    return defaultValue;
+  }
+
+  static double? _doubleFromJson(dynamic v) {
+    if (v == null) return null;
+    if (v is double) return v;
+    if (v is int) return v.toDouble();
+    if (v is num) return v.toDouble();
+    if (v is String) return double.tryParse(v);
+    return null;
+  }
+
+  static DateTime? _dateTimeFromMillisOrIso(dynamic v) {
+    if (v == null) return null;
+    if (v is int) {
+      return DateTime.fromMillisecondsSinceEpoch(v);
+    }
+    if (v is num) {
+      return DateTime.fromMillisecondsSinceEpoch(v.toInt());
+    }
+    if (v is String) {
+      return DateTime.tryParse(v);
+    }
+    return null;
+  }
+
+  // ---- Enum <-> wire helpers ----
+
   static LocationEnum _locationFromWire(String v) {
     switch (v) {
       case 'SD':
@@ -136,12 +224,40 @@ class Emergency {
         return EmergencyType.Psycological;
       case 'Hazard':
         return EmergencyType.Hazard;
+      case 'Fire':
+        return EmergencyType.Fire;
+      case 'Earthquake':
+        return EmergencyType.Earthquake;
       default:
         return EmergencyType.Medical;
     }
   }
 
   static String _emerTypeToWire(EmergencyType e) => e.name;
+
+  static EmergencyStatus _statusFromWire(String v) {
+    switch (v) {
+      case 'Unattended':
+        return EmergencyStatus.Unattended;
+      case 'In progress': // OJO: con espacio
+        return EmergencyStatus.InProgress;
+      case 'Resolved':
+        return EmergencyStatus.Resolved;
+      default:
+        return EmergencyStatus.Unattended;
+    }
+  }
+
+  static String _statusToWire(EmergencyStatus s) {
+    switch (s) {
+      case EmergencyStatus.Unattended:
+        return 'Unattended';
+      case EmergencyStatus.InProgress:
+        return 'In progress';
+      case EmergencyStatus.Resolved:
+        return 'Resolved';
+    }
+  }
 
   // utilidades si manejas JSON plano
   static Emergency fromJsonString(String s) =>
