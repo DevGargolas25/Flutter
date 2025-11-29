@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../Models/newsModel.dart';
+import '../Models/news_cache_manager.dart';
 
 class NewsVM extends ChangeNotifier {
   final NewsService _newsService = NewsService();
+  final NewsCacheManager _cacheManager = NewsCacheManager.instance;
 
   // Exposer para testing
   NewsService get newsService => _newsService;
@@ -15,6 +17,8 @@ class NewsVM extends ChangeNotifier {
   String _errorMessage = '';
   String _searchQuery = '';
   NewsModel? _selectedNews;
+  bool _isOffline = false;
+  bool _isLoadedFromCache = false;
 
   // Getters
   List<NewsModel> get news => _searchQuery.isEmpty ? _news : _filteredNews;
@@ -26,8 +30,10 @@ class NewsVM extends ChangeNotifier {
   NewsModel? get selectedNews => _selectedNews;
   bool get isEmpty => news.isEmpty && !_isLoading;
   String get searchQuery => _searchQuery;
+  bool get isOffline => _isOffline;
+  bool get isLoadedFromCache => _isLoadedFromCache;
 
-  /// Carga las noticias desde Firebase
+  /// Carga las noticias priorizando caché local
   Future<void> loadNews() async {
     if (_isLoading) return;
 
@@ -35,22 +41,108 @@ class NewsVM extends ChangeNotifier {
     _clearError();
 
     try {
-      print('📰 NewsVM: Cargando noticias desde Firebase...');
-      final newsList = await _newsService.fetchNews();
+      // 1. Verificar conexión a internet
+      final hasConnection = await _cacheManager.hasInternetConnection();
+      _isOffline = !hasConnection;
 
-      _news = newsList;
+      debugPrint(
+        '📰 NewsVM: Iniciando carga de noticias (${hasConnection ? "Online" : "Offline"})',
+      );
 
-      // Si hay una búsqueda activa, filtrar las noticias
+      if (hasConnection) {
+        // 2. Con conexión: intentar cargar desde Firebase primero
+        await _loadFromFirebaseWithCache();
+      } else {
+        // 3. Sin conexión: cargar desde caché usando LRU
+        await _loadFromCacheOffline();
+      }
+
+      // 4. Si hay una búsqueda activa, filtrar las noticias
       if (_searchQuery.isNotEmpty) {
         _filterNews(_searchQuery);
       }
 
-      print('✅ NewsVM: ${newsList.length} noticias cargadas desde Firebase');
+      debugPrint(
+        '✅ NewsVM: ${_news.length} noticias cargadas (caché: $_isLoadedFromCache, offline: $_isOffline)',
+      );
     } catch (e) {
       _setError('Error cargando noticias: $e');
-      print('❌ NewsVM: Error cargando noticias: $e');
+      debugPrint('❌ NewsVM: Error cargando noticias: $e');
+
+      // Como último recurso, intentar cargar desde caché
+      await _loadFromCacheOffline();
     } finally {
       _setLoading(false);
+    }
+  }
+
+  /// Carga desde Firebase y actualiza caché
+  Future<void> _loadFromFirebaseWithCache() async {
+    try {
+      // 1. Cargar primero desde caché para respuesta inmediata
+      final cachedNews = await _cacheManager.getCachedNews();
+      if (cachedNews != null && cachedNews.isNotEmpty) {
+        _news = cachedNews;
+        _isLoadedFromCache = true;
+        notifyListeners(); // Mostrar datos inmediatamente
+        debugPrint('⚡ Noticias cargadas desde caché como respuesta rápida');
+      }
+
+      // 2. Cargar desde Firebase en background
+      final freshNews = await _newsService.fetchNews();
+
+      if (freshNews.isNotEmpty) {
+        _news = freshNews;
+        _isLoadedFromCache = false;
+
+        // 3. Actualizar caché con datos frescos
+        await _cacheManager.cacheNews(freshNews);
+
+        // 4. Pre-cargar imágenes en background
+        _precacheImages(freshNews);
+
+        debugPrint(
+          '🔄 Caché actualizado con ${freshNews.length} noticias frescas',
+        );
+      }
+    } catch (e) {
+      debugPrint('❌ Error cargando desde Firebase: $e');
+      // Si falla Firebase, intentar solo desde caché
+      await _loadFromCacheOffline();
+    }
+  }
+
+  /// Carga desde caché cuando no hay conexión (modo offline)
+  Future<void> _loadFromCacheOffline() async {
+    try {
+      final mostUsedNews = await _cacheManager.getMostUsedNews();
+
+      if (mostUsedNews.isNotEmpty) {
+        _news = mostUsedNews;
+        _isLoadedFromCache = true;
+        _isOffline = true;
+        debugPrint(
+          '📱 Modo offline: ${mostUsedNews.length} noticias más usadas (LRU)',
+        );
+      } else {
+        _setError('No hay noticias disponibles offline');
+        debugPrint('📭 Sin noticias en caché para modo offline');
+      }
+    } catch (e) {
+      debugPrint('❌ Error cargando desde caché offline: $e');
+      _setError('Error accediendo a noticias offline');
+    }
+  }
+
+  /// Pre-carga imágenes en background
+  void _precacheImages(List<NewsModel> news) {
+    for (final newsItem in news.take(10)) {
+      // Solo las primeras 10
+      if (newsItem.imageUrl.isNotEmpty) {
+        newsItem.cacheImage().catchError((e) {
+          debugPrint('⚠️ Error pre-cargando imagen: $e');
+        });
+      }
     }
   }
 
@@ -117,11 +209,17 @@ class NewsVM extends ChangeNotifier {
     await loadNews();
   }
 
-  /// Selecciona una noticia específica
+  /// Selecciona una noticia específica y registra su uso
   void selectNews(NewsModel news) {
     _selectedNews = news;
     notifyListeners();
-    print('📰 NewsVM: Noticia seleccionada: ${news.title}');
+
+    // Registrar uso para LRU
+    news.recordUsage().catchError((e) {
+      debugPrint('⚠️ Error registrando uso de noticia: $e');
+    });
+
+    debugPrint('📰 NewsVM: Noticia seleccionada: ${news.title}');
   }
 
   /// Limpia la noticia seleccionada
@@ -172,6 +270,8 @@ class NewsVM extends ChangeNotifier {
         'top_author': 'N/A',
         'latest_date': 'N/A',
         'total_tags': 0,
+        'cache_info': 'Sin datos',
+        'offline_mode': _isOffline,
       };
     }
 
@@ -198,7 +298,27 @@ class NewsVM extends ChangeNotifier {
       'top_author': topAuthor,
       'latest_date': latestDate.toString(),
       'total_tags': allTags.length,
+      'cache_info': _isLoadedFromCache ? 'Datos desde caché' : 'Datos frescos',
+      'offline_mode': _isOffline,
     };
+  }
+
+  /// Obtiene estadísticas del caché
+  Future<Map<String, dynamic>> getCacheStats() async {
+    return await _cacheManager.getCacheStats();
+  }
+
+  /// Limpia toda la caché
+  Future<void> clearCache() async {
+    await _cacheManager.clearCache();
+    debugPrint('🗑️ Caché limpiada por el usuario');
+  }
+
+  /// Fuerza la recarga desde Firebase
+  Future<void> forceRefresh() async {
+    _isLoadedFromCache = false;
+    await _loadFromFirebaseWithCache();
+    notifyListeners();
   }
 
   // Métodos privados

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:studentbrigade/VM/Orchestrator.dart';
 import 'package:studentbrigade/Models/newsModel.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class NewsScreen extends StatefulWidget {
   final Orchestrator orchestrator;
@@ -163,90 +164,129 @@ class _NewsScreenState extends State<NewsScreen> {
           ),
         ),
       ),
-      body: ListenableBuilder(
-        listenable: widget.orchestrator.newsVM,
-        builder: (context, _) {
-          final newsVM = widget.orchestrator.newsVM;
-
-          if (newsVM.isLoading && newsVM.news.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (newsVM.hasError && newsVM.news.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+      body: Column(
+        children: [
+          // Mensaje de offline
+          if (widget.orchestrator.newsVM.isOffline)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              color: Colors.orange.withOpacity(0.1),
+              child: Row(
                 children: [
-                  Icon(Icons.error_outline, size: 64, color: colorScheme.error),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Error loading news',
-                    style: theme.textTheme.headlineSmall,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    newsVM.errorMessage,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
+                  Icon(Icons.wifi_off, color: Colors.orange, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'No hay conexión. Por favor conéctate a internet para obtener noticias actualizadas.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.orange[800],
+                      ),
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => newsVM.loadNews(),
-                    child: const Text('Retry'),
                   ),
                 ],
               ),
-            );
-          }
+            ),
+          // Contenido principal
+          Expanded(
+            child: ListenableBuilder(
+              listenable: widget.orchestrator.newsVM,
+              builder: (context, _) {
+                final newsVM = widget.orchestrator.newsVM;
 
-          if (newsVM.news.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.newspaper_outlined, size: 64),
-                  SizedBox(height: 16),
-                  Text('No news available', style: TextStyle(fontSize: 18)),
-                ],
-              ),
-            );
-          }
+                if (newsVM.isLoading && newsVM.news.isEmpty) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-          return RefreshIndicator(
-            onRefresh: () async {
-              await newsVM.loadNews();
-            },
-            child: ListView.separated(
-              controller: _scrollController,
-              padding: const EdgeInsets.all(16),
-              itemCount: newsVM.news.length + (newsVM.hasMore ? 1 : 0),
-              separatorBuilder: (context, index) => const SizedBox(height: 16),
-              itemBuilder: (context, index) {
-                if (index >= newsVM.news.length) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: CircularProgressIndicator(),
+                if (newsVM.hasError && newsVM.news.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 64,
+                          color: colorScheme.error,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error loading news',
+                          style: theme.textTheme.headlineSmall,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          newsVM.errorMessage,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () => newsVM.loadNews(),
+                          child: const Text('Retry'),
+                        ),
+                      ],
                     ),
                   );
                 }
 
-                final news = newsVM.news[index];
-                return _NewsCard(
-                  news: news,
-                  onTap: () => _showNewsDetail(context, news),
+                if (newsVM.news.isEmpty) {
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.newspaper_outlined, size: 64),
+                        SizedBox(height: 16),
+                        Text(
+                          'No news available',
+                          style: TextStyle(fontSize: 18),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    await newsVM.loadNews();
+                  },
+                  child: ListView.separated(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(16),
+                    itemCount: newsVM.news.length + (newsVM.hasMore ? 1 : 0),
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 16),
+                    itemBuilder: (context, index) {
+                      if (index >= newsVM.news.length) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(16),
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                      }
+
+                      final news = newsVM.news[index];
+                      return _NewsCard(
+                        news: news,
+                        onTap: () => _showNewsDetail(context, news),
+                      );
+                    },
+                  ),
                 );
               },
-            ),
-          );
-        },
-      ),
-    );
+            ), // cierre ListenableBuilder
+          ), // cierre Expanded
+        ],
+      ), // cierre Column
+    ); // cierre Scaffold
   }
 
   void _showNewsDetail(BuildContext context, NewsModel news) {
+    // Registrar que se abrió la noticia para el LRU
+    widget.orchestrator.newsVM.selectNews(news);
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -277,24 +317,19 @@ class _NewsCard extends StatelessWidget {
             // Image
             AspectRatio(
               aspectRatio: 16 / 9,
-              child: Image.network(
-                news.imageUrl,
+              child: CachedNetworkImage(
+                imageUrl: news.imageUrl,
                 fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: colorScheme.surfaceVariant,
-                    child: const Center(
-                      child: Icon(Icons.image_not_supported, size: 48),
-                    ),
-                  );
-                },
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Container(
-                    color: colorScheme.surfaceVariant,
-                    child: const Center(child: CircularProgressIndicator()),
-                  );
-                },
+                placeholder: (context, url) => Container(
+                  color: colorScheme.surfaceVariant,
+                  child: const Center(child: CircularProgressIndicator()),
+                ),
+                errorWidget: (context, url, error) => Container(
+                  color: colorScheme.surfaceVariant,
+                  child: const Center(
+                    child: Icon(Icons.image_not_supported, size: 48),
+                  ),
+                ),
               ),
             ),
             Padding(
@@ -435,10 +470,20 @@ class _NewsDetailSheet extends StatelessWidget {
                 // Image
                 AspectRatio(
                   aspectRatio: 16 / 9,
-                  child: Image.network(
-                    news.imageUrl,
+                  child: CachedNetworkImage(
+                    imageUrl: news.imageUrl,
                     fit: BoxFit.cover,
                     width: double.infinity,
+                    placeholder: (context, url) => Container(
+                      color: Colors.grey[300],
+                      child: const Center(child: CircularProgressIndicator()),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      color: Colors.grey[300],
+                      child: const Center(
+                        child: Icon(Icons.image_not_supported, size: 48),
+                      ),
+                    ),
                   ),
                 ),
                 Padding(
