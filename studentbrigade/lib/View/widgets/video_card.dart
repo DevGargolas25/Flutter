@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:studentbrigade/Models/videoMod.dart';
 
 class VideoCard extends StatelessWidget {
@@ -53,10 +54,51 @@ class VideoCard extends StatelessWidget {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(10),
                 child: video.thumbnail.isNotEmpty
-                    ? Image.network(
-                        video.thumbnail,
+                    ? CachedNetworkImage(
+                        imageUrl: video.thumbnail,
                         fit: BoxFit.cover,
                         width: double.infinity,
+                        placeholder: (context, url) => Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                const Color(0xFF75C1C7).withOpacity(.5),
+                                const Color(0xFF60B896).withOpacity(.5),
+                              ],
+                              begin: Alignment.bottomLeft,
+                              end: Alignment.topRight,
+                            ),
+                          ),
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                const Color(0xFF75C1C7).withOpacity(.9),
+                                const Color(0xFF60B896).withOpacity(.9),
+                              ],
+                              begin: Alignment.bottomLeft,
+                              end: Alignment.topRight,
+                            ),
+                          ),
+                          child: const Center(
+                            child: Icon(
+                              Icons.play_arrow_rounded,
+                              size: 36,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                        // Cache configuration optimizada
+                        memCacheWidth: 300,
+                        memCacheHeight: 200,
+                        cacheKey: 'thumb_${video.id}',
                       )
                     : Container(
                         decoration: BoxDecoration(
