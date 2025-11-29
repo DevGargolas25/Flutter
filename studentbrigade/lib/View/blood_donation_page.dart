@@ -23,38 +23,34 @@ class _BloodDonationPageState extends State<BloodDonationPage> {
   late LatLng _initialLocation;
   late String _donationUrl;
   final _fmtcProvider = FMTCTileProvider(
-    stores: const {'bloodDonationStore': BrowseStoreStrategy.readUpdateCreate},
+    stores: const {'mapStore': BrowseStoreStrategy.readUpdateCreate},
   );
 
   @override
   void initState() {
     super.initState();
+    final centers = widget.orchestrator.mapVM.getBloodDonationCenters();
+    if (centers.isNotEmpty) {
+      final firstPoint = centers.first;
+      _initialLocation = LatLng(firstPoint.latitude, firstPoint.longitude);
+    } else {
+      _initialLocation = const LatLng(4.6014, -74.0660);
+    }
 
-    _initializeData();
+    _requestLocation();
+    _loadDonationUrl();
     widget.orchestrator.mapVM.addListener(_onMapVmUpdated);
   }
 
-  Future<void> _initializeData() async {
-    // Inicializar BloodDonationStorage
-    await BloodDonationStorage.initialize();
-
-    // Cargar URL
+  Future<void> _loadDonationUrl() async {
     _donationUrl = await BloodDonationStorage.getDonationUrl();
-
-    // Obtener ubicación inicial del primer centro de donación
-    final centers = widget.orchestrator.mapVM.getBloodDonationCenters();
-    if (centers.isNotEmpty) {
-      _initialLocation = LatLng(centers.first.latitude, centers.first.longitude);
-    } else {
-      _initialLocation = const LatLng(4.6014, -74.0660); // Default Bogotá
-    }
-
-    // Solicitar ubicación del usuario
-    await _requestLocation();
-
     if (mounted) {
       setState(() {});
     }
+  }
+
+  Future<void> _initializeData() async {
+    await BloodDonationStorage.initialize();
   }
 
   @override
@@ -227,59 +223,61 @@ class _BloodDonationPageState extends State<BloodDonationPage> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Contenedor con imagen y descripción
+                  // Contenedor con descripción completa
                   Container(
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: theme.dividerColor),
+                      boxShadow: [
+                        BoxShadow(
+                          color: cs.shadow.withOpacity(
+                            theme.brightness == Brightness.light ? .08 : .24,
+                          ),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    child: Row(
+                    child: Column(
                       children: [
-                        // Imagen a la izquierda
-                        Flexible(
-                          flex: 1,
-                          child: Container(
-                            height: 140,
-                            decoration: BoxDecoration(
-                              borderRadius: const BorderRadius.horizontal(
-                                left: Radius.circular(12),
+                        // Encabezado con imagen y título
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(12),
+                            ),
+                            color: cs.primaryContainer,
+                          ),
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.bloodtype,
+                                size: 50,
+                                color: cs.primary,
                               ),
-                              color: cs.primaryContainer,
-                            ),
-                            child: Icon(
-                              Icons.bloodtype,
-                              size: 60,
-                              color: cs.primary,
-                            ),
+                              const SizedBox(height: 12),
+                              Text(
+                                'Near You',
+                                style: tt.titleLarge?.copyWith(
+                                  color: cs.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        // Descripción a la derecha
-                        Flexible(
-                          flex: 1,
-                          child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  'Near You',
-                                  style: tt.labelMedium?.copyWith(
-                                    color: cs.secondary,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  'Multiple donation centers are near for the university. If you would like to learn more, please continue to the following page:',
-                                  style: tt.bodySmall?.copyWith(
-                                    color: cs.onSurface,
-                                  ),
-                                  maxLines: 5,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
+                        // Descripción
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Text(
+                            'Multiple donation centers are near the university. If you would like to learn more, please continue to the following page:',
+                            style: tt.bodyMedium?.copyWith(
+                              color: cs.onSurface,
+                              height: 1.5,
                             ),
+                            textAlign: TextAlign.center,
                           ),
                         ),
                       ],
@@ -347,15 +345,12 @@ class _BloodDonationPageState extends State<BloodDonationPage> {
                     maxZoom: 18.0,
                   ),
                   children: [
-                    // Capa de tiles con caché
                     TileLayer(
                       urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                       userAgentPackageName: 'com.example.studentbrigade',
                       tileProvider: _fmtcProvider,
                       maxZoom: 18,
                     ),
-
-                    // Marcadores de centros de donación
                     MarkerLayer(
                       markers: _buildBloodDonationMarkers(context),
                     ),
@@ -428,13 +423,6 @@ class _BloodDonationPageState extends State<BloodDonationPage> {
                                   ),
                                 ),
                               ],
-                              const SizedBox(height: 8),
-                              Text(
-                                'Lat: ${center.latitude.toStringAsFixed(4)}, Lon: ${center.longitude.toStringAsFixed(4)}',
-                                style: tt.labelSmall?.copyWith(
-                                  color: cs.secondary,
-                                ),
-                              ),
                             ],
                           ),
                         ),
