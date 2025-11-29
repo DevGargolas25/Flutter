@@ -10,7 +10,6 @@ import 'nav_shell.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'offline_info_page.dart';
-import 'blood_donation_page.dart';
 import 'package:http/http.dart' as http;
 
 typedef VideoSelect = void Function(int videoId);
@@ -121,25 +120,26 @@ class _HomePageState extends State<HomePage> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Attend emergency?'),
-        content: const Text(
-          'Do you want to attend this emergency and mark it as In Progress?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+    final confirmed =
+        await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Attend emergency?'),
+            content: const Text(
+              'Do you want to attend this emergency and mark it as In Progress?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Attend'),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Attend'),
-          ),
-        ],
-      ),
-    ) ??
+        ) ??
         false;
 
     if (!confirmed) return;
@@ -174,6 +174,10 @@ class _HomePageState extends State<HomePage> {
         ),
       );
     }
+  }
+
+  void _navigateToNewsFeed(BuildContext context) {
+    Navigator.of(context).pushNamed('/news');
   }
 
   @override
@@ -289,10 +293,10 @@ class _HomePageState extends State<HomePage> {
                         children: _unattended
                             .map(
                               (e) => _EmergencyCard(
-                            emergency: e,
-                            onTap: () => _onTapEmergencyCard(e),
-                          ),
-                        )
+                                emergency: e,
+                                onTap: () => _onTapEmergencyCard(e),
+                              ),
+                            )
                             .toList(),
                       ),
 
@@ -337,7 +341,12 @@ class _HomePageState extends State<HomePage> {
                           Expanded(
                             flex: 3,
                             child: Padding(
-                              padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
+                              padding: const EdgeInsets.fromLTRB(
+                                24,
+                                20,
+                                24,
+                                20,
+                              ),
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -380,15 +389,16 @@ class _HomePageState extends State<HomePage> {
                                     alignment: Alignment.centerLeft,
                                     child: FilledButton(
                                       onPressed: () async {
-                                        final connResult =
-                                        await Connectivity().checkConnectivity();
-                                        if (connResult == ConnectivityResult.none) {
+                                        final connResult = await Connectivity()
+                                            .checkConnectivity();
+                                        if (connResult ==
+                                            ConnectivityResult.none) {
                                           if (!context.mounted) return;
                                           Navigator.push(
                                             context,
                                             MaterialPageRoute(
                                               builder: (_) =>
-                                              const OfflineInfoPage(),
+                                                  const OfflineInfoPage(),
                                             ),
                                           );
                                           return;
@@ -399,9 +409,11 @@ class _HomePageState extends State<HomePage> {
                                           final uri = Uri.parse(
                                             'https://clients3.google.com/generate_204',
                                           );
-                                          final resp = await http.get(uri).timeout(
-                                            const Duration(seconds: 3),
-                                          );
+                                          final resp = await http
+                                              .get(uri)
+                                              .timeout(
+                                                const Duration(seconds: 3),
+                                              );
                                           if (resp.statusCode == 204 ||
                                               resp.statusCode == 200) {
                                             hasInternet = true;
@@ -416,7 +428,7 @@ class _HomePageState extends State<HomePage> {
                                             context,
                                             MaterialPageRoute(
                                               builder: (_) =>
-                                              const OfflineInfoPage(),
+                                                  const OfflineInfoPage(),
                                             ),
                                           );
                                           return;
@@ -429,31 +441,37 @@ class _HomePageState extends State<HomePage> {
                                         try {
                                           final launched = await launchUrl(
                                             url,
-                                            mode: LaunchMode.externalApplication,
+                                            mode:
+                                                LaunchMode.externalApplication,
                                           );
 
                                           if (!launched) {
                                             if (!context.mounted) return;
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
                                               SnackBar(
                                                 content: const Text(
                                                   'Could not open Instagram link',
                                                 ),
                                                 backgroundColor: cs.error,
-                                                behavior: SnackBarBehavior.floating,
+                                                behavior:
+                                                    SnackBarBehavior.floating,
                                               ),
                                             );
                                           }
                                         } catch (e) {
                                           if (!context.mounted) return;
-                                          ScaffoldMessenger.of(context).showSnackBar(
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
                                             SnackBar(
                                               content: const Text(
                                                 'Error opening Instagram',
                                               ),
                                               backgroundColor: cs.error,
-                                              behavior: SnackBarBehavior.floating,
+                                              behavior:
+                                                  SnackBarBehavior.floating,
                                             ),
                                           );
                                         }
@@ -522,11 +540,15 @@ class _HomePageState extends State<HomePage> {
                           SizedBox(
                             height: 280,
                             child: items.isEmpty
-                                ? const Center(child: CircularProgressIndicator())
+                                ? const Center(
+                                    child: CircularProgressIndicator(),
+                                  )
                                 : Builder(
                                     builder: (context) {
                                       final sortedItems = [...items]
-                                        ..sort((a, b) => b.views.compareTo(a.views));
+                                        ..sort(
+                                          (a, b) => b.views.compareTo(a.views),
+                                        );
                                       return ListView.separated(
                                         scrollDirection: Axis.horizontal,
                                         padding: const EdgeInsets.symmetric(
@@ -537,8 +559,10 @@ class _HomePageState extends State<HomePage> {
                                             const SizedBox(width: 16),
                                         itemBuilder: (context, i) {
                                           final v = sortedItems[i];
-                                          final isFeatured = i ==
-                                              (featuredIndex % sortedItems.length);
+                                          final isFeatured =
+                                              i ==
+                                              (featuredIndex %
+                                                  sortedItems.length);
                                           return VideoCard(
                                             video: v,
                                             isFeatured: isFeatured,
@@ -562,6 +586,66 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                     const SizedBox(height: 16),
+
+                    // --- News Section ---
+                    Container(
+                      decoration: BoxDecoration(
+                        color: theme.cardColor,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: theme.dividerColor),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(
+                              theme.brightness == Brightness.light ? .05 : .25,
+                            ),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 16,
+                                backgroundColor: cs.tertiary,
+                                child: Icon(
+                                  Icons.article_rounded,
+                                  color: cs.onTertiary,
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                'Campus News',
+                                style: tt.titleMedium?.copyWith(
+                                  color: cs.onSurface,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Stay updated with the latest campus news and announcements.',
+                            style: tt.bodyMedium?.copyWith(color: cs.onSurface),
+                          ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: FilledButton.icon(
+                              onPressed: () => _navigateToNewsFeed(context),
+                              icon: const Icon(Icons.article),
+                              label: const Text('Read Latest News'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
                   ],
                 ],
               ),
@@ -578,10 +662,7 @@ class _EmergencyCard extends StatelessWidget {
   final Map<String, dynamic> emergency;
   final VoidCallback onTap;
 
-  const _EmergencyCard({
-    required this.emergency,
-    required this.onTap,
-  });
+  const _EmergencyCard({required this.emergency, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -591,8 +672,8 @@ class _EmergencyCard extends StatelessWidget {
 
     final type = (emergency['type'] ?? 'Medical').toString();
     final location = (emergency['location'] ?? 'Unknown').toString();
-    final minutes =
-    (emergency['etaMinutes'] ?? emergency['distance'] ?? 0).toString();
+    final minutes = (emergency['etaMinutes'] ?? emergency['distance'] ?? 0)
+        .toString();
 
     return InkWell(
       onTap: onTap,
@@ -657,28 +738,14 @@ class _EmergencyCard extends StatelessWidget {
       ),
     );
   }
-
-  void _navigateToNewsFeed(BuildContext context) {
-    Navigator.of(context).pushNamed('/news');
-  }
-
-  void _navigateToBloodDonation(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => BloodDonationPage(
-          orchestrator: widget.orchestrator,
-        ),
-      ),
-    );
-  }
 }
 
 /* =================== Modales reutilizables =================== */
 
 Future<void> showProfileMenuDialog(
-    BuildContext context,
-    VoidCallback? onOpenProfile,
-    ) {
+  BuildContext context,
+  VoidCallback? onOpenProfile,
+) {
   final theme = Theme.of(context);
   final cs = theme.colorScheme;
   final tt = theme.textTheme;
@@ -776,9 +843,10 @@ Future<void> showProfileMenuDialog(
                   if (!context.mounted) return;
                   Navigator.of(context).pushAndRemoveUntil(
                     MaterialPageRoute(
-                      builder: (_) => const AuthGate(childWhenAuthed: NavShell()),
+                      builder: (_) =>
+                          const AuthGate(childWhenAuthed: NavShell()),
                     ),
-                        (_) => false,
+                    (_) => false,
                   );
                 },
                 borderRadius: BorderRadius.circular(12),
@@ -824,9 +892,9 @@ Future<void> showProfileMenuDialog(
 }
 
 Future<void> showAllNotificationsDialog(
-    BuildContext context,
-    List<String> notifications,
-    ) {
+  BuildContext context,
+  List<String> notifications,
+) {
   final theme = Theme.of(context);
   final cs = theme.colorScheme;
   final tt = theme.textTheme;
@@ -879,47 +947,49 @@ Future<void> showAllNotificationsDialog(
                     children: notifications
                         .map(
                           (n) => Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: theme.cardColor,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: theme.dividerColor),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(
-                                theme.brightness == Brightness.light ? .03 : .2,
-                              ),
-                              blurRadius: 8,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            CircleAvatar(
-                              radius: 14,
-                              backgroundColor: cs.primary,
-                              child: Icon(
-                                Icons.notifications,
-                                size: 14,
-                                color: cs.onPrimary,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                n,
-                                style: tt.bodyMedium?.copyWith(
-                                  color: cs.onSurface,
+                            margin: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: theme.cardColor,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: theme.dividerColor),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(
+                                    theme.brightness == Brightness.light
+                                        ? .03
+                                        : .2,
+                                  ),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
                                 ),
-                              ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                    )
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                CircleAvatar(
+                                  radius: 14,
+                                  backgroundColor: cs.primary,
+                                  child: Icon(
+                                    Icons.notifications,
+                                    size: 14,
+                                    color: cs.onPrimary,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    n,
+                                    style: tt.bodyMedium?.copyWith(
+                                      color: cs.onSurface,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
                         .toList(),
                   ),
                 ),

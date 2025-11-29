@@ -53,11 +53,11 @@ class _NavShellState extends State<NavShell> {
       case 0:
         return HomePage(
           orchestrator: _orchestrator,
-            userName: _orchestrator.getUserData()?.fullName ?? 'John',
-            userType: _orchestrator.getUserData()?.userType ?? 'student',
-            // DEBUG: mostrar userType en construcción
-            // (se elimina cuando confirmemos que funciona)
-          
+          userName: _orchestrator.getUserData()?.fullName ?? 'John',
+          userType: _orchestrator.getUserData()?.userType ?? 'student',
+
+          // DEBUG: mostrar userType en construcción
+          // (se elimina cuando confirmemos que funciona)
           onOpenProfile: () => _orchestrator.navigateToProfile(),
         );
       case 1:
@@ -102,63 +102,61 @@ class _NavShellState extends State<NavShell> {
                 blurRadius: 10,
                 offset: const Offset(0, -2),
               ),
-              blurRadius: 10,
-              offset: const Offset(0, -2),
-            ),
-          ],
-          border: Border(top: BorderSide(color: theme.dividerColor)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            _NavItem(
-              icon: Icons.home_outlined,
-              selectedIcon: Icons.home,
-              label: 'Home',
-              selected: _index == 0,
-              onTap: () => _orchestrator.navigateToPage(0),
-            ),
-            _NavItem(
-              icon: Icons.chat_bubble_outline,
-              selectedIcon: Icons.chat_bubble,
-              label: 'Chat',
-              selected: _index == 1,
-              onTap: () => _orchestrator.navigateToPage(1),
-            ),
-            // SOS Button in center
-            _SOSButton(
-        onTap: () {
-    final user = _orchestrator.getUserData();
-    final userType = user?.userType;
+            ],
+            border: Border(top: BorderSide(color: theme.dividerColor)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              _NavItem(
+                icon: Icons.home_outlined,
+                selectedIcon: Icons.home,
+                label: 'Home',
+                selected: _index == 0,
+                onTap: () => _orchestrator.navigateToPage(0),
+              ),
+              _NavItem(
+                icon: Icons.chat_bubble_outline,
+                selectedIcon: Icons.chat_bubble,
+                label: 'Chat',
+                selected: _index == 1,
+                onTap: () => _orchestrator.navigateToPage(1),
+              ),
+              // SOS Button in center
+              _SOSButton(
+                onTap: () {
+                  final user = _orchestrator.getUserData();
+                  final userType = user?.userType;
 
-    if (userType == 'Brigadist') {
-      // 👉 Aquí navegas a la pantalla de emergencia del brigadista
-      // por ejemplo cambiar al tab "Emergency" o abrir un page:
-      _orchestrator.navigateToEmergency(); 
-      // o Navigator.push(... EmergencyPage(orchestrator: _orchestrator));
-    } else {
-      // 👉 Usuario normal: abre el SOS como siempre
-      SosDialog.show(context, _orchestrator);
-    }
-  },
-),
+                  if (userType == 'Brigadist') {
+                    // 👉 Aquí navegas a la pantalla de emergencia del brigadista
+                    // por ejemplo cambiar al tab "Emergency" o abrir un page:
+                    _orchestrator.navigateToEmergency();
+                    // o Navigator.push(... EmergencyPage(orchestrator: _orchestrator));
+                  } else {
+                    // 👉 Usuario normal: abre el SOS como siempre
+                    SosDialog.show(context, _orchestrator);
+                  }
+                },
+              ),
 
-            _NavItem(
-              icon: Icons.map_outlined,
-              selectedIcon: Icons.map,
-              label: 'Map',
-              selected: _index == 2,
-              onTap: () => _orchestrator.navigateToPage(2),
-            ),
-            _NavItem(
-              icon: Icons.play_circle_outline,
-              selectedIcon: Icons.play_circle_filled,
-              label: 'Videos',
-              selected: _index == 3,
-              onTap: () => _orchestrator.navigateToPage(3),
-            ),
-          ],
+              _NavItem(
+                icon: Icons.map_outlined,
+                selectedIcon: Icons.map,
+                label: 'Map',
+                selected: _index == 2,
+                onTap: () => _orchestrator.navigateToPage(2),
+              ),
+              _NavItem(
+                icon: Icons.play_circle_outline,
+                selectedIcon: Icons.play_circle_filled,
+                label: 'Videos',
+                selected: _index == 3,
+                onTap: () => _orchestrator.navigateToPage(3),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -268,9 +266,9 @@ class _NavItem extends StatelessWidget {
 /* =================== Modales reutilizables =================== */
 
 Future<void> showProfileMenuDialog(
-    BuildContext context,
-    VoidCallback? onOpenProfile,
-    ) {
+  BuildContext context,
+  VoidCallback? onOpenProfile,
+) {
   // theme variables intentionally omitted (dialog content handled inline)
 
   return showDialog(
@@ -292,9 +290,9 @@ Future<void> showProfileMenuDialog(
 }
 
 Future<void> showAllNotificationsDialog(
-    BuildContext context,
-    List<String> notifications,
-    ) {
+  BuildContext context,
+  List<String> notifications,
+) {
   // theme variables intentionally omitted (dialog content handled inline)
 
   return showDialog(
