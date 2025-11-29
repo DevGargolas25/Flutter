@@ -32,6 +32,8 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   // ---------- Singleton ----------
   static final Orchestrator _instance = Orchestrator._internal();
   factory Orchestrator() => _instance;
+  // emergencia seleccionada para mostrar en EmergencyPage
+  Map<String, dynamic>? selectedEmergency;
 
   // ---------- VMs ----------
   late final MapVM _mapVM;
@@ -84,6 +86,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
       onCallDurationSaved: (secs) {
         // _analyticsVM.logCallDuration(secs);
       },
+       currentUserId: _userVM.getUserData()?.email,
     );
 
     // Inicializar MapVM para cargar meeting points
@@ -229,6 +232,13 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
         // _userVM ya guarda el mensaje de error; UI puede leer userVM.errorMessage
       } else {
         debugPrint('Bootstrap: usuario cargado: ${user.email}');
+        // DEBUG: mostrar userType y mapa para verificar carga
+        try {
+          debugPrint('Bootstrap: userType=${user.userType}');
+          debugPrint('Bootstrap: userMap=${user.toMap()}');
+        } catch (e) {
+          debugPrint('Bootstrap: error serializing user for debug: $e');
+        }
       }
 
       notifyListeners();
@@ -240,6 +250,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   // Public: cargar usuario por email (llamar desde AuthService tras login)
   Future<User?> loadUserByEmail(String email) async {
     try {
+      // Use UserVM which implements offline-first cache -> RTDB logic
       final u = await _userVM.fetchUserByEmail(email);
       if (u == null) {
         debugPrint('loadUserByEmail: usuario no encontrado ($email)');
@@ -253,6 +264,43 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
       return null;
     }
   }
+
+  /// Devuelve el Map crudo del usuario consultando directamente el Adapter
+  /// (usa `Adapter.getUserByEmail`) — útil si necesitas los campos tal cual
+  /// como vienen de RTDB o la clave `id`.
+  Future<Map<String, dynamic>?> loadUserMapByEmail(String email) async {
+    try {
+      final em = email.trim().toLowerCase();
+      final map = await adapter.getUserByEmail(em);
+      if (map == null) {
+        debugPrint('loadUserMapByEmail: no se encontró map para $em');
+        return null;
+      }
+      debugPrint('loadUserMapByEmail: encontrado map keys=${map.values.toList()}');
+      return map;
+    } catch (e) {
+      debugPrint('loadUserMapByEmail error: $e');
+      return null;
+    }
+  }
+
+  
+
+  /// Carga un usuario completo por su `userId` (clave en RTDB).
+  /// Devuelve `null` si no existe o si ocurre un error.
+  Future<User?> loadUserById(String userId) async {
+    try {
+      final map = await adapter.getUser(userId);
+      if (map == null) return null;
+      final u = User.fromMap(map);
+      return u;
+    } catch (e) {
+      debugPrint('loadUserById error: $e');
+      return null;
+    }
+  }
+
+
 
   // ---------- Navegación ----------
   int get currentPageIndex => _currentPageIndex;
@@ -443,7 +491,7 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   // ---------- EMERGENCY ----------
   Future<void> callBrigadist(String phone) async {
     try {
-      await _emergencyVM.callBrigadist(phone);
+      await _emergencyVM.callBrigadist(phone, _userVM.getUserData()?.email,);
     } catch (e) {
       debugPrint('Orchestrator.callBrigadist error: $e');
       rethrow;
@@ -457,7 +505,6 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   }) async {
     try {
       final userId =
-          _userVM.getUserData()?.studentId ??
           _userVM.getUserData()?.email ??
           'unknown';
 
@@ -476,44 +523,63 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  Future<void> callBrigadistWithLocation(String phone) async {
+  /// Devuelve las emergencias con status "Unattended"
+  /// Carga las Unattended desde Firebase, las guarda en el VM y las devuelve.
+  Future<List<Map<String, dynamic>>> loadUnattendedEmergencies() async {
+    final maps = await adapter.getUnattendedEmergencies();
+    return maps;
+
+  }
+
+  Future<void> attendEmergency({
+    required String emergencyId,
+    required String? brigadistId,
+  }) async {
+    // 1) Actualizar en Firebase
+    await adapter.updateEmergency(
+      emergencyId,              // único posicional
+      status: 'InProgress',     // nombrado
+      brigadistId: brigadistId, // nombrado
+    );
+
+    // 2) Cargar datos completos de esa emergencia (para la pantalla de detalle)
+    final all = await adapter.getInProgressEmergencies();
+    selectedEmergency = all.firstWhere(
+      (e) {
+        // soportar distintas claves posibles desde el backend
+        final id = e['id'] ?? e['emergencyID'] ?? e['emergencyId'] ?? e['emergency_id'];
+        return id != null && id.toString() == emergencyId.toString();
+      },
+      orElse: () => {},
+    );
+
+    // 3) Cambiar a la pestaña de Emergency
+    _currentPageIndex = 5; // índice del tab "Emergency"
+    notifyListeners();
+  }
+
+  /// Marca una emergencia como Resolved y limpia la selección.
+  Future<void> resolveEmergency(String emergencyId) async {
     try {
-      // Usar solo el brigadista asignado desde UserVM
-      Brigadist? assigned = _userVM.assignedBrigadist;
-
-      Duration? rt;
-
-      // Calcular ruta si hay coords del brigadista
-      if (assigned != null) {
-        final fromLat =
-            _emergencyVM.lastLatitude ?? _mapVM.currentUserLocation?.latitude;
-        final fromLng =
-            _emergencyVM.lastLongitude ?? _mapVM.currentUserLocation?.longitude;
-
-        rt = await _mapVM.calculateRouteToBrigadist(
-          assigned.latitude ?? 0.0,
-          assigned.longitude ?? 0.0,
-          fromLat: fromLat,
-          fromLng: fromLng,
-        );
+      await adapter.updateEmergency(emergencyId, status: 'Resolved');
+      // Si la emergencia seleccionada coincide, limpiarla
+      final selId = selectedEmergency?['id'] ?? selectedEmergency?['emergencyID'] ?? selectedEmergency?['emergencyId'];
+      if (selId != null && selId.toString() == emergencyId.toString()) {
+        selectedEmergency = null;
       }
-
-      // Preferir ETA de MapVM si está disponible
-      final routeEtaTime = _mapVM.estimatedArrivalTime ?? rt ?? Duration.zero;
-
-      await _emergencyVM.callBrigadistWithLocation(
-        phone,
-        routeCalcTime: routeEtaTime,
-        userId:
-            _userVM.getUserData()?.studentId ??
-            _userVM.getUserData()?.email ??
-            'unknown',
-      );
+      notifyListeners();
     } catch (e) {
-      debugPrint('Orchestrator.callBrigadistWithLocation error: $e');
+      debugPrint('resolveEmergency error: $e');
       rethrow;
     }
   }
+
+  /// Navegar a la pestaña Emergency sin cambiar nada más (por si la necesitas)
+  void navigateToEmergency() {
+    _currentPageIndex = 5;
+    notifyListeners();
+  }
+
 
   Future<void> reportEmergency({
     required EmergencyType type,
@@ -523,7 +589,6 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
   }) async {
     try {
       final userId =
-          _userVM.getUserData()?.studentId ??
           _userVM.getUserData()?.email ??
           'unknown';
 

@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 // ...existing code...
 enum UserType { student, brigadist, analyst }
 
@@ -26,6 +28,7 @@ abstract class User {
   String? emergencyMedications;
   String? vitaminsSupplements;
   String? specialInstructions;
+  String? userType;
 
   User({
     required this.fullName,
@@ -48,6 +51,7 @@ abstract class User {
     this.emergencyMedications,
     this.vitaminsSupplements,
     this.specialInstructions,
+    this.userType,
   });
 
   Map<String, dynamic> toMap() {
@@ -72,11 +76,16 @@ abstract class User {
       'emergencyMedications': emergencyMedications,
       'vitaminsSupplements': vitaminsSupplements,
       'specialInstructions': specialInstructions,
+      'userType': userType,
     };
   }
 
   static User? fromMap(Map<String, dynamic> m) {
-    final typeStr = (m['type'] ?? 'student').toString().toLowerCase();
+    final typeStr = (m['userType'] ?? m['userType'] ?? 'student').toString().toLowerCase();
+    // DEBUG: log incoming type/userType for troubleshooting
+    try {
+      debugPrint('[User.fromMap] incoming type=${m['type']} userType=${m['userType']} -> typeStr=$typeStr');
+    } catch (_) {}
     final common = {
       'fullName': m['fullName'] ?? '',
       'studentId': m['studentId'] ?? '',
@@ -98,10 +107,11 @@ abstract class User {
       'emergencyMedications': m['emergencyMedications'],
       'vitaminsSupplements': m['vitaminsSupplements'],
       'specialInstructions': m['specialInstructions'],
+      'userType':m['userType'],
     };
 
     if (typeStr == 'brigadist') {
-      return Brigadist(
+      final b = Brigadist(
         fullName: common['fullName'],
         studentId: common['studentId'],
         email: common['email'],
@@ -128,8 +138,11 @@ abstract class User {
         status: (m['status'] ?? 'available').toString(),
         estimatedArrivalMinutes: (m['estimatedArrivalMinutes'] is num) ? (m['estimatedArrivalMinutes'] as num).toDouble() : null,
       );
+      b.userType = typeStr;
+      try { debugPrint('[User.fromMap] created Brigadist userType=${b.userType}'); } catch (_) {}
+      return b;
     } else if (typeStr == 'analyst') {
-      return Analyst(
+      final a = Analyst(
         fullName: common['fullName'],
         studentId: common['studentId'],
         email: common['email'],
@@ -151,9 +164,12 @@ abstract class User {
         vitaminsSupplements: common['vitaminsSupplements'],
         specialInstructions: common['specialInstructions'],
       );
+      a.userType = typeStr;
+      try { debugPrint('[User.fromMap] created Analyst userType=${a.userType}'); } catch (_) {}
+      return a;
     } else {
       // default: student
-      return Student(
+      final s = Student(
         fullName: common['fullName'],
         studentId: common['studentId'],
         email: common['email'],
@@ -174,7 +190,11 @@ abstract class User {
         emergencyMedications: common['emergencyMedications'],
         vitaminsSupplements: common['vitaminsSupplements'],
         specialInstructions: common['specialInstructions'],
+        userType: common['userType'],
       );
+      s.userType = typeStr;
+      try { debugPrint('[User.fromMap] created Student userType=${s.userType}'); } catch (_) {}
+      return s;
     }
   }
 }
@@ -202,6 +222,7 @@ class Student extends User {
     String? emergencyMedications,
     String? vitaminsSupplements,
     String? specialInstructions,
+    String? userType,
   }) : super(
           fullName: fullName,
           studentId: studentId,
@@ -223,6 +244,7 @@ class Student extends User {
           emergencyMedications: emergencyMedications,
           vitaminsSupplements: vitaminsSupplements,
           specialInstructions: specialInstructions,
+          userType: userType,
         );
 }
 

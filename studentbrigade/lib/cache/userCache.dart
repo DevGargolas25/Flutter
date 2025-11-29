@@ -1,5 +1,6 @@
 // lib/cache/userCache.dart
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../Models/userMod.dart';
 import 'lru.dart';
@@ -20,14 +21,21 @@ class UserCache {
     final sp = await SharedPreferences.getInstance();
     final raw = sp.getString(_k(email));
     if (raw == null) return null;
+    // DEBUG: mostrar el JSON crudo leído desde SharedPreferences
+    try {
+      debugPrint('[UserCache.get] raw=$raw');
+    } catch (_) {}
     final map = jsonDecode(raw) as Map<String, dynamic>;
+    try {
+      debugPrint('[UserCache.get] map keys=${map.keys.toList()}');
+    } catch (_) {}
     _mem.put(key, map);
     return User.fromMap(map);
   }
 
   Future<void> put(User u) async {
     final map = Map<String, dynamic>.from(u.toMap())
-      ..putIfAbsent('type', () => (u is Brigadist) ? 'brigadist' : (u is Analyst) ? 'analyst' : 'student')
+      ..putIfAbsent('userType', () => (u is Brigadist) ? 'brigadist' : (u is Analyst) ? 'analyst' : 'student')
       ..['email'] = _norm(u.email);
     final key = _norm(u.email);
     _mem.put(key, map);

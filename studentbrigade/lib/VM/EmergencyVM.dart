@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -90,6 +91,9 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
     required int secondsResponse,
     EmergencyType type = EmergencyType.Medical,
     String? assignedBrigadistId,
+    double? latitude,
+    double? longitude,
+    EmergencyStatus status = EmergencyStatus.Unattended,
   }) async {
     _isWorking = true;
     notifyListeners();
@@ -100,11 +104,16 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
         secondsResponse: secondsResponse,
         type: type,
         assignedBrigadistId: assignedBrigadistId,
+        status: status,
+        latitude: latitude,
+        longitude: longitude,
       );
       lastEmergency = em;
+
       // Persistir
       final key = await _adapter.createEmergencyFromModel(em);
       lastEmergencyDbKey = key;
+
       onEmergencyCreated?.call(em);
       notifyListeners();
       return em;
@@ -126,13 +135,25 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
   }) async {
     try {
       final pos = await _getCurrentPosition();
-      final locationEnum = _inferLocationEnumFromLatLng(pos.latitude, pos.longitude);
+
+      lastLatitude = pos.latitude;
+      lastLongitude = pos.longitude;
+      lastLocationAt = DateTime.now();
+      onLocationSaved?.call(lastLatitude!, lastLongitude!, lastLocationAt!);
+
+      final locationEnum =
+      _inferLocationEnumFromLatLng(pos.latitude, pos.longitude);
+
       final em = await createEmergencyAndPersist(
         userId: userId ?? currentUserId ?? 'unknown',
         location: locationEnum,
         secondsResponse: 0,
         type: type,
+        latitude: pos.latitude,
+        longitude: pos.longitude,
+        status: EmergencyStatus.Unattended,
       );
+
       return em;
     } catch (e) {
       debugPrint('❌ createEmergencyAtCurrentLocation error: $e');
@@ -140,9 +161,9 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
     }
   }
 
-  /// Llamar a brigadista
-
-  Future<void> callBrigadist(String phoneNumber) async {
+  /// Llamar a brigadista (simple): abre el dialer y luego persiste una emergencia
+  /// usando `persistEmergencyUsingOffline`.
+  Future<void> callBrigadist(String phoneNumber, String? userId,) async {
     final uri = Uri(scheme: 'tel', path: phoneNumber);
     lastDialedPhone = phoneNumber;
 
@@ -157,14 +178,15 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
 
     await launchUrl(uri, mode: LaunchMode.externalApplication);
 
-    /// save medical emergency
+    // Guardar emergencia (sin ETA real, usando random / routeCalcTime opcional)
     await persistEmergencyUsingOffline(
       type: EmergencyType.Medical,
-      userId: currentUserId,
+      userId: userId,
     );
   }
 
-  // Save Emergency
+  /// Guarda una Emergency calculando la ubicación actual y un ETA de ruta.
+  /// Esto se puede usar tanto online como "offline" (en cola).
   Future<Emergency?> persistEmergencyUsingOffline({
     required EmergencyType type,
     Duration? routeCalcTime,
@@ -182,7 +204,7 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
       lastLocationAt = DateTime.now();
       onLocationSaved?.call(lastLatitude!, lastLongitude!, lastLocationAt!);
 
-      // 2) ETA en segundos (si te lo pasan); si no, generamos un número aleatorio razonable
+      // 2) ETA en segundos
       // Si no se pasa routeCalcTime, se genera un valor aleatorio entre 30 y 600 segundos
       final secs = routeCalcTime == null
           ? (math.Random().nextInt(571) + 30) // 30..600
@@ -192,15 +214,19 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
       final emType = type;
 
       // 4) Inferir ubicación simbólica
-      final locEnum = _inferLocationEnumFromLatLng(lastLatitude!, lastLongitude!);
+      final locEnum =
+      _inferLocationEnumFromLatLng(lastLatitude!, lastLongitude!);
 
-      // 5) Construir y persistir (esto se encola si no hay internet)
+      // 5) Construir y persistir
       lastEmergency = _buildEmergency(
         userId: userId ?? currentUserId ?? 'U000',
         location: locEnum,
         secondsResponse: secs,
         type: emType,
-        assignedBrigadistId: assignedBrigadistId,
+        assignedBrigadistId: "",
+        status: EmergencyStatus.Unattended,
+        latitude: lastLatitude,
+        longitude: lastLongitude,
       );
 
       final key = await _adapter.createEmergencyFromModel(lastEmergency!);
@@ -218,14 +244,16 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
     }
   }
 
-
-  /// Lógica que combina: obtiene la posición actual, construye Emergency (usando routeCalcTime
-  /// provisto por MapVM), persiste y abre el dialer al brigadista.
+  /// Lógica que combina:
+  /// - obtiene la posición actual,
+  /// - construye Emergency (usando routeCalcTime provisto por MapVM),
+  /// - persiste
+  /// - abre el dialer al brigadista.
   Future<void> callBrigadistWithLocation(
-    String phoneNumber, {
-    required Duration routeCalcTime, // viene desde MapVM.calculateRouteToBrigadist
-    String? userId,
-  }) async {
+      String phoneNumber, {
+        required Duration routeCalcTime, // viene desde MapVM.calculateRouteToBrigadist
+        String? userId,
+      }) async {
     try {
       _isWorking = true;
       notifyListeners();
@@ -239,16 +267,20 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
 
       // 2) secondsResponse = duración de cálculo de ruta (en segundos, redondeo hacia arriba)
       final initialSecondsResponse =
-          (routeCalcTime.inMilliseconds / 1000).ceil();
+      (routeCalcTime.inMilliseconds / 1000).ceil();
 
       // 3) Inferir location y construir Emergency
       final locationEnum =
-          _inferLocationEnumFromLatLng(lastLatitude!, lastLongitude!);
+      _inferLocationEnumFromLatLng(lastLatitude!, lastLongitude!);
 
       lastEmergency = _buildEmergency(
         userId: userId ?? currentUserId ?? 'U000',
         location: locationEnum,
         secondsResponse: initialSecondsResponse,
+        type: EmergencyType.Medical,
+        status: EmergencyStatus.Unattended,
+        latitude: lastLatitude,
+        longitude: lastLongitude,
       );
 
       // 4) Guardar en Firebase ANTES de abrir el dialer
@@ -266,32 +298,47 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
 
   /// Establece el brigadista asignado (por ejemplo, cuando Orchestrator decide)
   void setAssignedBrigadist(Brigadist b) {
-    lastEmergency = lastEmergency?.copyWith(assignedBrigadistId: b.studentId) ?? lastEmergency;
+    lastEmergency =
+        lastEmergency?.copyWith(assignedBrigadistId: b.studentId) ??
+            lastEmergency;
     notifyListeners();
   }
 
-  /// Actualiza secondsResponse y persiste en DB si hay key
+  /// Actualiza secondsResponse y persiste en DB si hay key.
+  /// También actualiza `updatedAt` (epoch ms).
   Future<void> updateSecondsResponse(int secs) async {
     if (lastEmergency == null) return;
     lastEmergency = lastEmergency!.copyWith(secondsResponse: secs);
     onEmergencyUpdated?.call(lastEmergency!);
 
     // Fallback: si no hay key en memoria, intenta hallar la emergencia más reciente del usuario
-    if ((lastEmergencyDbKey == null || lastEmergencyDbKey!.isEmpty) && lastEmergency != null) {
+    if ((lastEmergencyDbKey == null || lastEmergencyDbKey!.isEmpty) &&
+        lastEmergency != null) {
       try {
         final all = await _adapter.getEmergencies();
         final uid = lastEmergency!.userId;
+
         // Ordenar por createdAt si existe, si no por date_time
         all.sort((a, b) {
           final aTs = (a['createdAt'] as num?)?.toInt() ?? 0;
           final bTs = (b['createdAt'] as num?)?.toInt() ?? 0;
           if (aTs != 0 || bTs != 0) return bTs.compareTo(aTs);
-          final aDt = DateTime.tryParse((a['date_time'] ?? '') as String? ?? '')?.millisecondsSinceEpoch ?? 0;
-          final bDt = DateTime.tryParse((b['date_time'] ?? '') as String? ?? '')?.millisecondsSinceEpoch ?? 0;
+
+          final aDt = DateTime.tryParse(
+            (a['date_time'] ?? '') as String? ?? '',
+          )
+              ?.millisecondsSinceEpoch ??
+              0;
+          final bDt = DateTime.tryParse(
+            (b['date_time'] ?? '') as String? ?? '',
+          )
+              ?.millisecondsSinceEpoch ??
+              0;
           return bDt.compareTo(aDt);
         });
+
         final mine = all.firstWhere(
-          (e) => e['userId']?.toString() == uid,
+              (e) => e['userId']?.toString() == uid,
           orElse: () => {},
         );
         if (mine.isNotEmpty) {
@@ -310,13 +357,40 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
           {
             'secondsResponse': secs,
             'seconds_response': secs,
-            'updatedAt': DateTime.now().toUtc().toIso8601String(),
+            'updatedAt': DateTime.now().millisecondsSinceEpoch,
           },
         );
       } catch (e) {
         debugPrint('⚠️ updateSecondsResponse failed: $e');
       }
     }
+    notifyListeners();
+  }
+
+  /// Actualiza el status de la emergencia (Unattended / In progress / Resolved)
+  /// y lo persiste en la DB.
+  Future<void> updateEmergencyStatus(EmergencyStatus newStatus) async {
+    if (lastEmergency == null || lastEmergencyDbKey == null) return;
+
+    lastEmergency = lastEmergency!.copyWith(
+      status: newStatus,
+      updatedAt: DateTime.now(),
+    );
+    onEmergencyUpdated?.call(lastEmergency!);
+
+    try {
+      await _adapter.updateDocument(
+        'Emergency',
+        lastEmergencyDbKey!,
+        {
+          'status': _statusToWire(newStatus),
+          'updatedAt': DateTime.now().millisecondsSinceEpoch,
+        },
+      );
+    } catch (e) {
+      debugPrint('⚠️ updateEmergencyStatus failed: $e');
+    }
+
     notifyListeners();
   }
 
@@ -382,8 +456,6 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
       onCallDurationSaved?.call(callSecs);
 
       // Ya NO actualizamos secondsResponse al volver: se mantiene el ETA calculado
-      // Si necesitaras guardar la duración de llamada en otro campo, hazlo aquí.
-
       notifyListeners();
     }
   }
@@ -425,6 +497,7 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
   }
 
   // ---------- Helpers de negocio ----------
+
   LocationEnum _inferLocationEnumFromLatLng(double lat, double lng) {
     map.MapLocation nearest = _poi.first;
     double best = _haversine(lat, lng, nearest.latitude, nearest.longitude);
@@ -448,8 +521,12 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
     required int secondsResponse,
     EmergencyType type = EmergencyType.Medical,
     String? assignedBrigadistId,
+    EmergencyStatus status = EmergencyStatus.Unattended,
+    double? latitude,
+    double? longitude,
   }) {
     final now = DateTime.now();
+
     return Emergency(
       emergencyID: now.millisecondsSinceEpoch % 100000000,
       userId: userId,
@@ -459,6 +536,11 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
       secondsResponse: secondsResponse,
       location: location,
       emerType: type,
+      status: status,
+      latitude: latitude ?? lastLatitude,
+      longitude: longitude ?? lastLongitude,
+      createdAt: now,
+      updatedAt: now,
       chatMessages: null,
     );
   }
@@ -488,8 +570,20 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
   /// Dado lat/lng, retorna un LocationEnum (puedes mejorar la lógica según tus ubicaciones)
   LocationEnum emergencyLocationEnumFromLatLng(double lat, double lng) {
     // Ejemplo simple: puedes personalizar según tus ubicaciones reales
-    // Aquí solo retorna RGD por defecto
     return LocationEnum.RGD;
   }
+
+  // Helper local para mapear status a texto (igual que en Emergency.toJson)
+  String _statusToWire(EmergencyStatus s) {
+    switch (s) {
+      case EmergencyStatus.Unattended:
+        return 'Unattended';
+      case EmergencyStatus.InProgress:
+        return 'In progress';
+      case EmergencyStatus.Resolved:
+        return 'Resolved';
+    }
+  }
 }
+
 

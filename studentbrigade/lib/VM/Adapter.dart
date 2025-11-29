@@ -72,6 +72,110 @@ class Adapter {
     }
   }
 
+  /// 🔥 SOLO emergencias con status "Unattended"
+  Future<List<Map<String, dynamic>>> getUnattendedEmergencies() async {
+    try {
+      // Ajusta 'status' y 'Unattended' si en tu RTDB usan otro nombre o mayúsculas.
+      final query = _database
+          .ref('Emergency')
+          .orderByChild('status')
+          .equalTo('Unattended');
+
+      final snapshot = await query.get();
+
+      if (!snapshot.exists || snapshot.value == null) {
+        return [];
+      }
+
+      final data = snapshot.value as Map<dynamic, dynamic>;
+
+      return data.entries.map((entry) {
+        final value = entry.value;
+        if (value is Map) {
+          return {
+            'id': entry.key,
+            ...Map<String, dynamic>.from(value),
+          };
+        }
+        // Por si algún nodo raro no es Map
+        return {
+          'id': entry.key,
+        };
+      }).toList();
+    } catch (e) {
+      print('❌ Error getting unattended emergencies: $e');
+      throw Exception('Error al obtener emergencias Unattended: $e');
+    }
+  }
+
+  // Puedes cambiar el status, el brigadista asignado y/o campos extra.
+  Future<void> updateEmergency(
+      String emergencyId, {
+        String? status,
+        String? brigadistId,
+        Map<String, dynamic>? extraFields,
+      }) async {
+    try {
+      final data = <String, dynamic>{};
+
+      if (status != null) {
+        data['status'] = status;
+      }
+      if (brigadistId != null) {
+        data['brigadistId'] = brigadistId;
+      }
+      if (extraFields != null) {
+        data.addAll(extraFields);
+      }
+
+      if (data.isEmpty) return; // nada que actualizar
+
+      await _database.ref('Emergency/$emergencyId').update({
+        ...data,
+        'updatedAt': ServerValue.timestamp,
+      });
+
+      print('✅ Emergency $emergencyId updated: $data');
+    } catch (e) {
+      print('❌ Error updating emergency: $e');
+      throw Exception('Error al actualizar emergencia: $e');
+    }
+  }
+
+  /// 🔥 SOLO emergencias con status "InProgress"
+  Future<List<Map<String, dynamic>>> getInProgressEmergencies() async {
+    try {
+      final query = _database
+          .ref('Emergency')
+          .orderByChild('status')
+          .equalTo('InProgress');
+
+      final snapshot = await query.get();
+
+      if (!snapshot.exists || snapshot.value == null) {
+        return [];
+      }
+
+      final data = snapshot.value as Map<dynamic, dynamic>;
+
+      return data.entries.map((entry) {
+        final value = entry.value;
+        if (value is Map) {
+          return {
+            'id': entry.key,
+            ...Map<String, dynamic>.from(value),
+          };
+        }
+        // Por si algún nodo no es Map
+        return {'id': entry.key};
+      }).toList();
+    } catch (e) {
+      print('❌ Error getting InProgress emergencies: $e');
+      throw Exception('Error al obtener emergencias InProgress: $e');
+    }
+  }
+
+
 
   
   // === USER OPERATIONS ===
@@ -82,26 +186,94 @@ class Adapter {
       // safe cast to Map<String, dynamic>
       final map = Map<String, dynamic>.from(val.cast<String, dynamic>());
       map['id'] = id;
-      map.putIfAbsent('type', () => 'student');          // seguridad
+
+      // Normalize and ensure we always have both `type` and `userType`.
+      // Some records may use one field or the other, or one can be null.
+      final rawType = (map['userType'] ?? 'student').toString();
+      final normType = rawType.trim().toLowerCase();
+      map['type'] = normType;
+      // If userType is missing or null, fill it with the normalized type.
+      final rawUserType = map['userType'];
+      if (rawUserType == null) {
+        map['userType'] = normType;
+      } else {
+        map['userType'] = rawUserType.toString().trim().toLowerCase();
+      }
+
       if (map['email'] is String) map['email'] = _norm(map['email'] as String);
       return map;
     }
+
     final map = <String, dynamic>{};
     map['id'] = id;
-    map.putIfAbsent('type', () => 'student');
+    map['type'] = 'student';
+    map['userType'] = 'student';
     return map;
+  }
+
+  Future<Map<String, dynamic>?> getUserByEmail(String email) async {
+    final emailNorm = _norm(email);
+
+    // Si estamos offline, intentar devolver desde cache
+    if (await _isOffline()) {
+      try {
+        final cached = await UserCache.I.get(emailNorm);
+        if (cached != null) {
+          final map = Map<String, dynamic>.from(cached.toMap());
+          if (!map.containsKey('id')) map['id'] = map['id'] ?? '';
+          return map;
+        }
+      } catch (e) {
+        print('getUserByEmail (cache) error: $e');
+      }
+      return null;
+    }
+
+    try {
+      final ref = _database.ref('User');
+      final snap = await ref
+          .orderByChild('email')
+          .equalTo(emailNorm)
+          .limitToFirst(1)
+          .get()
+          .timeout(const Duration(seconds: 4));
+
+      if (!snap.exists || snap.children.isEmpty) return null;
+
+      final child = snap.children.first;
+      final result = _mapFromSnap(child.key ?? '', child.value);
+      return result;
+    } on TimeoutException {
+      // Si hay timeout, intentar fallback a cache
+      try {
+        final cached = await UserCache.I.get(emailNorm);
+        return cached?.toMap();
+      } catch (e) {
+        print('getUserByEmail timeout and cache fallback failed: $e');
+        return null;
+      }
+    } catch (e) {
+      print('getUserByEmail error: $e');
+      return null;
+    }
   }
 
   /// 1) Lectura rápida (cache) → 2) RTDB con timeout → cache
   Future<User?> getUserFast(String email, {Duration timeout = const Duration(seconds: 5)}) async {
     final emailNorm = _norm(email);
+    // Si no hay conexión, solo usar cache (memoria/disco).
+    if (await _isOffline()) {
+      try {
+        final cached = await UserCache.I.get(emailNorm);
+        debugPrint('[Adapter.getUserFast] offline - returning cache for $emailNorm -> ${cached != null}');
+        return cached;
+      } catch (e) {
+        debugPrint('[Adapter.getUserFast] offline - cache read error: $e');
+        return null;
+      }
+    }
 
-    // 1) Cache (mem/disco) – instantáneo si ya existe
-    final cached = await UserCache.I.get(emailNorm);
-    print(cached);
-    if (cached != null) return cached;
-
-    // 2) RTDB (si tiene persistencia, también puede responder offline)
+    // 2) Hay conexión: consultar RTDB (timeout) y recalentar cache. Si falla, intentar fallback a cache.
     try {
       final snap = await _database.ref('User')
           .orderByChild('email')
@@ -112,8 +284,39 @@ class Adapter {
 
       if (!snap.exists || snap.children.isEmpty) return null;
 
+      // Si no encontramos en RTDB, caer de regreso a cache por si acaso
+      if (!snap.exists || snap.children.isEmpty) {
+        final cached = await UserCache.I.get(emailNorm);
+        debugPrint('[Adapter.getUserFast] no snap - returning cache fallback for $emailNorm -> ${cached != null}');
+        return cached;
+      }
+
       final child = snap.children.first;
+      // DEBUG: mostrar el contenido crudo del child obtenido de RTDB
+      try {
+        debugPrint('[Adapter.getUserFast] raw child.key=${child.key}');
+        final rawVal = child.value;
+        debugPrint('[Adapter.getUserFast] raw value runtimeType=${rawVal.runtimeType}');
+        if (rawVal is Map) {
+          debugPrint('[Adapter.getUserFast] raw keys=${rawVal.keys.toList()}');
+          try {
+            debugPrint('[Adapter.getUserFast] raw userType=${rawVal['userType']}');
+            debugPrint('[Adapter.getUserFast] raw type=${rawVal['type']}');
+          } catch (e) {
+            debugPrint('[Adapter.getUserFast] error reading keys: $e');
+          }
+        } else {
+          debugPrint('[Adapter.getUserFast] raw value (non-Map): $rawVal');
+        }
+      } catch (e) {
+        debugPrint('[Adapter.getUserFast] debug raw error: $e');
+      }
+
       final map = _mapFromSnap(child.key ?? '', child.value);
+      try {
+        debugPrint('[Adapter.getUserFast] mapped map keys=${map.keys.toList()}');
+        debugPrint('[Adapter.getUserFast] mapped userType=${map['userType']} mapped type=${map['type']}');
+      } catch (_) {}
       final u = User.fromMap(map);
       if (u != null) {
         await UserCache.I.put(u); // calienta cache
@@ -354,7 +557,8 @@ class Adapter {
         data.forEach((key, value) {
           if (value is Map) {
             final userData = Map<String, dynamic>.from(value);
-            if (userData['userType'] == 'Brigadist') {
+            final ut = userData['userType']?.toString().toLowerCase();
+            if (ut == 'brigadist') {
               brigadiers.add({'id': key, ...userData});
             }
           }
@@ -575,6 +779,8 @@ class Adapter {
     await ref.set(data);
     return ref.key ?? '';
   }
+
+
 
   // === GENERIC OPERATIONS ===
   Future<List<Map<String, dynamic>>> getCollection(

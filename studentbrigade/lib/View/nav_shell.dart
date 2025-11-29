@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:studentbrigade/View/emergency/emergency_detail_page.dart';
 
 // import Views
 import 'home.dart';
@@ -29,9 +30,15 @@ class _NavShellState extends State<NavShell> {
   }
 
   void _onOrchestratorChanged() {
+    // Si cambió la página, actualiza el índice.
     if (_orchestrator.currentPageIndex != _index) {
       setState(() => _index = _orchestrator.currentPageIndex);
+      return;
     }
+
+    // Si Orchestrator notifica por otro motivo (p. ej. carga de usuario),
+    // reconstruimos para que widgets que leen `getUserData()` se actualicen.
+    if (mounted) setState(() {});
   }
 
   @override
@@ -45,6 +52,11 @@ class _NavShellState extends State<NavShell> {
       case 0:
         return HomePage(
           orchestrator: _orchestrator,
+            userName: _orchestrator.getUserData()?.fullName ?? 'John',
+            userType: _orchestrator.getUserData()?.userType ?? 'student',
+            // DEBUG: mostrar userType en construcción
+            // (se elimina cuando confirmemos que funciona)
+          
           onOpenProfile: () => _orchestrator.navigateToProfile(),
         );
       case 1:
@@ -55,8 +67,15 @@ class _NavShellState extends State<NavShell> {
         return VideosPage(orchestrator: _orchestrator);
       case 4:
         return ProfilePage(orchestrator: _orchestrator);
+      case 5:
+        return EmergencyDetailPage(orchestrator: _orchestrator);
       default:
-        return HomePage(orchestrator: _orchestrator);
+        return HomePage(
+          orchestrator: _orchestrator,
+          userName: _orchestrator.getUserData()?.fullName ?? 'John',
+          userType: _orchestrator.getUserData()?.userType ?? 'student',
+          onOpenProfile: () => _orchestrator.navigateToProfile(),
+        );
     }
   }
 
@@ -103,7 +122,23 @@ class _NavShellState extends State<NavShell> {
               onTap: () => _orchestrator.navigateToPage(1),
             ),
             // SOS Button in center
-            _SOSButton(onTap: () => SosDialog.show(context, _orchestrator)),
+            _SOSButton(
+        onTap: () {
+    final user = _orchestrator.getUserData();
+    final userType = user?.userType;
+
+    if (userType == 'Brigadist') {
+      // 👉 Aquí navegas a la pantalla de emergencia del brigadista
+      // por ejemplo cambiar al tab "Emergency" o abrir un page:
+      _orchestrator.navigateToEmergency(); 
+      // o Navigator.push(... EmergencyPage(orchestrator: _orchestrator));
+    } else {
+      // 👉 Usuario normal: abre el SOS como siempre
+      SosDialog.show(context, _orchestrator);
+    }
+  },
+),
+
             _NavItem(
               icon: Icons.map_outlined,
               selectedIcon: Icons.map,
@@ -225,4 +260,55 @@ class _NavItem extends StatelessWidget {
   }
 }
 
-/* ======================= Páginas de ejemplo eliminadas (no usadas) ======================= */
+/* =================== Modales reutilizables =================== */
+
+Future<void> showProfileMenuDialog(
+    BuildContext context,
+    VoidCallback? onOpenProfile,
+    ) {
+  // theme variables intentionally omitted (dialog content handled inline)
+
+  return showDialog(
+    context: context,
+    barrierColor: Colors.black.withOpacity(.6),
+    builder: (ctx) {
+      return Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // … (todo el contenido que ya tenías)
+          ],
+        ),
+      );
+    },
+  );
+}
+
+Future<void> showAllNotificationsDialog(
+    BuildContext context,
+    List<String> notifications,
+    ) {
+  // theme variables intentionally omitted (dialog content handled inline)
+
+  return showDialog(
+    context: context,
+    barrierColor: Colors.black.withOpacity(.3),
+    builder: (ctx) {
+      return Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // … (todo el contenido que ya tenías)
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
