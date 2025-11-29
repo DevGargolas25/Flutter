@@ -10,6 +10,7 @@ import 'nav_shell.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'offline_info_page.dart';
+import 'blood_donation_page.dart';
 import 'package:http/http.dart' as http;
 
 typedef VideoSelect = void Function(int videoId);
@@ -652,6 +653,20 @@ class _EmergencyCard extends StatelessWidget {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _navigateToNewsFeed(BuildContext context) {
+    Navigator.of(context).pushNamed('/news');
+  }
+
+  void _navigateToBloodDonation(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => BloodDonationPage(
+          orchestrator: widget.orchestrator,
         ),
       ),
     );
