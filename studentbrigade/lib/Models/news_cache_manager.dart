@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'newsModel.dart';
 import '../cache/lru.dart';
+import 'image_processor_isolate.dart';
 
 /// Cache LRU especializado para noticias
 class NewsLRUCache {
@@ -45,8 +46,8 @@ class NewsLRUCache {
   List<NewsModel> getMostUsedNews() {
     final newsList = <NewsModel>[];
 
-    // LinkedHashMap mantiene el orden de inserción (LRU order)
-    // Las más recientes están al final, así que iteramos en reversa
+    // LinkedHashMap mantiene el orden
+    // Las más recientes están al final
     final entries = _lruCache.cache.entries.toList().reversed;
 
     for (final entry in entries) {
@@ -131,7 +132,7 @@ class NewsLRUCache {
   }
 }
 
-/// Cache Manager especializado para noticias con LRU
+/// Cache Manager especializado para noticias con LRU e Isolate
 class NewsCacheManager {
   static const String _newsCacheKey = 'cached_news';
   static const Duration _cacheExpiry = Duration(hours: 24);
@@ -141,8 +142,21 @@ class NewsCacheManager {
 
   final CacheManager _cacheManager = DefaultCacheManager();
   final NewsLRUCache _lruCache = NewsLRUCache.instance;
+  final ImageProcessorIsolate _imageProcessor = ImageProcessorIsolate.instance;
 
-  NewsCacheManager._();
+  NewsCacheManager._() {
+    _initializeImageProcessor();
+  }
+
+  /// Inicializa el procesador de imágenes con Isolate
+  Future<void> _initializeImageProcessor() async {
+    try {
+      await _imageProcessor.initialize();
+      debugPrint('🚀 ImageProcessor inicializado para noticias');
+    } catch (e) {
+      debugPrint('❌ Error inicializando ImageProcessor: $e');
+    }
+  }
 
   /// Guarda noticias en caché local con timestamp
   Future<void> cacheNews(List<NewsModel> news) async {
@@ -262,19 +276,21 @@ class NewsCacheManager {
     }
   }
 
-  /// Limpia toda la caché de noticias
+  /// Limpia toda la caché de noticias incluyendo Isolate
   Future<void> clearCache() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_newsCacheKey);
       _lruCache.clear();
-      debugPrint('🗑️ Caché de noticias limpiada');
+      await _imageProcessor.dispose(); // Reinicia el Isolate
+      await _initializeImageProcessor(); // Reinicializa
+      debugPrint('🗑️ Caché de noticias limpiada completamente');
     } catch (e) {
       debugPrint('❌ Error limpiando caché: $e');
     }
   }
 
-  /// Obtiene estadísticas del caché
+  /// Obtiene estadísticas del caché incluyendo Isolate
   Future<Map<String, dynamic>> getCacheStats() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -287,6 +303,7 @@ class NewsCacheManager {
           'cache_size_mb': 0.0,
           'has_internet': await hasInternetConnection(),
           'lru_stats': _lruCache.getStats(),
+          'isolate_stats': _imageProcessor.getStats(),
         };
       }
 
@@ -301,6 +318,7 @@ class NewsCacheManager {
         'cache_size_mb': double.parse(cacheSizeMB.toStringAsFixed(2)),
         'has_internet': await hasInternetConnection(),
         'lru_stats': _lruCache.getStats(),
+        'isolate_stats': _imageProcessor.getStats(),
       };
     } catch (e) {
       debugPrint('❌ Error obteniendo estadísticas de caché: $e');
@@ -310,17 +328,152 @@ class NewsCacheManager {
         'cache_size_mb': 0.0,
         'has_internet': false,
         'lru_stats': {},
+        'isolate_stats': {},
       };
     }
   }
 
-  /// Cache para imágenes de noticias
+  /// Cache para imágenes de noticias con Isolate
   Future<void> cacheNewsImage(String imageUrl) async {
     try {
       await _cacheManager.getSingleFile(imageUrl);
       debugPrint('🖼️ Imagen cacheada: $imageUrl');
     } catch (e) {
       debugPrint('❌ Error cacheando imagen: $e');
+    }
+  }
+
+  /// Procesa imagen de noticia usando Isolate para mejor performance
+  Future<ImageProcessingResult> processNewsImageWithIsolate(
+    String imageUrl,
+    String newsId, {
+    int targetWidth = 400,
+    int targetHeight = 300,
+    int quality = 85,
+  }) async {
+    try {
+      debugPrint('📸 Procesando imagen con Isolate: $newsId');
+
+      final result = await _imageProcessor.processNewsImage(
+        imageUrl,
+        newsId,
+        targetWidth: targetWidth,
+        targetHeight: targetHeight,
+        quality: quality,
+      );
+
+      if (result.success) {
+        debugPrint(
+          '✅ Imagen procesada: ${result.newsId} - '
+          'Tamaño original: ${(result.originalSize / 1024).round()}KB, '
+          'Procesado: ${(result.processedSize / 1024).round()}KB, '
+          'Tiempo: ${result.processingTime.inMilliseconds}ms',
+        );
+      } else {
+        debugPrint('❌ Error procesando imagen: ${result.error}');
+      }
+
+      return result;
+    } catch (e) {
+      debugPrint('❌ Error en processNewsImageWithIsolate: $e');
+      return ImageProcessingResult(
+        newsId: newsId,
+        imageUrl: imageUrl,
+        success: false,
+        error: e.toString(),
+        processingTime: Duration.zero,
+      );
+    }
+  }
+
+  /// Procesa múltiples imágenes de noticias en paralelo usando Isolates
+  Future<List<ImageProcessingResult>> processBatchNewsImages(
+    List<NewsModel> newsList, {
+    int targetWidth = 400,
+    int targetHeight = 300,
+    int quality = 85,
+    int maxConcurrent = 3,
+  }) async {
+    try {
+      debugPrint(
+        '📸 Procesando ${newsList.length} imágenes en lotes con Isolate',
+      );
+
+      final imageRequests = newsList
+          .where((news) => news.imageUrl.isNotEmpty)
+          .map(
+            (news) => {
+              'imageUrl': news.imageUrl,
+              'newsId': news.id,
+              'targetWidth': targetWidth,
+              'targetHeight': targetHeight,
+              'quality': quality,
+            },
+          )
+          .toList();
+
+      // Procesar en lotes para no sobrecargar
+      final results = <ImageProcessingResult>[];
+      for (int i = 0; i < imageRequests.length; i += maxConcurrent) {
+        final batch = imageRequests.skip(i).take(maxConcurrent).toList();
+        final batchResults = await _imageProcessor.processMultipleImages(batch);
+        results.addAll(batchResults);
+
+        // Pequeña pausa entre lotes
+        if (i + maxConcurrent < imageRequests.length) {
+          await Future.delayed(const Duration(milliseconds: 100));
+        }
+      }
+
+      final successCount = results.where((r) => r.success).length;
+      debugPrint(
+        '✅ Procesamiento completado: $successCount/${results.length} exitosos',
+      );
+
+      return results;
+    } catch (e) {
+      debugPrint('❌ Error procesando lote de imágenes: $e');
+      return [];
+    }
+  }
+
+  /// Pre-carga y procesa imágenes de noticias prioritarias usando Isolate
+  Future<void> precacheAndProcessImages(List<NewsModel> newsList) async {
+    try {
+      final priorityNews = newsList.take(10).toList(); // Solo las primeras 10
+
+      debugPrint(
+        '⚡ Pre-cacheando y procesando ${priorityNews.length} imágenes prioritarias',
+      );
+
+      // Procesar en background sin esperar
+      processBatchNewsImages(
+            priorityNews,
+            targetWidth: 400,
+            targetHeight: 300,
+            quality: 85,
+            maxConcurrent: 2, // Menos concurrencia para no afectar UI
+          )
+          .then((results) {
+            final successCount = results.where((r) => r.success).length;
+            debugPrint(
+              '⚡ Pre-procesamiento completado: $successCount exitosos',
+            );
+          })
+          .catchError((e) {
+            debugPrint('❌ Error en pre-procesamiento: $e');
+          });
+
+      // También hacer cache tradicional inmediatamente
+      for (final news in priorityNews) {
+        if (news.imageUrl.isNotEmpty) {
+          cacheNewsImage(news.imageUrl).catchError((e) {
+            debugPrint('⚠️ Error pre-cacheando imagen: $e');
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Error en precacheAndProcessImages: $e');
     }
   }
 
@@ -346,17 +499,32 @@ class NewsCacheManager {
   }
 }
 
-/// Extensión para facilitar el uso del cache manager
+/// Extensión para facilitar el uso del cache manager con Isolates
 extension NewsCacheExtension on NewsModel {
   /// Registra que esta noticia fue usada
   Future<void> recordUsage() async {
     await NewsCacheManager.instance.recordNewsUsage(id, this);
   }
 
-  /// Cachea la imagen de esta noticia
+  /// Cachea la imagen de esta noticia usando método tradicional
   Future<void> cacheImage() async {
     if (imageUrl.isNotEmpty) {
       await NewsCacheManager.instance.cacheNewsImage(imageUrl);
     }
+  }
+
+  /// Procesa la imagen de esta noticia usando Isolate para mejor performance
+  Future<ImageProcessingResult> processImageWithIsolate({
+    int targetWidth = 400,
+    int targetHeight = 300,
+    int quality = 85,
+  }) async {
+    return await NewsCacheManager.instance.processNewsImageWithIsolate(
+      imageUrl,
+      id,
+      targetWidth: targetWidth,
+      targetHeight: targetHeight,
+      quality: quality,
+    );
   }
 }

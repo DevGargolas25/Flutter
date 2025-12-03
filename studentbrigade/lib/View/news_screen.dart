@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:studentbrigade/VM/Orchestrator.dart';
 import 'package:studentbrigade/Models/newsModel.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'news_preferences_page.dart';
 
 class NewsScreen extends StatefulWidget {
   final Orchestrator orchestrator;
@@ -125,6 +126,44 @@ class _NewsScreenState extends State<NewsScreen> {
         backgroundColor: colorScheme.primary,
         foregroundColor: colorScheme.onPrimary,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: Icon(
+              widget.orchestrator.newsVM.usePreferencesFilter
+                  ? Icons.filter_alt
+                  : Icons.filter_alt_outlined,
+            ),
+            onPressed: () {
+              final isCurrentlyFiltered =
+                  widget.orchestrator.newsVM.usePreferencesFilter;
+              widget.orchestrator.newsVM.setUsePreferencesFilter(
+                !isCurrentlyFiltered,
+              );
+              if (!isCurrentlyFiltered) {
+                widget.orchestrator.newsVM.applyPreferencesFilter();
+              } else {
+                // Recargar todas las noticias sin filtro
+                widget.orchestrator.newsVM.loadNews();
+              }
+            },
+            tooltip: widget.orchestrator.newsVM.usePreferencesFilter
+                ? 'Quitar filtro de preferencias'
+                : 'Filtrar por preferencias',
+          ),
+          IconButton(
+            icon: const Icon(Icons.tune),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      NewsPreferencesPage(orchestrator: widget.orchestrator),
+                ),
+              );
+            },
+            tooltip: 'Configurar preferencias',
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
           child: Padding(

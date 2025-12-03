@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../VM/Orchestrator.dart';
+import 'news_preferences_page.dart';
 
 class ProfilePage extends StatefulWidget {
   final Orchestrator orchestrator;
@@ -133,7 +134,8 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Perfil actualizado (offline-first)'),
-            backgroundColor: Theme.of(context).snackBarTheme.backgroundColor ??
+            backgroundColor:
+                Theme.of(context).snackBarTheme.backgroundColor ??
                 Theme.of(context).colorScheme.inverseSurface,
           ),
         );
@@ -141,7 +143,9 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
         final err = widget.orchestrator.userVM.errorMessage;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(err ?? 'No se pudo actualizar el perfil. Intenta de nuevo.'),
+            content: Text(
+              err ?? 'No se pudo actualizar el perfil. Intenta de nuevo.',
+            ),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -174,9 +178,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
     final userError = widget.orchestrator.userVM.errorMessage;
 
     if (user == null && _userLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (user == null && userError != null) {
@@ -204,7 +206,10 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
           if (_isEditing) ...[
             TextButton(
               onPressed: _isSaving ? null : _cancelEditing,
-              child: Text('Cancel', style: tt.labelLarge?.copyWith(color: cs.onPrimary)),
+              child: Text(
+                'Cancel',
+                style: tt.labelLarge?.copyWith(color: cs.onPrimary),
+              ),
             ),
             const SizedBox(width: 8),
             FilledButton(
@@ -215,7 +220,10 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
               ),
               child: _isSaving
                   ? const SizedBox(
-                  width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
                   : const Text('Save'),
             ),
             const SizedBox(width: 8),
@@ -394,6 +402,24 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver {
           ),
 
           const SizedBox(height: 32),
+
+          // News Preferences Button
+          _PreferencesButton(
+            title: 'Preferences News',
+            subtitle: 'Configure your favorite news tags',
+            icon: Icons.tune,
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      NewsPreferencesPage(orchestrator: widget.orchestrator),
+                ),
+              );
+            },
+          ),
+
+          const SizedBox(height: 32),
         ],
       ),
     );
@@ -447,14 +473,28 @@ class _ProfileHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(name, style: tt.titleLarge?.copyWith(fontWeight: FontWeight.bold, color: cs.onSurface)),
+                Text(
+                  name,
+                  style: tt.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: cs.onSurface,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text(subtitle, style: tt.bodySmall?.copyWith(color: cs.onSurface.withOpacity(.7))),
+                Text(
+                  subtitle,
+                  style: tt.bodySmall?.copyWith(
+                    color: cs.onSurface.withOpacity(.7),
+                  ),
+                ),
               ],
             ),
           ),
           IconButton(
-            icon: Icon(isEditing ? Icons.close : Icons.edit, color: cs.onSurface),
+            icon: Icon(
+              isEditing ? Icons.close : Icons.edit,
+              color: cs.onSurface,
+            ),
             onPressed: onEditPressed,
             tooltip: isEditing ? 'Close editing' : 'Edit',
           ),
@@ -496,14 +536,22 @@ class _EditableSection extends StatelessWidget {
               children: [
                 Icon(icon, color: cs.primary, size: 20),
                 const SizedBox(width: 8),
-                Text(title, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: cs.onSurface)),
+                Text(
+                  title,
+                  style: tt.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: cs.onSurface,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 16),
-            ...fields.map((field) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: field,
-            )),
+            ...fields.map(
+              (field) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: field,
+              ),
+            ),
           ],
         ),
       ),
@@ -535,7 +583,13 @@ class _EditableField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: tt.bodySmall?.copyWith(fontWeight: FontWeight.w600, color: cs.onSurface)),
+        Text(
+          label,
+          style: tt.bodySmall?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: cs.onSurface,
+          ),
+        ),
         const SizedBox(height: 4),
         TextFormField(
           initialValue: value,
@@ -544,7 +598,10 @@ class _EditableField extends StatelessWidget {
           enabled: isEditing,
           decoration: InputDecoration(
             isCollapsed: false,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 8,
+            ),
           ),
           style: tt.bodyMedium?.copyWith(color: cs.onSurface),
         ),
@@ -583,16 +640,24 @@ class _ReadOnlySection extends StatelessWidget {
               children: [
                 Icon(icon, color: cs.primary, size: 20),
                 const SizedBox(width: 8),
-                Text(title, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: cs.onSurface)),
+                Text(
+                  title,
+                  style: tt.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: cs.onSurface,
+                  ),
+                ),
                 const Spacer(),
                 Icon(Icons.lock, color: cs.onSurface.withOpacity(.4), size: 16),
               ],
             ),
             const SizedBox(height: 16),
-            ...fields.map((field) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: field,
-            )),
+            ...fields.map(
+              (field) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: field,
+              ),
+            ),
           ],
         ),
       ),
@@ -604,10 +669,7 @@ class _ReadOnlyField extends StatelessWidget {
   final String label;
   final String value;
 
-  const _ReadOnlyField({
-    required this.label,
-    required this.value,
-  });
+  const _ReadOnlyField({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -620,7 +682,13 @@ class _ReadOnlyField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: tt.bodySmall?.copyWith(fontWeight: FontWeight.w600, color: cs.onSurface)),
+        Text(
+          label,
+          style: tt.bodySmall?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: cs.onSurface,
+          ),
+        ),
         const SizedBox(height: 4),
         Container(
           decoration: BoxDecoration(
@@ -636,7 +704,9 @@ class _ReadOnlyField extends StatelessWidget {
                   child: Text(
                     isEmpty ? 'Not specified' : value,
                     style: tt.bodyMedium?.copyWith(
-                      color: isEmpty ? cs.onSurface.withOpacity(.6) : cs.onSurface,
+                      color: isEmpty
+                          ? cs.onSurface.withOpacity(.6)
+                          : cs.onSurface,
                       fontStyle: isEmpty ? FontStyle.italic : FontStyle.normal,
                     ),
                   ),
@@ -647,6 +717,79 @@ class _ReadOnlyField extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _PreferencesButton extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  const _PreferencesButton({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final tt = theme.textTheme;
+
+    return Card(
+      color: theme.cardColor,
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onPressed,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: cs.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: cs.primary, size: 24),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: tt.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: cs.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: tt.bodySmall?.copyWith(
+                        color: cs.onSurface.withOpacity(0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                color: cs.onSurface.withOpacity(0.4),
+                size: 16,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
