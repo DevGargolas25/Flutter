@@ -1,0 +1,32 @@
+import 'dart:collection';
+
+class LruEmergencyCache {
+  final int maxSize;
+  final _map = LinkedHashMap<String, Map<String, dynamic>>();
+
+  LruEmergencyCache({this.maxSize = 50});
+
+  Map<String, dynamic>? get(String id) {
+    final value = _map.remove(id);
+    if (value != null) {
+      _map[id] = value; // lo hago "el más reciente"
+    }
+    return value;
+  }
+
+  void put(String id, Map<String, dynamic> emergency) {
+    if (_map.containsKey(id)) {
+      _map.remove(id);
+    }
+    _map[id] = emergency;
+
+    if (_map.length > maxSize) {
+      final oldestKey = _map.keys.first;
+      _map.remove(oldestKey); // LRU: saco el menos reciente
+    }
+  }
+
+  List<Map<String, dynamic>> getAll() => _map.values.toList();
+
+  void clear() => _map.clear();
+}

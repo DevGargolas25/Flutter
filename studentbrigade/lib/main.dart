@@ -22,6 +22,7 @@ import 'View/light_sensor_snackbar_listener.dart';
 // FlutterMap Tiles Cache
 import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
 import 'services/meeting_point_storage.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,6 +55,15 @@ Future<void> main() async {
     );
   } catch (e) {
     debugPrint('Firebase init failed (offline or config issue): $e');
+  }
+
+  // Inicializar Hive para cache local (cached_users)
+  try {
+    await Hive.initFlutter();
+    await Hive.openBox('cached_users');
+    debugPrint('Hive initialized and box "cached_users" opened');
+  } catch (e) {
+    debugPrint('Hive init/openBox failed: $e');
   }
 
   // ✅ Arranca SyncService SOLO después de Firebase.init e INYECTA un Adapter válido

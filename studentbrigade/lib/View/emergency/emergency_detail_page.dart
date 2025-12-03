@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:studentbrigade/VM/Orchestrator.dart';
 import 'package:studentbrigade/Models/userMod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 class EmergencyDetailPage extends StatefulWidget {
   final Orchestrator orchestrator;
@@ -18,11 +20,13 @@ class _EmergencyDetailPageState extends State<EmergencyDetailPage> {
   Map<String, dynamic>? em; // selectedEmergency
   dynamic reporter; // User o Map o null
   bool _loadingReporter = false;
+  bool _noInternetUnableView = false;
 
   @override
   void initState() {
     super.initState();
     em = widget.orchestrator.selectedEmergency;
+    debugPrint('EmergencyDetailPage.initState: selectedEmergency=${em}');
     _loadReporterIfNeeded();
   }
 
@@ -30,20 +34,73 @@ class _EmergencyDetailPageState extends State<EmergencyDetailPage> {
   Future<void> _loadReporterIfNeeded() async {
     if (em == null) return;
 
+    // Si el selectedEmergency ya trae el reporte (inyectado desde Orchestrator), usarlo.
+    try {
+      if (em!.containsKey('reporter') && em!['reporter'] != null) {
+        debugPrint('EmergencyDetailPage: selectedEmergency contains reporter field (injected)');
+        final r = em!['reporter'];
+        if (r is Map) {
+          reporter = User.fromMap(Map<String, dynamic>.from(r));
+          debugPrint('EmergencyDetailPage: reporter loaded from selectedEmergency (map)');
+          return;
+        }
+      }
+      if (em!.containsKey('user') && em!['user'] != null && em!['user'] is Map) {
+        final r = Map<String, dynamic>.from(em!['user']);
+        reporter = User.fromMap(r);
+        return;
+      }
+    } catch (_) {}
+
     // En tu diseño, userId es el email del usuario que reporta
     final raw = em!['userId'];
-    if (raw == null || raw.toString().trim().isEmpty) return;
+    if (raw == null || raw.toString().trim().isEmpty) {
+      debugPrint('EmergencyDetailPage: no userId found in selectedEmergency (raw=$raw)');
+      return;
+    }
 
     final email = raw.toString().trim();
     setState(() => _loadingReporter = true);
 
     try {
+      final conn = await Connectivity().checkConnectivity();
+      final offline = conn == ConnectivityResult.none;
+
+      // Si estamos offline, intentar leer de Hive primero
+      if (!offline) {
+        try {
+          final box = Hive.box('cached_users');
+          final key = email.toLowerCase();
+          debugPrint('EmergencyDetailPage: Hive box open, checking key=$key');
+          final cached = box.get(key);
+          if (cached != null) {
+            debugPrint('EmergencyDetailPage: found cached user in Hive for $key');
+            reporter = User.fromMap(Map<String, dynamic>.from(cached as Map));
+            return;
+          }
+          // no está en cache local
+          debugPrint('EmergencyDetailPage: no cached user in Hive for $key');
+          _noInternetUnableView = true;
+          return;
+        } catch (e) {
+          debugPrint('Hive read error: $e');
+          // seguir con intento online como fallback
+        }
+      }
+
       dynamic fetched;
 
       // 1) Intentar obtener un Map directo desde RTDB
       final map = await widget.orchestrator.loadUserMapByEmail(email);
       if (map != null) {
+        debugPrint('EmergencyDetailPage: loadUserMapByEmail returned map for $email');
         reporter = User.fromMap(Map<String, dynamic>.from(map));
+        // recalentar Hive cache opcionalmente
+        try {
+          final box = Hive.box('cached_users');
+          final key = (map['email'] as String?)?.toLowerCase() ?? (map['id'] as String? ?? email);
+          await box.put(key, Map<String, dynamic>.from(map));
+        } catch (_) {}
         return;
       }
 
@@ -51,16 +108,19 @@ class _EmergencyDetailPageState extends State<EmergencyDetailPage> {
       fetched = await widget.orchestrator.loadUserByEmail(email);
 
       if (fetched is User) {
+        debugPrint('EmergencyDetailPage: loadUserByEmail returned User for $email');
         reporter = fetched;
       } else if (fetched is Map) {
+        debugPrint('EmergencyDetailPage: loadUserByEmail returned Map for $email');
         reporter = User.fromMap(Map<String, dynamic>.from(fetched));
       } else {
+        debugPrint('EmergencyDetailPage: loadUserByEmail returned null for $email');
         reporter = null;
       }
     } catch (e) {
       debugPrint('Error loading reporter: $e');
       reporter = null;
-    } finally {
+      } finally {
       if (mounted) setState(() => _loadingReporter = false);
     }
   }
@@ -509,7 +569,9 @@ class _EmergencyDetailPageState extends State<EmergencyDetailPage> {
                       Text(_reporterEmail()),
                       const SizedBox(height: 6),
                       Text(_reporterPhone()),
-                    ] else
+                    ] else if (_noInternetUnableView)
+                      const Text('No internet — unable to view user')
+                    else
                       const Text('No reporter details available'),
                   ],
                 ),

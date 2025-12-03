@@ -15,6 +15,8 @@ import '../Models/mapMod.dart' as map;
 
 // Adapter (Firebase RTDB)
 import 'Adapter.dart';
+import '../Caches/lruEmergencyCache';
+import 'package:hive_flutter/hive_flutter.dart';
 
 class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
   EmergencyVM({
@@ -26,6 +28,63 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
     Adapter? adapter, // inyección opcional (tests/mocks)
   }) : _adapter = adapter ?? Adapter() {
     WidgetsBinding.instance.addObserver(this);
+  }
+
+  /// Guarda en Hive los datos de los usuarios reportantes de las primeras 3
+  /// emergencias de la lista. Es "fire-and-forget" para no bloquear el UI.
+  Future<void> _saveFirst3Reporters(List<Map<String, dynamic>> list) async {
+    try {
+      if (list.isEmpty) return;
+      final box = Hive.box('cached_users');
+
+      final max = math.min(3, list.length);
+      for (var i = 0; i < max; i++) {
+        final em = list[i];
+        // Soportar varias claves posibles que identifiquen al reporter
+        final possible = <String?>[
+          (em['userId'] ?? em['user'] ?? em['reporter'])?.toString(),
+          (em['email'])?.toString(),
+        ];
+
+        String? idOrEmail;
+        for (final p in possible) {
+          if (p != null && p.trim().isNotEmpty) {
+            idOrEmail = p.trim();
+            break;
+          }
+        }
+        if (idOrEmail == null) continue;
+
+        Map<String, dynamic>? userMap;
+        try {
+          // Si contiene '@' lo tratamos como email
+          if (idOrEmail.contains('@')) {
+            userMap = await _adapter.getUserByEmail(idOrEmail);
+          } else {
+            // intentar por id
+            userMap = await _adapter.getUser(idOrEmail);
+            // si no se halló por id, intentar como email
+            if (userMap == null && idOrEmail.contains('@')) {
+              userMap = await _adapter.getUserByEmail(idOrEmail);
+            }
+          }
+        } catch (e) {
+          debugPrint('Error fetching reporter ($idOrEmail): $e');
+        }
+
+        if (userMap != null) {
+          // Normalizar la key: preferir email si existe
+          final key = (userMap['email'] as String?)?.toLowerCase() ?? (userMap['id'] as String? ?? idOrEmail);
+          try {
+            await box.put(key, Map<String, dynamic>.from(userMap));
+          } catch (e) {
+            debugPrint('Hive put failed for $key: $e');
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error in _saveFirst3Reporters: $e');
+    }
   }
 
   // --- Dependencia a Firebase RTDB ---
@@ -53,6 +112,21 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
   int? lastCallDurationSeconds;
 
   Emergency? lastEmergency;
+
+  // ------- Unattended emergencies (stream + cache) -------
+  final LruEmergencyCache unattendedCache = LruEmergencyCache(maxSize: 50);
+
+  List<Map<String, dynamic>> unattendedEmergencies = [];
+  bool isLoading = false;
+
+    StreamSubscription<List<Map<String, dynamic>>>? _unattendedSub;
+
+    // StreamController para exponer los unattended al UI (emite cache inmediatamente)
+    final StreamController<List<Map<String, dynamic>>> _unattendedController =
+      StreamController<List<Map<String, dynamic>>>.broadcast();
+
+    Stream<List<Map<String, dynamic>>> get unattendedStream =>
+      _unattendedController.stream;
 
   /// Key generada por Firebase (push id) para la emergencia creada.
   String? lastEmergencyDbKey;
@@ -401,6 +475,53 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
     notifyListeners();
   }
 
+  /// Inicializa la suscripción a emergencias unattended (llamar desde Home.initState)
+  Future<void> initUnattendedStream() async {
+    isLoading = true;
+    notifyListeners();
+    // 1) Mostrar lo que haya en cache (memoria) antes de la red
+    // Preferir la cache centralizada del Adapter si existe
+    List<Map<String, dynamic>> cached = [];
+    try {
+      cached = _adapter.getCachedUnattendedEmergencies();
+    } catch (_) {
+      cached = unattendedCache.getAll();
+    }
+    if (cached.isNotEmpty) {
+      unattendedEmergencies = cached;
+      // Emitir inmediatamente para UI offline
+      if (!_unattendedController.isClosed) _unattendedController.add(unattendedEmergencies);
+      notifyListeners();
+    }
+
+    // 2) Suscribirse al stream del Adapter
+    _unattendedSub?.cancel();
+    _unattendedSub = _adapter.getUnattendedEmergenciesStream().listen(
+      (fromNetwork) {
+        unattendedCache.clear();
+        for (final em in fromNetwork) {
+          final id = em['id'] as String? ?? '';
+          if (id.isNotEmpty) unattendedCache.put(id, Map<String, dynamic>.from(em));
+        }
+
+        unattendedEmergencies = unattendedCache.getAll();
+        // Emitir al stream para que Home/UI reciba incluso sin recargar
+        if (!_unattendedController.isClosed) _unattendedController.add(unattendedEmergencies);
+        notifyListeners();
+
+        // Fire-and-forget: precache reporter profiles for the first 3 emergencies
+        // We try to fetch the reporter (by userId or email) and store the map in Hive
+        _saveFirst3Reporters(fromNetwork);
+      },
+      onError: (e, st) {
+        debugPrint('Error en stream de unattended: $e\n$st');
+      },
+    );
+
+    isLoading = false;
+    notifyListeners();
+  }
+
   // ---------- Guardado en Firebase (interno) ----------
   Future<void> _saveEmergencyIfNeeded() async {
     if (lastEmergency == null) return;
@@ -563,6 +684,8 @@ class EmergencyVM with ChangeNotifier, WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _unattendedSub?.cancel();
+    if (!_unattendedController.isClosed) _unattendedController.close();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }

@@ -22,6 +22,8 @@ import '../Models/emergencyMod.dart';
 import 'package:studentbrigade/View/video_detail_sheet.dart'; //
 import 'package:studentbrigade/View/Auth0/auth_service.dart';
 import 'package:studentbrigade/VM/Adapter.dart';
+import 'package:studentbrigade/services/offline_queue.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 // ===== Sensor de luz / tema =====
 import 'theme_sensor_service.dart';
@@ -537,32 +539,169 @@ class Orchestrator extends ChangeNotifier with WidgetsBindingObserver {
 
   }
 
-  Future<void> attendEmergency({
-    required String emergencyId,
-    required String? brigadistId,
-  }) async {
-    // 1) Actualizar en Firebase
-    await adapter.updateEmergency(
-      emergencyId,              // único posicional
-      status: 'InProgress',     // nombrado
-      brigadistId: brigadistId, // nombrado
-    );
+    /// 👇 Nuevo: stream en tiempo real de Unattended
+  Stream<List<Map<String, dynamic>>> unattendedEmergenciesStream() {
+    return emergencyVM.unattendedStream;
+  }
 
-    // 2) Cargar datos completos de esa emergencia (para la pantalla de detalle)
-    final all = await adapter.getInProgressEmergencies();
-    selectedEmergency = all.firstWhere(
-      (e) {
-        // soportar distintas claves posibles desde el backend
-        final id = e['id'] ?? e['emergencyID'] ?? e['emergencyId'] ?? e['emergency_id'];
-        return id != null && id.toString() == emergencyId.toString();
-      },
-      orElse: () => {},
-    );
+  Future<void> initHome() async {
+    // Arranca stream de emergencias
+    await emergencyVM.initUnattendedStream();
 
-    // 3) Cambiar a la pestaña de Emergency
-    _currentPageIndex = 5; // índice del tab "Emergency"
+    // Carga videos si hace falta
+    if (videoVM.videos.isEmpty) {
+      await videoVM.init();
+    }
+  }
+
+Future<void> attendEmergency({
+  required String emergencyId,
+  required String? brigadistId,
+}) async {
+  try {
+    // ===================== ONLINE / ÉXITO NORMAL =====================
+      try {
+      debugPrint('attendEmergency: attempting online update for $emergencyId');
+      // Envolver la llamada en un timeout para evitar que se quede colgada
+      await adapter
+          .updateEmergency(
+        emergencyId,
+        status: 'InProgress',
+        brigadistId: brigadistId,
+      )
+          .timeout(const Duration(seconds: 6));
+
+      debugPrint('attendEmergency: online update completed for $emergencyId');
+
+      final all = await adapter.getInProgressEmergencies();
+      selectedEmergency = all.firstWhere(
+        (e) {
+          final id = e['id'] ??
+              e['emergencyID'] ??
+              e['emergencyId'] ??
+              e['emergency_id'];
+          return id != null && id.toString() == emergencyId.toString();
+        },
+        orElse: () => <String, dynamic>{},
+      );
+    } catch (e) {
+      // ===================== OFFLINE / ERROR: FALLBACK =====================
+      debugPrint('attendEmergency: online path failed, using offline fallback: $e');
+
+      // 1) Encolar actualización offline
+      try {
+        await OfflineQueue.enqueueUpdate('Emergency', emergencyId, {
+          'status': 'InProgress',
+          'brigadistId': brigadistId,
+        });
+      } catch (err) {
+        debugPrint('attendEmergency: error en OfflineQueue: $err');
+      }
+
+      // 2) Intentar usar caché de unattended
+      try {
+        final cached = adapter.getCachedUnattendedEmergencies();
+        final found = cached.firstWhere(
+          (e) {
+            final id = e['id'] ??
+                e['emergencyID'] ??
+                e['emergencyId'] ??
+                e['emergency_id'];
+            return id != null && id.toString() == emergencyId.toString();
+          },
+          orElse: () => <String, dynamic>{},
+        );
+
+        if (found.isNotEmpty) {
+          final m = Map<String, dynamic>.from(found);
+          m['status'] = 'InProgress';
+          if (brigadistId != null) m['brigadistId'] = brigadistId;
+
+          // Normalizar userId
+          if (m['userId'] == null || m['userId'].toString().trim().isEmpty) {
+            if (m['user'] is Map) {
+              final u = Map<String, dynamic>.from(m['user']);
+              if (u['email'] != null) m['userId'] = u['email'].toString();
+            }
+            if ((m['userId'] == null || m['userId'].toString().isEmpty) &&
+                m['reporter'] is Map) {
+              final r = Map<String, dynamic>.from(m['reporter']);
+              if (r['email'] != null) m['userId'] = r['email'].toString();
+            }
+            if ((m['userId'] == null || m['userId'].toString().isEmpty) &&
+                m['email'] != null) {
+              m['userId'] = m['email'].toString();
+            }
+          }
+
+          selectedEmergency = m;
+
+          // 3) Intentar inyectar perfil desde Hive, pero SIN dejar que explote
+          try {
+            if (Hive.isBoxOpen('cached_users')) {
+              final box = Hive.box('cached_users');
+              String? possibleEmail =
+                  m['userId']?.toString().toLowerCase();
+
+              if ((possibleEmail == null || possibleEmail.isEmpty) &&
+                  m['email'] != null) {
+                possibleEmail = m['email'].toString().toLowerCase();
+              }
+
+              if (possibleEmail != null && possibleEmail.isNotEmpty) {
+                debugPrint(
+                    'Orchestrator: checking Hive for cached user -> $possibleEmail');
+                final cachedUser = box.get(possibleEmail);
+                if (cachedUser is Map) {
+                  debugPrint(
+                      'Orchestrator: found cached user for $possibleEmail');
+                    m['reporter'] = Map<String, dynamic>.from(cachedUser);
+                  m['reporter_cached'] = true;
+                } else {
+                  debugPrint(
+                      'Orchestrator: no cached user for $possibleEmail');
+                  m['reporter_cached'] = false;
+                }
+              } else {
+                m['reporter_cached'] = false;
+              }
+              selectedEmergency = m;
+            } else {
+              debugPrint('Orchestrator: Hive box cached_users not open');
+              m['reporter_cached'] = false;
+              selectedEmergency = m;
+            }
+          } catch (err) {
+            debugPrint('Orchestrator: Hive lookup error: $err');
+            m['reporter_cached'] = false;
+            selectedEmergency = m;
+          }
+        } else {
+          selectedEmergency = {
+            'id': emergencyId,
+            'status': 'InProgress',
+            if (brigadistId != null) 'brigadistId': brigadistId,
+          };
+        }
+      } catch (err) {
+        debugPrint('attendEmergency: error usando caché unattended: $err');
+        selectedEmergency = {
+          'id': emergencyId,
+          'status': 'InProgress',
+          if (brigadistId != null) 'brigadistId': brigadistId,
+        };
+      }
+    }
+  } catch (err, st) {
+    // Cualquier cosa que se haya escapado
+    debugPrint('attendEmergency: UNEXPECTED error: $err\n$st');
+  } finally {
+    // 🌟 ESTO SE EJECUTA SIEMPRE: online, offline, con error, sin error
+    _currentPageIndex = 5; // tab Emergency
     notifyListeners();
   }
+}
+
 
   /// Marca una emergencia como Resolved y limpia la selección.
   Future<void> resolveEmergency(String emergencyId) async {
