@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import '../Models/newsModel.dart';
 import '../Models/news_cache_manager.dart';
+import '../Models/news_preferences_service.dart';
 
 class NewsVM extends ChangeNotifier {
   final NewsService _newsService = NewsService();
   final NewsCacheManager _cacheManager = NewsCacheManager.instance;
+  final NewsPreferencesService _preferencesService =
+      NewsPreferencesService.instance;
 
   // Exposer para testing
   NewsService get newsService => _newsService;
@@ -12,6 +15,8 @@ class NewsVM extends ChangeNotifier {
   // Estado
   List<NewsModel> _news = [];
   List<NewsModel> _filteredNews = [];
+  List<NewsModel> _preferencesFilteredNews =
+      []; // Nueva lista para filtro por preferencias
   bool _isLoading = false;
   bool _isLoadingMore = false;
   String _errorMessage = '';
@@ -19,9 +24,22 @@ class NewsVM extends ChangeNotifier {
   NewsModel? _selectedNews;
   bool _isOffline = false;
   bool _isLoadedFromCache = false;
+  bool _usePreferencesFilter =
+      false; // Nueva opción para filtrar por preferencias
 
   // Getters
-  List<NewsModel> get news => _searchQuery.isEmpty ? _news : _filteredNews;
+  List<NewsModel> get news {
+    if (_searchQuery.isNotEmpty) {
+      return _filteredNews; // Si hay búsqueda, usar lista filtrada por búsqueda
+    } else if (_usePreferencesFilter) {
+      return _preferencesFilteredNews; // Si hay filtro de preferencias, usar esa lista
+    } else {
+      return _news; // Caso normal, todas las noticias
+    }
+  }
+
+  List<NewsModel> get allNews =>
+      _news; // Para obtener todas las noticias sin filtrar
   bool get isLoading => _isLoading;
   bool get isLoadingMore => _isLoadingMore;
   String get errorMessage => _errorMessage;
@@ -32,6 +50,7 @@ class NewsVM extends ChangeNotifier {
   String get searchQuery => _searchQuery;
   bool get isOffline => _isOffline;
   bool get isLoadedFromCache => _isLoadedFromCache;
+  bool get usePreferencesFilter => _usePreferencesFilter;
 
   /// Carga las noticias priorizando caché local
   Future<void> loadNews() async {
@@ -60,6 +79,11 @@ class NewsVM extends ChangeNotifier {
       // 4. Si hay una búsqueda activa, filtrar las noticias
       if (_searchQuery.isNotEmpty) {
         _filterNews(_searchQuery);
+      }
+
+      // 5. Si el filtro por preferencias está activo, aplicarlo
+      if (_usePreferencesFilter) {
+        await applyPreferencesFilter();
       }
 
       debugPrint(
@@ -134,16 +158,12 @@ class NewsVM extends ChangeNotifier {
     }
   }
 
-  /// Pre-carga imágenes en background
+  /// Pre-carga imágenes en background usando Isolate
   void _precacheImages(List<NewsModel> news) {
-    for (final newsItem in news.take(10)) {
-      // Solo las primeras 10
-      if (newsItem.imageUrl.isNotEmpty) {
-        newsItem.cacheImage().catchError((e) {
-          debugPrint('⚠️ Error pre-cargando imagen: $e');
-        });
-      }
-    }
+    // Usar el nuevo sistema con Isolate para mejor performance
+    _cacheManager.precacheAndProcessImages(news).catchError((e) {
+      debugPrint('⚠️ Error pre-cargando imágenes con Isolate: $e');
+    });
   }
 
   /// Busca noticias por término
@@ -319,6 +339,89 @@ class NewsVM extends ChangeNotifier {
     _isLoadedFromCache = false;
     await _loadFromFirebaseWithCache();
     notifyListeners();
+  }
+
+  /// Activa o desactiva el filtro por preferencias
+  void setUsePreferencesFilter(bool use) {
+    _usePreferencesFilter = use;
+    if (use) {
+      applyPreferencesFilter(); // Aplicar el filtro inmediatamente
+    }
+    notifyListeners();
+    debugPrint(
+      '📰 Filtro por preferencias ${use ? "activado" : "desactivado"}',
+    );
+  }
+
+  /// Aplica el filtro por preferencias a la lista actual de noticias
+  Future<void> applyPreferencesFilter() async {
+    try {
+      final preferredTags = await _preferencesService.getPreferredTags();
+
+      if (preferredTags.isEmpty) {
+        // Si no hay preferencias configuradas, mostrar todas las noticias
+        _preferencesFilteredNews = List.from(_news);
+      } else {
+        // Filtrar noticias por tags preferidos
+        _preferencesFilteredNews = _news.where((news) {
+          return news.tags.any((tag) => preferredTags.contains(tag));
+        }).toList();
+      }
+
+      notifyListeners();
+      debugPrint(
+        '📰 Filtro aplicado: ${_preferencesFilteredNews.length}/${_news.length} noticias',
+      );
+    } catch (e) {
+      debugPrint('❌ Error aplicando filtro por preferencias: $e');
+      _preferencesFilteredNews = List.from(
+        _news,
+      ); // Fallback a todas las noticias
+      notifyListeners();
+    }
+  }
+
+  /// Obtiene noticias filtradas por preferencias de tags del usuario
+  Future<List<NewsModel>> getNewsFilteredByPreferences() async {
+    try {
+      final preferredTags = await _preferencesService.getPreferredTags();
+
+      if (preferredTags.isEmpty) {
+        // Si no hay preferencias, devolver todas las noticias
+        return _news;
+      }
+
+      // Filtrar noticias que contengan al menos uno de los tags preferidos
+      final filteredNews = _news.where((news) {
+        return news.tags.any((tag) => preferredTags.contains(tag));
+      }).toList();
+
+      debugPrint(
+        '📰 Filtrado por preferencias: ${filteredNews.length}/${_news.length} noticias',
+      );
+      return filteredNews;
+    } catch (e) {
+      debugPrint('❌ Error filtrando por preferencias: $e');
+      return _news;
+    }
+  }
+
+  /// Obtiene todos los tags únicos disponibles en las noticias
+  List<String> getAllAvailableTags() {
+    final allTags = <String>{};
+    for (final news in _news) {
+      allTags.addAll(news.tags);
+    }
+    return allTags.toList()..sort();
+  }
+
+  /// Filtra noticias por tags preferidos
+  List<NewsModel> getNewsByPreferredTags(List<String> preferredTags) {
+    if (preferredTags.isEmpty) return _news;
+
+    return _news.where((news) {
+      return news.tags.any((tag) => preferredTags.contains(tag));
+    }).toList();
   }
 
   // Métodos privados
