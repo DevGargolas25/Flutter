@@ -10,11 +10,14 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../cache/userCache.dart';
 import '../services/offline_queue.dart';
+import '../Caches/lruEmergencyCache';
 
 String _norm(String e) => e.trim().toLowerCase();
 
 class Adapter {
   late FirebaseDatabase _database;
+  // Cache local para unattended emergencies (LRU)
+  static final LruEmergencyCache _unattendedCache = LruEmergencyCache(maxSize: 50);
 
   // Constructor para configurar la URL de la base de datos
   Adapter() {
@@ -72,7 +75,53 @@ class Adapter {
     }
   }
 
-  /// 🔥 SOLO emergencias con status "Unattended"
+  /// 🔥 Stream en tiempo real SOLO de emergencias con status "Unattended"
+Stream<List<Map<String, dynamic>>> getUnattendedEmergenciesStream() {
+  final query = _database
+      .ref('Emergency')
+      .orderByChild('status')
+      .equalTo('Unattended');
+
+  // onValue = Stream<DatabaseEvent>
+  return query.onValue.map((event) {
+    final snapshot = event.snapshot;
+
+    if (!snapshot.exists || snapshot.value == null) {
+      // clear cache if empty snapshot? keep previous cache for offline use
+      return <Map<String, dynamic>>[];
+    }
+
+    final raw = snapshot.value;
+
+    // Normalmente RTDB devuelve Map<key, value>
+    if (raw is Map<dynamic, dynamic>) {
+      final list = raw.entries.map((entry) {
+        final value = entry.value;
+        if (value is Map) {
+          return {
+            'id': entry.key,
+            ...Map<String, dynamic>.from(value),
+          };
+        }
+        return {'id': entry.key};
+      }).toList();
+
+      // actualizar cache local
+      _unattendedCache.clear();
+      for (final em in list) {
+        final id = em['id'] as String? ?? '';
+        if (id.isNotEmpty) _unattendedCache.put(id, Map<String, dynamic>.from(em));
+      }
+
+      return list;
+    }
+
+    // Por si te devolviera otra cosa (lista, etc.)
+    return <Map<String, dynamic>>[];
+  });
+}
+
+/// 🔥 SOLO emergencias con status "Unattended"
   Future<List<Map<String, dynamic>>> getUnattendedEmergencies() async {
     try {
       // Ajusta 'status' y 'Unattended' si en tu RTDB usan otro nombre o mayúsculas.
@@ -89,7 +138,7 @@ class Adapter {
 
       final data = snapshot.value as Map<dynamic, dynamic>;
 
-      return data.entries.map((entry) {
+      final list = data.entries.map((entry) {
         final value = entry.value;
         if (value is Map) {
           return {
@@ -97,16 +146,28 @@ class Adapter {
             ...Map<String, dynamic>.from(value),
           };
         }
-        // Por si algún nodo raro no es Map
-        return {
-          'id': entry.key,
-        };
+        return {'id': entry.key};
       }).toList();
+
+      // guardar en cache LRU para uso rápido (offline)
+      _unattendedCache.clear();
+      for (final em in list) {
+        final id = em['id'] as String? ?? '';
+        if (id.isNotEmpty) _unattendedCache.put(id, Map<String, dynamic>.from(em));
+      }
+
+      return list;
     } catch (e) {
       print('❌ Error getting unattended emergencies: $e');
       throw Exception('Error al obtener emergencias Unattended: $e');
     }
   }
+
+  /// Devuelve la lista actualmente en cache (sin tocar la red)
+  List<Map<String, dynamic>> getCachedUnattendedEmergencies() {
+    return _unattendedCache.getAll();
+  }
+
 
   // Puedes cambiar el status, el brigadista asignado y/o campos extra.
   Future<void> updateEmergency(

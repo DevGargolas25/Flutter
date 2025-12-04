@@ -64,11 +64,15 @@ class _HomePageState extends State<HomePage> {
   // ===== Unattended para brigadistas =====
   List<Map<String, dynamic>> _unattended = [];
   bool _loadingUnattended = false;
+  StreamSubscription<List<Map<String, dynamic>>>? _unattendedSub;
+  bool _unattendedIsCached = false;
+  DateTime? _unattendedLastUpdated;
 
   @override
   void initState() {
     super.initState();
 
+    // Notificaciones rotativas
     _notifTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (!mounted) return;
       setState(() {
@@ -77,13 +81,16 @@ class _HomePageState extends State<HomePage> {
       });
     });
 
+    // Cambio de featured video cada hora
     _hourTimer = Timer.periodic(const Duration(hours: 1), (_) {
       if (!mounted) return;
       setState(() => featuredIndex = currentHourVideoIndex);
     });
 
+    // Inicializar videos una sola vez
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final vm = widget.orchestrator.videoVM;
+       await widget.orchestrator.initHome();
       if (vm.videos.isEmpty) {
         await vm.init();
       }
@@ -91,30 +98,36 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         featuredIndex = currentHourVideoIndex;
       });
+      // Suscribirse al stream de unattended SOLO si es brigadista
+      if (mounted && widget.userType?.toLowerCase() == 'brigadist') {
+        _subscribeToUnattended();
+      }
     });
 
-    // 👇 Solo si es brigadista, cargamos emergencias unattended
-    if (widget.userType?.toLowerCase() == 'brigadist') {
-      _loadUnattended();
-    }
+    // Suscripción a Unattended se realiza después de initHome()
   }
 
-  Future<void> _loadUnattended() async {
+  /// Suscripción al Stream de emergencias Unattended en tiempo real
+  void _subscribeToUnattended() {
     setState(() => _loadingUnattended = true);
-    try {
-      final list = await widget.orchestrator.loadUnattendedEmergencies();
-      if (!mounted) return;
-      setState(() {
-        _unattended = list;
-        _loadingUnattended = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _loadingUnattended = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error loading emergencies')),
-      );
-    }
+
+    _unattendedSub = widget.orchestrator.unattendedEmergenciesStream() // ajusta el nombre si lo llamaste diferente
+        .listen(
+      (list) {
+        if (!mounted) return;
+        setState(() {
+          _unattended = list;
+          _loadingUnattended = false;
+        });
+      },
+      onError: (e) {
+        if (!mounted) return;
+        setState(() => _loadingUnattended = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error loading emergencies')),
+        );
+      },
+    );
   }
 
   Future<void> _onTapEmergencyCard(Map<String, dynamic> emergency) async {
@@ -145,12 +158,13 @@ class _HomePageState extends State<HomePage> {
 
     if (!confirmed) return;
 
-    // Obtenemos el id del brigadista logueado
+    // Obtenemos el id del brigadista logueado (email)
     final user = widget.orchestrator.getUserData();
     final brigadistId = user?.email;
 
     try {
       await widget.orchestrator.attendEmergency(
+        
         emergencyId: emergency['id'] as String,
         brigadistId: brigadistId,
       );
@@ -164,8 +178,7 @@ class _HomePageState extends State<HomePage> {
         ),
       );
 
-      // Refrescar la lista después:
-      _loadUnattended();
+      // No hace falta refrescar manualmente: el Stream se actualizará solo
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -195,6 +208,7 @@ class _HomePageState extends State<HomePage> {
   void dispose() {
     _notifTimer?.cancel();
     _hourTimer?.cancel();
+    _unattendedSub?.cancel();
     super.dispose();
   }
 
@@ -659,7 +673,8 @@ class _HomePageState extends State<HomePage> {
                             child: FilledButton.icon(
                               onPressed: () => _navigateToBloodDonation(context),
                               icon: const Icon(Icons.favorite),
-                              label: const Text('Blood Donation Information'),
+                              label:
+                                  const Text('Blood Donation Information'),
                               style: FilledButton.styleFrom(
                                 backgroundColor: cs.error,
                                 foregroundColor: cs.onError,
@@ -696,7 +711,7 @@ class _EmergencyCard extends StatelessWidget {
 
     final type = (emergency['type'] ?? 'Medical').toString();
     final location = (emergency['location'] ?? 'Unknown').toString();
-    final minutes = (emergency['etaMinutes'] ?? emergency['distance'] ?? 0)
+    final minutes = (emergency['secondsResponse'] ?? emergency['distance'] ?? 0)
         .toString();
 
     return InkWell(
@@ -745,7 +760,7 @@ class _EmergencyCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  '$minutes m',
+                  '$minutes s',
                   style: tt.titleMedium?.copyWith(
                     color: cs.secondary,
                     fontWeight: FontWeight.w700,
