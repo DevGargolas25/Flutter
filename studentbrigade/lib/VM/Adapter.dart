@@ -4,6 +4,7 @@ import '../Models/videoMod.dart';
 import '../Models/userMod.dart';
 import '../Models/emergencyMod.dart';
 import '../Models/newsModel.dart';
+import '../Models/donationMod.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
@@ -1232,6 +1233,243 @@ Stream<List<Map<String, dynamic>>> getUnattendedEmergenciesStream() {
     } catch (e) {
       print('❌ Error eliminando noticia: $e');
       throw Exception('Error al eliminar noticia: $e');
+    }
+  }
+
+  // ===== DONATION OPERATIONS =====
+
+  /// Diagnóstico: obtiene datos crudos de Firebase sin parsear
+  Future<void> debugDonationCentersRaw() async {
+    try {
+      print('🔍🔍🔍 INICIANDO DIAGNÓSTICO DE DONATION CENTERS 🔍🔍🔍');
+      final snapshot = await _database.ref('Donation').get();
+      
+      print('📌 Snapshot exists: ${snapshot.exists}');
+      print('📌 Snapshot value null: ${snapshot.value == null}');
+      print('📌 Snapshot value type: ${snapshot.value?.runtimeType}');
+      
+      if (snapshot.value != null) {
+        print('📌 Raw snapshot value: ${snapshot.value}');
+        
+        if (snapshot.value is Map) {
+          final map = snapshot.value as Map;
+          print('📌 Map entries: ${map.length}');
+          for (var entry in map.entries) {
+            print('  📍 Key: "${entry.key}" (type: ${entry.key.runtimeType})');
+            print('     Value type: ${entry.value.runtimeType}');
+            if (entry.value is Map) {
+              final subMap = entry.value as Map;
+              print('     Sub-keys: ${subMap.keys.toList()}');
+              print('     Sub-values: $subMap');
+            } else {
+              print('     Value: ${entry.value}');
+            }
+          }
+        } else if (snapshot.value is List) {
+          final list = snapshot.value as List;
+          print('📌 List length: ${list.length}');
+          for (int i = 0; i < list.length; i++) {
+            print('  📍 Index $i: ${list[i]}');
+          }
+        }
+      }
+      print('🔍🔍🔍 FIN DIAGNÓSTICO 🔍🔍🔍\n');
+    } catch (e, st) {
+      print('❌ Error en diagnóstico: $e');
+      print('Stack: $st');
+    }
+  }
+
+  /// Obtiene todos los centros de donación desde Firebase
+  Future<List<DonationCenter>> getDonationCenters() async {
+    try {
+      print('🔍 [Adapter] Obteniendo referencia a Donation collection...');
+      final snapshot = await _database.ref('Donation').get();
+
+      print('🔍 [Adapter] Snapshot exists: ${snapshot.exists}');
+      print('🔍 [Adapter] Snapshot value type: ${snapshot.value?.runtimeType}');
+      if (snapshot.value is List) {
+        print('🔍 [Adapter] List length: ${(snapshot.value as List).length}');
+      } else if (snapshot.value is Map) {
+        print('🔍 [Adapter] Map keys: ${(snapshot.value as Map).keys.toList()}');
+      }
+
+      if (!snapshot.exists || snapshot.value == null) {
+        print('⚠️ No donation centers found - snapshot does not exist or is null');
+        return [];
+      }
+
+      final raw = snapshot.value;
+      final centers = <DonationCenter>[];
+
+      print('🔍 [Adapter] Raw data type: ${raw.runtimeType}');
+
+      // Handle both Map and List formats
+      if (raw is Map<dynamic, dynamic>) {
+        print('✅ [Adapter] Formato es Map con ${raw.length} entradas');
+        for (var entry in raw.entries) {
+          try {
+            final id = entry.key.toString();
+            final data = Map<String, dynamic>.from(entry.value as Map);
+            print('🔍 [Adapter] Parsing ID: $id, keys: ${data.keys.toList()}');
+            final center = DonationCenter.fromJson(id, data);
+            centers.add(center);
+            print('✅ Centro de donación cargado: ${center.name}');
+          } catch (e, st) {
+            print('⚠️ Error parsing donation center: $e');
+            print('Stack: $st');
+          }
+        }
+      } else if (raw is List) {
+        print('🔄 [Adapter] Formato de Donation es List con ${raw.length} elementos');
+        for (int i = 0; i < raw.length; i++) {
+          try {
+            final data = Map<String, dynamic>.from(raw[i] as Map);
+            print('🔍 [Adapter] Parsing index $i, keys: ${data.keys.toList()}');
+            final center = DonationCenter.fromJson((i + 1).toString(), data);
+            centers.add(center);
+            print('✅ Centro de donación cargado: ${center.name}');
+          } catch (e, st) {
+            print('⚠️ Error parsing donation center at index $i: $e');
+            print('Stack: $st');
+          }
+        }
+      } else {
+        print('❌ [Adapter] Tipo de dato inesperado: ${raw.runtimeType}. Se esperaba Map o List');
+      }
+
+      print('🔍 [Adapter] Total centros parseados: ${centers.length}');
+      return centers;
+    } catch (e, st) {
+      print('❌ Error obtaining donation centers: $e');
+      print('Stack: $st');
+      throw Exception('Error al obtener centros de donación: $e');
+    }
+  }
+
+  /// Incrementar contador de donaciones para un centro
+  Future<void> incrementDonationCount(String centerId) async {
+    try {
+      final ref = _database.ref('Donation/$centerId/donations');
+      final snapshot = await ref.get();
+      final currentValue = int.tryParse(snapshot.value.toString()) ?? 0;
+      await ref.set(currentValue + 1);
+      print('✅ Contador de donaciones actualizado para centro: $centerId');
+    } catch (e) {
+      print('❌ Error incrementing donation count: $e');
+      rethrow;
+    }
+  }
+
+  /// Stream en tiempo real de centros de donación
+  Stream<List<DonationCenter>> getDonationCentersStream() {
+    return _database.ref('Donation').onValue.map((event) {
+      if (!event.snapshot.exists || event.snapshot.value == null) {
+        return <DonationCenter>[];
+      }
+
+      final raw = event.snapshot.value as Map<dynamic, dynamic>;
+      final centers = <DonationCenter>[];
+
+      for (var entry in raw.entries) {
+        try {
+          final id = entry.key.toString();
+          final data = Map<String, dynamic>.from(entry.value as Map);
+          final center = DonationCenter.fromJson(id, data);
+          centers.add(center);
+        } catch (e) {
+          print('⚠️ Error parsing donation center: $e');
+        }
+      }
+
+      return centers;
+    });
+  }
+
+  /// Registra una donación del usuario en un centro
+  Future<void> recordUserDonation(
+    String userId,
+    String centerId,
+    String semesterYear,
+  ) async {
+    try {
+      final donationRef = _database.ref('UserDonations/$userId/$centerId');
+      final donation = UserDonation(
+        userId: userId,
+        centerId: centerId,
+        donatedAt: DateTime.now(),
+        semesterYear: semesterYear,
+      );
+
+      await donationRef.set({
+        ...donation.toJson(),
+        'createdAt': ServerValue.timestamp,
+      });
+
+      print('✅ Donación registrada: Usuario $userId en Centro $centerId');
+    } catch (e) {
+      print('❌ Error registrando donación: $e');
+      throw Exception('Error al registrar donación: $e');
+    }
+  }
+
+  /// Obtiene si el usuario ya donó en este semestre
+  Future<bool> hasUserDonatedThisSemester(
+    String userId,
+    String centerId,
+    String semesterYear,
+  ) async {
+    try {
+      final snapshot =
+          await _database.ref('UserDonations/$userId/$centerId').get();
+
+      if (!snapshot.exists || snapshot.value == null) {
+        return false;
+      }
+
+      final data = Map<String, dynamic>.from(snapshot.value as Map);
+      final recordedSemester = data['semesterYear'] as String?;
+
+      return recordedSemester == semesterYear;
+    } catch (e) {
+      print('⚠️ Error checking user donation: $e');
+      return false;
+    }
+  }
+
+  /// Obtiene todas las donaciones del usuario en este semestre
+  Future<List<String>> getUserDonationsThisSemester(
+    String userId,
+    String semesterYear,
+  ) async {
+    try {
+      final snapshot = await _database.ref('UserDonations/$userId').get();
+
+      if (!snapshot.exists || snapshot.value == null) {
+        return [];
+      }
+
+      final raw = snapshot.value as Map<dynamic, dynamic>;
+      final donatedCenters = <String>[];
+
+      for (var entry in raw.entries) {
+        try {
+          final centerId = entry.key.toString();
+          final data = Map<String, dynamic>.from(entry.value as Map);
+          final recordedSemester = data['semesterYear'] as String?;
+
+          if (recordedSemester == semesterYear) {
+            donatedCenters.add(centerId);
+          }
+        } catch (e) {
+          print('⚠️ Error parsing user donation: $e');
+        }
+      }
+
+      return donatedCenters;
+    } catch (e) {
+      print('❌ Error obtaining user donations: $e');
+      return [];
     }
   }
 }

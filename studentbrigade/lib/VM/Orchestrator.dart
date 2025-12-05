@@ -817,4 +817,35 @@ Future<void> attendEmergency({
   double? get lastLatitude => _emergencyVM.lastLatitude;
   double? get lastLongitude => _emergencyVM.lastLongitude;
   DateTime? get lastLocationAt => _emergencyVM.lastLocationAt;
+
+  // ---------- BLOOD DONATION ----------
+  /// Carga los centros de donación desde Firebase
+  Future<void> loadDonationCenters() => _mapVM.loadDonationCentersToCache();
+
+  /// Obtiene lista de centros de donación
+  List<dynamic> getDonationCenters() => _mapVM.getDonationCentersFromCache();
+
+  /// Registra que el usuario donó en un centro
+  Future<bool> registerDonation(
+    String userId,
+    String centerId,
+    String semesterYear,
+  ) =>
+      _mapVM.registerUserDonation(userId, centerId, semesterYear);
+
+  /// Incrementar contador de donaciones en un centro
+  Future<void> incrementDonationCount(String centerId) =>
+      _mapVM.incrementDonationCountAtCenter(centerId);
+
+  /// Verifica si el usuario ya donó en un centro
+  Future<bool> checkIfUserDonated(
+    String userId,
+    String centerId,
+    String semesterYear,
+  ) =>
+      _mapVM.hasUserDonated(userId, centerId, semesterYear);
+
+  /// Obtiene centros donde el usuario ya donó este semestre
+  Future<List<String>> getUserDonatedCenters(String userId, String semesterYear) =>
+      _mapVM.getUserDonatedCenters(userId, semesterYear);
 }

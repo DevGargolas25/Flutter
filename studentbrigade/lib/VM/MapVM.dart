@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import '../Models/mapMod.dart';
+import '../Models/donationMod.dart';
 import '../services/meeting_point_storage.dart' as storage;
 import '../services/blood_donation_storage.dart';
 import '../Services/connectivity_service.dart';
+import 'Adapter.dart';
 import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -20,6 +22,8 @@ class MapVM extends ChangeNotifier {
 
   // ==================== ESTADO DE CONECTIVIDAD Y STORAGE ====================
   final ConnectivityService _connectivity = ConnectivityService();
+  final Adapter adapter = Adapter();
+  
   List<MapLocation> _meetingPoints = [];
   bool _meetingPointsLoaded = false;
 
@@ -27,11 +31,23 @@ class MapVM extends ChangeNotifier {
   List<MapLocation> _bloodDonationCenters = [];
   bool _bloodDonationCentersLoaded = false;
 
+  // Caché de centros de donación (Map<centerId, DonationCenter>)
+  final Map<String, DonationCenter> _donationCenterCache = {};
+  bool _donationCentersCacheLoaded = false;
+
   // Getters comunes
   UserLocation? get currentUserLocation => _currentUserLocation;
   bool get isLocationLoading => _isLocationLoading;
   bool get isLocationEnabled => _isLocationEnabled;
   String? get locationError => _locationError;
+
+  // ==================== CACHÉ DE DONACIONES ====================
+  /// Obtiene el caché de centros de donación
+  Map<String, DonationCenter> getDonationCenterCache() => _donationCenterCache;
+
+  /// Obtiene un centro de donación específico del caché
+  DonationCenter? getDonationCenterFromCache(String centerId) =>
+      _donationCenterCache[centerId];
 
   // ==================== MAPA NORMAL (Puntos de encuentro) ====================
   RouteData? _meetingPointRoute;
@@ -704,6 +720,98 @@ class MapVM extends ChangeNotifier {
   // Método legacy para compatibilidad
   void clearRoute() {
     clearAllRoutes();
+  }
+
+  // ==================== MÉTODOS DE DONACIÓN ====================
+
+  /// Carga los centros de donación desde Firebase al caché
+  Future<void> loadDonationCentersToCache() async {
+    if (_donationCentersCacheLoaded) return;
+
+    try {
+      print('🔄 Cargando centros de donación desde Firebase...');
+      final centers = await adapter.getDonationCenters();
+
+      _donationCenterCache.clear();
+      for (var center in centers) {
+        _donationCenterCache[center.id] = center;
+      }
+
+      _donationCentersCacheLoaded = true;
+      print('✅ ${_donationCenterCache.length} centros de donación en caché');
+      notifyListeners();
+    } catch (e) {
+      print('❌ Error cargando centros de donación: $e');
+      _donationCentersCacheLoaded = true;
+      notifyListeners();
+    }
+  }
+
+  /// Obtiene lista de centros de donación del caché
+  List<DonationCenter> getDonationCentersFromCache() {
+    return _donationCenterCache.values.toList();
+  }
+
+  /// Registra una donación del usuario
+  Future<bool> registerUserDonation(
+    String userId,
+    String centerId,
+    String semesterYear,
+  ) async {
+    try {
+      await adapter.recordUserDonation(userId, centerId, semesterYear);
+      print('✅ Donación registrada: $userId en centro $centerId');
+      notifyListeners();
+      return true;
+    } catch (e) {
+      print('❌ Error registrando donación: $e');
+      return false;
+    }
+  }
+
+  /// Incrementar contador de donaciones en Firebase (sin necesidad de userId)
+  Future<void> incrementDonationCountAtCenter(String centerId) async {
+    try {
+      await adapter.incrementDonationCount(centerId);
+      // Recargar cache después de actualización
+      await loadDonationCentersToCache();
+      notifyListeners();
+      print('✅ Contador actualizado y cache recargado');
+    } catch (e) {
+      print('❌ Error al incrementar contador: $e');
+      rethrow;
+    }
+  }
+
+  /// Verifica si el usuario ya donó en este semestre en un centro
+  Future<bool> hasUserDonated(
+    String userId,
+    String centerId,
+    String semesterYear,
+  ) async {
+    try {
+      return await adapter.hasUserDonatedThisSemester(
+        userId,
+        centerId,
+        semesterYear,
+      );
+    } catch (e) {
+      print('⚠️ Error verificando donación: $e');
+      return false;
+    }
+  }
+
+  /// Obtiene todos los centros donde el usuario ya donó este semestre
+  Future<List<String>> getUserDonatedCenters(
+    String userId,
+    String semesterYear,
+  ) async {
+    try {
+      return await adapter.getUserDonationsThisSemester(userId, semesterYear);
+    } catch (e) {
+      print('❌ Error obteniendo donaciones del usuario: $e');
+      return [];
+    }
   }
 
   @override
