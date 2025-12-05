@@ -25,10 +25,16 @@ class _BloodDonationPageState extends State<BloodDonationPage> {
   final _fmtcProvider = FMTCTileProvider(
     stores: const {'mapStore': BrowseStoreStrategy.readUpdateCreate},
   );
+  
+  // Track donated centers to disable buttons
+  final Set<String> _donatedCenters = {};
+  bool _isProcessingDonation = false;
 
   @override
   void initState() {
     super.initState();
+    print('🩸 [BloodDonationPage] initState - Iniciando carga de datos...');
+    
     final centers = widget.orchestrator.mapVM.getBloodDonationCenters();
     if (centers.isNotEmpty) {
       final firstPoint = centers.first;
@@ -39,18 +45,34 @@ class _BloodDonationPageState extends State<BloodDonationPage> {
 
     _requestLocation();
     _loadDonationUrl();
+    
+    // 🔍 DIAGNÓSTICO TEMPORAL
+    widget.orchestrator.mapVM.adapter.debugDonationCentersRaw();
+    
+    _loadDonationCentersFromFirebase(); // ← NUEVO: Cargar datos de Firebase
     widget.orchestrator.mapVM.addListener(_onMapVmUpdated);
   }
 
-  Future<void> _loadDonationUrl() async {
-    _donationUrl = await BloodDonationStorage.getDonationUrl();
-    if (mounted) {
-      setState(() {});
+  Future<void> _loadDonationCentersFromFirebase() async {
+    try {
+      print('🩸 [BloodDonationPage] Cargando centros de donación desde Firebase...');
+      await widget.orchestrator.loadDonationCenters();
+      print('🩸 [BloodDonationPage] ✅ Centros cargados correctamente');
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      print('🩸 [BloodDonationPage] ❌ Error cargando centros: $e');
     }
   }
 
-  Future<void> _initializeData() async {
-    await BloodDonationStorage.initialize();
+  Future<void> _loadDonationUrl() async {
+    print('🩸 [BloodDonationPage] Cargando URL de donación...');
+    _donationUrl = await BloodDonationStorage.getDonationUrl();
+    print('🩸 [BloodDonationPage] ✅ URL cargada: $_donationUrl');
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   @override
@@ -206,6 +228,17 @@ class _BloodDonationPageState extends State<BloodDonationPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ===== IMAGEN HEADER =====
+            Container(
+              width: double.infinity,
+              height: 200,
+              color: cs.primary,
+              child: Image.asset(
+                'lib/LocalStorage/gotita_donar.png',
+                fit: BoxFit.cover,
+              ),
+            ),
+            
             // ===== SECCIÓN DE DESCRIPCIÓN CON IMAGEN =====
             Container(
               padding: const EdgeInsets.all(16),
@@ -240,32 +273,49 @@ class _BloodDonationPageState extends State<BloodDonationPage> {
                     ),
                     child: Column(
                       children: [
-                        // Encabezado con imagen y título
+                        // Imagen de encabezado
                         Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
+                          height: 180,
+                          decoration: const BoxDecoration(
+                            borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(12),
+                            ),
+                          ),
+                          child: ClipRRect(
                             borderRadius: const BorderRadius.vertical(
                               top: Radius.circular(12),
                             ),
+                            child: Image.asset(
+                              'assets/images/gotita_donar.png',
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  color: cs.primaryContainer,
+                                  child: Icon(
+                                    Icons.bloodtype,
+                                    size: 80,
+                                    color: cs.primary,
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                        // Título
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
                             color: cs.primaryContainer,
                           ),
-                          child: Column(
-                            children: [
-                              Icon(
-                                Icons.bloodtype,
-                                size: 50,
-                                color: cs.primary,
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                'Near You',
-                                style: tt.titleLarge?.copyWith(
-                                  color: cs.primary,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            'Blood Donation Centers Near You',
+                            style: tt.titleLarge?.copyWith(
+                              color: cs.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
                         ),
                         // Descripción
@@ -374,60 +424,167 @@ class _BloodDonationPageState extends State<BloodDonationPage> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  ...widget.orchestrator.mapVM
-                      .getBloodDonationCenters()
-                      .map((center) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: theme.cardColor,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: theme.dividerColor),
+                  Builder(
+                    builder: (context) {
+                      final centers = widget.orchestrator.getDonationCenters();
+                      print('🩸 [BloodDonationPage UI] Rendering ${centers.length} centros');
+                      
+                      if (centers.isEmpty) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Text(
+                              'No donation centers available',
+                              style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+                            ),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
+                        );
+                      }
+
+                      return Column(
+                        children: centers.map((center) {
+                          print('🩸 [BloodDonationPage] Rendering center: ${center.name}');
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: theme.cardColor,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: theme.dividerColor),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Container(
-                                    width: 32,
-                                    height: 32,
-                                    decoration: BoxDecoration(
-                                      color: cs.error,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(
-                                      Icons.favorite,
-                                      color: cs.onError,
-                                      size: 16,
+                                  // Nombre en negrilla con icono
+                                  Row(
+                                    children: [
+                                      Container(
+                                        width: 32,
+                                        height: 32,
+                                        decoration: BoxDecoration(
+                                          color: cs.error,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(
+                                          Icons.favorite,
+                                          color: cs.onError,
+                                          size: 16,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          center.name,
+                                          style: tt.headlineSmall?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: cs.onSurface,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+
+                                  // Información en filas
+                                  Text(
+                                    'Open: ${center.openTime}',
+                                    style: tt.bodyMedium?.copyWith(
+                                      color: cs.onSurface,
                                     ),
                                   ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      center.name,
-                                      style: tt.labelLarge?.copyWith(
-                                        fontWeight: FontWeight.w600,
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Close: ${center.closeTime}',
+                                    style: tt.bodyMedium?.copyWith(
+                                      color: cs.onSurface,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Donations: ${center.donations}',
+                                    style: tt.bodyMedium?.copyWith(
+                                      color: cs.onSurface,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+
+                                  // Botón de donación
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: FilledButton(
+                                      onPressed: (_donatedCenters.isNotEmpty && !_donatedCenters.contains(center.id)) || _isProcessingDonation
+                                          ? null  // Disable if already donated in another center or processing
+                                          : () async {
+                                              if (_isProcessingDonation) return;
+                                              
+                                              print('🩸 [BloodDonationPage] Usuario intenta donar en ${center.name} (ID: ${center.id})');
+                                              setState(() => _isProcessingDonation = true);
+                                              
+                                              try {
+                                                // Increment donation count
+                                                await widget.orchestrator.incrementDonationCount(center.id);
+                                                print('🩸 [BloodDonationPage] ✅ Donación registrada en ${center.name}');
+                                                
+                                                // Mark center as donated
+                                                setState(() {
+                                                  _donatedCenters.add(center.id);
+                                                  _isProcessingDonation = false;
+                                                });
+                                                
+                                                if (mounted) {
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    SnackBar(
+                                                      content: Text('¡Gracias por donar en ${center.name}!'),
+                                                      backgroundColor: cs.error,
+                                                      duration: const Duration(seconds: 2),
+                                                    ),
+                                                  );
+                                                }
+                                              } catch (e) {
+                                                print('❌ Error en donación: $e');
+                                                setState(() => _isProcessingDonation = false);
+                                                
+                                                if (mounted) {
+                                                  ScaffoldMessenger.of(context).showSnackBar(
+                                                    SnackBar(
+                                                      content: Text('Error al registrar donación: $e'),
+                                                      backgroundColor: cs.errorContainer,
+                                                    ),
+                                                  );
+                                                }
+                                              }
+                                            },
+                                      style: FilledButton.styleFrom(
+                                        backgroundColor: _donatedCenters.contains(center.id)
+                                            ? cs.tertiaryContainer  // Light gray for donated
+                                            : (_donatedCenters.isNotEmpty && !_donatedCenters.contains(center.id))
+                                                ? cs.surfaceVariant  // Disabled gray
+                                                : cs.error,  // Red for active
+                                        foregroundColor: _donatedCenters.contains(center.id)
+                                            ? cs.onTertiary
+                                            : (_donatedCenters.isNotEmpty && !_donatedCenters.contains(center.id))
+                                                ? cs.onSurfaceVariant
+                                                : cs.onError,
+                                      ),
+                                      child: Text(
+                                        _donatedCenters.contains(center.id)
+                                            ? 'Thanks for your donation! ❤️'
+                                            : (_donatedCenters.isNotEmpty && !_donatedCenters.contains(center.id))
+                                                ? 'Already donated at another center'
+                                                : 'Donate Here',
+                                        style: tt.labelLarge,
                                       ),
                                     ),
                                   ),
                                 ],
                               ),
-                              if (center.description != null) ...[
-                                const SizedBox(height: 8),
-                                Text(
-                                  center.description!,
-                                  style: tt.bodySmall?.copyWith(
-                                    color: cs.onSurfaceVariant,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ))
-                      .toList(),
+                            ),
+                          );
+                        }).toList(),
+                      );
+                    },
+                  ),
                 ],
               ),
             ),
